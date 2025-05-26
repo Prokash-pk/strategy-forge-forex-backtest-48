@@ -1,10 +1,10 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Target, Shield, BarChart3 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface BacktestResultsProps {
   results: any;
@@ -128,7 +128,7 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
         <TabsList className="grid w-full grid-cols-4 bg-slate-800 border border-slate-700">
           <TabsTrigger value="equity" className="data-[state=active]:bg-emerald-600">Equity Curve</TabsTrigger>
           <TabsTrigger value="monthly" className="data-[state=active]:bg-emerald-600">Monthly Returns</TabsTrigger>
-          <TabsTrigger value="trades" className="data-[state=active]:bg-emerald-600">Trade Log</TabsTrigger>
+          <TabsTrigger value="trades" className="data-[state=active]:bg-emerald-600">Trade Log ({results.trades.length})</TabsTrigger>
           <TabsTrigger value="stats" className="data-[state=active]:bg-emerald-600">Statistics</TabsTrigger>
         </TabsList>
 
@@ -204,42 +204,43 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
         <TabsContent value="trades">
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader>
-              <CardTitle className="text-white">Trade Log</CardTitle>
+              <CardTitle className="text-white">Complete Trade Log</CardTitle>
+              <p className="text-slate-400 text-sm">Showing all {results.trades.length} trades executed</p>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-700">
-                      <th className="text-left p-2 text-slate-400">ID</th>
-                      <th className="text-left p-2 text-slate-400">Date</th>
-                      <th className="text-left p-2 text-slate-400">Type</th>
-                      <th className="text-left p-2 text-slate-400">Entry</th>
-                      <th className="text-left p-2 text-slate-400">Exit</th>
-                      <th className="text-left p-2 text-slate-400">P&L</th>
-                      <th className="text-left p-2 text-slate-400">Duration</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.trades.slice(0, 10).map((trade: any) => (
-                      <tr key={trade.id} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                        <td className="p-2 text-white">{trade.id}</td>
-                        <td className="p-2 text-slate-300">{trade.date.toLocaleDateString()}</td>
-                        <td className="p-2">
+              <div className="max-h-96 overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-700 hover:bg-slate-700/30">
+                      <TableHead className="text-slate-400">Trade #</TableHead>
+                      <TableHead className="text-slate-400">Date</TableHead>
+                      <TableHead className="text-slate-400">Type</TableHead>
+                      <TableHead className="text-slate-400">Entry</TableHead>
+                      <TableHead className="text-slate-400">Exit</TableHead>
+                      <TableHead className="text-slate-400">P&L</TableHead>
+                      <TableHead className="text-slate-400">Duration</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {results.trades.map((trade: any) => (
+                      <TableRow key={trade.id} className="border-slate-700 hover:bg-slate-700/30">
+                        <TableCell className="text-white font-medium">{trade.id}</TableCell>
+                        <TableCell className="text-slate-300">{trade.date.toLocaleDateString()}</TableCell>
+                        <TableCell>
                           <Badge variant={trade.type === 'BUY' ? 'default' : 'secondary'} className="text-xs">
                             {trade.type}
                           </Badge>
-                        </td>
-                        <td className="p-2 text-slate-300">{trade.entry.toFixed(5)}</td>
-                        <td className="p-2 text-slate-300">{trade.exit.toFixed(5)}</td>
-                        <td className={`p-2 font-semibold ${trade.pnl > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        </TableCell>
+                        <TableCell className="text-slate-300">{trade.entry.toFixed(5)}</TableCell>
+                        <TableCell className="text-slate-300">{trade.exit.toFixed(5)}</TableCell>
+                        <TableCell className={`font-semibold ${trade.pnl > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           ${trade.pnl.toFixed(2)}
-                        </td>
-                        <td className="p-2 text-slate-300">{trade.duration}m</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="text-slate-300">{trade.duration}m</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
