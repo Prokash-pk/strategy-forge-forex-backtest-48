@@ -179,7 +179,9 @@ def strategy_logic(data):
         <div className="lg:col-span-2 space-y-6">
           <StrategyConfiguration 
             strategy={strategy} 
-            onStrategyChange={handleStrategyChange} 
+            onStrategyChange={handleStrategyChange}
+            onRunBacktest={handleRunBacktest}
+            isRunning={isRunning}
           />
         </div>
 

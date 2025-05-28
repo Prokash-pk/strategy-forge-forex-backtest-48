@@ -16,9 +16,16 @@ interface StrategyConfigurationProps {
     code: string;
   };
   onStrategyChange: (updates: any) => void;
+  onRunBacktest?: () => void;
+  isRunning?: boolean;
 }
 
-const StrategyConfiguration: React.FC<StrategyConfigurationProps> = ({ strategy, onStrategyChange }) => {
+const StrategyConfiguration: React.FC<StrategyConfigurationProps> = ({ 
+  strategy, 
+  onStrategyChange,
+  onRunBacktest,
+  isRunning = false
+}) => {
   const [activeTab, setActiveTab] = React.useState('visual');
 
   const handleStrategyGenerated = (code: string) => {
@@ -72,7 +79,9 @@ const StrategyConfiguration: React.FC<StrategyConfigurationProps> = ({ strategy,
           <TabsContent value="python">
             <PythonStrategyTab 
               strategy={strategy} 
-              onStrategyChange={onStrategyChange} 
+              onStrategyChange={onStrategyChange}
+              onRunBacktest={onRunBacktest}
+              isRunning={isRunning}
             />
           </TabsContent>
         </Tabs>
