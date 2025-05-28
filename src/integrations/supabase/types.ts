@@ -9,48 +9,7 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      strategy_results: {
-        Row: {
-          created_at: string | null
-          id: string
-          max_drawdown: number | null
-          profit_factor: number | null
-          strategy_code: string
-          strategy_name: string
-          symbol: string
-          timeframe: string
-          total_return: number | null
-          total_trades: number | null
-          win_rate: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          max_drawdown?: number | null
-          profit_factor?: number | null
-          strategy_code: string
-          strategy_name: string
-          symbol: string
-          timeframe: string
-          total_return?: number | null
-          total_trades?: number | null
-          win_rate?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          max_drawdown?: number | null
-          profit_factor?: number | null
-          strategy_code?: string
-          strategy_name?: string
-          symbol?: string
-          timeframe?: string
-          total_return?: number | null
-          total_trades?: number | null
-          win_rate?: number | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Views: {
       [_ in never]: never
