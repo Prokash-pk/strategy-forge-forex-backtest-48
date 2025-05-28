@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Copy, TrendingUp, AlertTriangle, Target, Brain, Plus, Zap, Sparkles } from 'lucide-react';
+import { Copy, TrendingUp, AlertTriangle, Target, Brain, Plus, Zap, Sparkles, Info } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StrategyCoach as StrategyCoachService, StrategyAnalysis } from '@/services/strategyCoach';
 import { AIStrategyCoach, AIStrategyAnalysis } from '@/services/aiStrategyCoach';
@@ -24,11 +24,20 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
   const [useAI, setUseAI] = useState(false);
   const { toast } = useToast();
 
-  console.log('StrategyCoach received results:', results);
+  console.log('StrategyCoach received:', { 
+    hasResults: !!results, 
+    hasCode: !!strategyCode, 
+    resultsType: typeof results,
+    codeLength: strategyCode?.length || 0
+  });
+
+  // Check if we have the minimum requirements for AI analysis
+  const canRunAIAnalysis = !!(strategyCode?.trim() && results && results.trades && results.trades.length > 0);
+  const hasBasicResults = !!(results && results.trades);
 
   React.useEffect(() => {
-    if (results && results.trades) {
-      console.log('Starting strategy analysis...');
+    if (hasBasicResults) {
+      console.log('Starting basic strategy analysis...');
       setIsAnalyzing(true);
       setTimeout(() => {
         try {
@@ -37,18 +46,23 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
           setAnalysis(analysisResult);
           setIsAnalyzing(false);
         } catch (error) {
-          console.error('Analysis failed:', error);
+          console.error('Basic analysis failed:', error);
           setIsAnalyzing(false);
         }
       }, 1500);
     }
-  }, [results]);
+  }, [hasBasicResults]);
 
   const handleAIAnalysis = async () => {
-    if (!strategyCode || !results) {
+    if (!canRunAIAnalysis) {
+      let missingRequirements = [];
+      if (!strategyCode?.trim()) missingRequirements.push("strategy code");
+      if (!results) missingRequirements.push("backtest results");
+      if (!results?.trades?.length) missingRequirements.push("trade data");
+      
       toast({
-        title: "Cannot Analyze",
-        description: "Strategy code and results are required for AI analysis",
+        title: "Cannot Run AI Analysis",
+        description: `Missing required data: ${missingRequirements.join(", ")}. Please run a backtest with your strategy first.`,
         variant: "destructive",
       });
       return;
@@ -56,6 +70,12 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
 
     setIsAiAnalyzing(true);
     try {
+      console.log('Starting AI analysis with:', {
+        codeLength: strategyCode.length,
+        tradesCount: results.trades.length,
+        winRate: results.winRate
+      });
+      
       const aiAnalysisResult = await AIStrategyCoach.analyzeStrategyWithAI(strategyCode, results);
       console.log('AI analysis completed:', aiAnalysisResult);
       setAiAnalysis(aiAnalysisResult);
@@ -63,13 +83,13 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
       
       toast({
         title: "AI Analysis Complete!",
-        description: "Advanced strategy insights generated",
+        description: `Generated ${aiAnalysisResult.recommendations.length} intelligent recommendations`,
       });
     } catch (error) {
       console.error('AI analysis failed:', error);
       toast({
         title: "AI Analysis Failed",
-        description: "Falling back to basic analysis",
+        description: `Error: ${error instanceof Error ? error.message : 'Unknown error'}. Using basic analysis instead.`,
         variant: "destructive",
       });
     } finally {
@@ -172,13 +192,27 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
     }
   };
 
-  if (!results || !results.trades) {
+  // Show initial state if no results
+  if (!hasBasicResults) {
     return (
       <Card className="bg-slate-800 border-slate-700">
         <CardContent className="p-8 text-center">
           <Brain className="h-16 w-16 mx-auto mb-4 text-slate-500" />
           <h3 className="text-xl font-semibold text-white mb-2">Strategy Coach</h3>
-          <p className="text-slate-400">Run a backtest to get personalized strategy recommendations</p>
+          <p className="text-slate-400 mb-4">Run a backtest to get personalized strategy recommendations</p>
+          <div className="bg-slate-700 p-4 rounded-lg">
+            <div className="flex items-start gap-3">
+              <Info className="h-5 w-5 text-blue-400 mt-0.5" />
+              <div className="text-left">
+                <p className="text-slate-300 text-sm font-medium mb-1">Requirements for AI Analysis:</p>
+                <ul className="text-slate-400 text-xs space-y-1">
+                  <li>• Strategy code in the builder</li>
+                  <li>• Completed backtest with trade results</li>
+                  <li>• At least one executed trade</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     );
@@ -248,20 +282,28 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
             </CardTitle>
           </div>
           {!useAI && !isAiAnalyzing && (
-            <Button
-              onClick={handleAIAnalysis}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
-              size="sm"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              AI Analysis
-            </Button>
+            <div className="flex items-center gap-2">
+              {!canRunAIAnalysis && (
+                <div className="text-xs text-slate-500 mr-2">
+                  Need: code + results
+                </div>
+              )}
+              <Button
+                onClick={handleAIAnalysis}
+                disabled={!canRunAIAnalysis}
+                className={`${canRunAIAnalysis ? 'bg-purple-600 hover:bg-purple-700' : 'bg-slate-600 cursor-not-allowed'} text-white`}
+                size="sm"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                AI Analysis
+              </Button>
+            </div>
           )}
         </div>
         <p className="text-slate-400 text-sm">
           {useAI 
             ? 'Advanced AI-powered analysis and recommendations'
-            : 'Rule-based analysis and recommendations - upgrade to AI for deeper insights'
+            : `Rule-based analysis and recommendations${canRunAIAnalysis ? ' - upgrade to AI for deeper insights' : ' - run backtest for AI analysis'}`
           }
         </p>
       </CardHeader>
