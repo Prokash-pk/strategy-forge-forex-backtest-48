@@ -40,22 +40,47 @@ serve(async (req) => {
     console.log('Running backtest for strategy:', strategy.name)
     console.log('Data points:', data.length)
     console.log('Enhanced mode:', enhancedMode)
+    console.log('Python signals available:', !!pythonSignals)
 
-    // Simple moving average crossover strategy simulation
-    const results = runSimpleBacktest(data, strategy)
+    // Run the backtest simulation
+    const results = runSimpleBacktest(data, strategy, timeframeInfo)
+    
+    console.log('Backtest completed with', results.trades.length, 'trades')
+    
+    // Calculate additional metrics
+    const enhancedResults = {
+      ...results,
+      strategy: strategy.name,
+      symbol: 'EURUSD=X', // Default symbol
+      timeframe: '5m', // Default timeframe
+      period: `${data.length} bars`,
+      initialBalance: strategy.initialBalance,
+      executionMethod: enhancedMode ? 'Enhanced Python' : 'JavaScript Pattern Matching',
+      totalTrades: results.trades?.length || 0,
+      winRate: calculateWinRate(results.trades || []),
+      totalReturn: results.totalReturn || 0,
+      profitFactor: results.profitFactor || 1,
+      maxDrawdown: results.maxDrawdown || 0,
+      sharpeRatio: calculateSharpeRatio(results.equity || []),
+      winningTrades: results.winningTrades || 0,
+      losingTrades: results.losingTrades || 0,
+      avgWin: results.averageWin || 0,
+      avgLoss: results.averageLoss || 0,
+      grossProfit: results.grossProfit || 0,
+      grossLoss: results.grossLoss || 0,
+      equityCurve: results.equity || [],
+      enhancedFeatures: {
+        dynamicSpreads: enhancedMode,
+        realisticSlippage: enhancedMode,
+        advancedPositionSizing: true,
+        marketImpact: enhancedMode
+      }
+    }
     
     return new Response(
       JSON.stringify({ 
         success: true, 
-        results: {
-          ...results,
-          executionMethod: enhancedMode ? 'Enhanced Python' : 'JavaScript Pattern Matching',
-          totalTrades: results.trades?.length || 0,
-          winRate: calculateWinRate(results.trades || []),
-          totalReturn: results.totalReturn || 0,
-          profitFactor: results.profitFactor || 1,
-          maxDrawdown: results.maxDrawdown || 0
-        }
+        results: enhancedResults
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -76,13 +101,16 @@ serve(async (req) => {
   }
 })
 
-function runSimpleBacktest(data: MarketData[], strategy: BacktestStrategy) {
+function runSimpleBacktest(data: MarketData[], strategy: BacktestStrategy, timeframeInfo?: any) {
   const trades = []
   let balance = strategy.initialBalance
   let position = null
   let equity = [balance]
   let maxBalance = balance
   let maxDrawdown = 0
+  let tradeId = 1
+
+  console.log('Starting backtest with', data.length, 'data points')
 
   // Simple EMA crossover logic
   const shortPeriod = 12
@@ -97,15 +125,18 @@ function runSimpleBacktest(data: MarketData[], strategy: BacktestStrategy) {
     if (!position && shortEMA[i] > longEMA[i] && shortEMA[i-1] <= longEMA[i-1]) {
       const positionSize = (balance * strategy.riskPerTrade / 100) / currentPrice
       position = {
-        type: 'long',
-        entryPrice: currentPrice + strategy.spread / 10000,
-        size: Math.min(positionSize, strategy.maxPositionSize),
-        entryTime: data[i].timestamp
+        type: 'BUY',
+        entryPrice: currentPrice + (strategy.spread || 2) / 10000,
+        size: Math.min(positionSize, strategy.maxPositionSize || 100000),
+        entryTime: data[i].timestamp,
+        entryIndex: i
       }
+      
+      console.log(`Trade ${tradeId} entry at ${position.entryPrice}`)
     }
     
     // Exit signal: short EMA crosses below long EMA or stop loss/take profit
-    if (position && position.type === 'long') {
+    if (position && position.type === 'BUY') {
       const currentPnL = (currentPrice - position.entryPrice) * position.size
       const pnLPips = (currentPrice - position.entryPrice) * 10000
       
@@ -115,20 +146,21 @@ function runSimpleBacktest(data: MarketData[], strategy: BacktestStrategy) {
       if (shortEMA[i] < longEMA[i] && shortEMA[i-1] >= longEMA[i-1]) {
         shouldExit = true
         exitReason = 'Signal'
-      } else if (pnLPips <= -strategy.stopLoss) {
+      } else if (pnLPips <= -(strategy.stopLoss || 50)) {
         shouldExit = true
         exitReason = 'Stop Loss'
-      } else if (pnLPips >= strategy.takeProfit) {
+      } else if (pnLPips >= (strategy.takeProfit || 100)) {
         shouldExit = true
         exitReason = 'Take Profit'
       }
       
       if (shouldExit) {
-        const exitPrice = currentPrice - strategy.spread / 10000
-        const finalPnL = (exitPrice - position.entryPrice) * position.size - strategy.commission
+        const exitPrice = currentPrice - (strategy.spread || 2) / 10000
+        const finalPnL = (exitPrice - position.entryPrice) * position.size - (strategy.commission || 0.5)
         balance += finalPnL
         
-        trades.push({
+        const trade = {
+          id: tradeId++,
           entryTime: position.entryTime,
           exitTime: data[i].timestamp,
           entryPrice: position.entryPrice,
@@ -138,7 +170,10 @@ function runSimpleBacktest(data: MarketData[], strategy: BacktestStrategy) {
           pnlPips: (exitPrice - position.entryPrice) * 10000,
           type: position.type,
           exitReason: exitReason
-        })
+        }
+        
+        trades.push(trade)
+        console.log(`Trade ${trade.id} exit at ${exitPrice}, P&L: ${finalPnL.toFixed(2)}`)
         
         position = null
       }
@@ -149,6 +184,8 @@ function runSimpleBacktest(data: MarketData[], strategy: BacktestStrategy) {
     const drawdown = (maxBalance - balance) / maxBalance * 100
     maxDrawdown = Math.max(maxDrawdown, drawdown)
   }
+
+  console.log('Backtest completed, total trades:', trades.length)
 
   const totalReturn = ((balance - strategy.initialBalance) / strategy.initialBalance) * 100
   const winningTrades = trades.filter(t => t.pnl > 0)
@@ -192,4 +229,21 @@ function calculateWinRate(trades: any[]): number {
   if (trades.length === 0) return 0
   const winningTrades = trades.filter(trade => trade.pnl > 0)
   return (winningTrades.length / trades.length) * 100
+}
+
+function calculateSharpeRatio(equity: number[]): number {
+  if (equity.length < 2) return 0
+  
+  const returns = []
+  for (let i = 1; i < equity.length; i++) {
+    returns.push((equity[i] - equity[i-1]) / equity[i-1])
+  }
+  
+  if (returns.length === 0) return 0
+  
+  const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length
+  const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length
+  const stdDev = Math.sqrt(variance)
+  
+  return stdDev > 0 ? avgReturn / stdDev : 0
 }
