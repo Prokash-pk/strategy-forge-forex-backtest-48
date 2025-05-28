@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Shield, Play, Save } from 'lucide-react';
+import { Shield, Play } from 'lucide-react';
 
 interface ExecutionSettingsProps {
   strategy: {
@@ -69,30 +69,23 @@ const ExecutionSettings: React.FC<ExecutionSettingsProps> = ({
 
         <Separator className="bg-slate-600" />
 
-        <div className="space-y-3">
-          <Button
-            onClick={onRunBacktest}
-            disabled={isRunning}
-            className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
-          >
-            {isRunning ? (
-              <>
-                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                Running Backtest...
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Run Backtest
-              </>
-            )}
-          </Button>
-          
-          <Button variant="outline" className="w-full border-slate-600 text-slate-300">
-            <Save className="h-4 w-4 mr-2" />
-            Save Strategy
-          </Button>
-        </div>
+        <Button
+          onClick={onRunBacktest}
+          disabled={isRunning}
+          className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+        >
+          {isRunning ? (
+            <>
+              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+              Running Backtest...
+            </>
+          ) : (
+            <>
+              <Play className="h-4 w-4 mr-2" />
+              Run Backtest
+            </>
+          )}
+        </Button>
       </CardContent>
     </Card>
   );
