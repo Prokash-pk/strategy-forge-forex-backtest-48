@@ -1,4 +1,6 @@
 
+import { ADVANCED_TECHNICAL_ANALYSIS_PYTHON_CODE } from './advancedTechnicalAnalysis';
+
 export const TECHNICAL_ANALYSIS_PYTHON_CODE = `
 import pandas as pd
 import numpy as np
@@ -159,4 +161,7 @@ class TechnicalAnalysis:
             'k': k_percent,
             'd': padded_d
         }
+
+# Include advanced indicators
+${ADVANCED_TECHNICAL_ANALYSIS_PYTHON_CODE}
 `;

@@ -1,3 +1,4 @@
+import { AdvancedTechnicalAnalysis } from './advancedTechnicalAnalysis';
 
 interface StrategySignals {
   entry: boolean[];
@@ -109,6 +110,12 @@ export class TechnicalAnalysis {
 
     return result;
   }
+
+  // Expose advanced indicators
+  static atr = AdvancedTechnicalAnalysis.atr;
+  static williamsR = AdvancedTechnicalAnalysis.williamsR;
+  static stochasticOscillator = AdvancedTechnicalAnalysis.stochasticOscillator;
+  static commodityChannelIndex = AdvancedTechnicalAnalysis.commodityChannelIndex;
 }
 
 export class StrategyExecutor {
@@ -151,8 +158,16 @@ export class StrategyExecutor {
         volume: marketData.volume
       };
 
-      // Handle common strategy patterns
-      if (code.toLowerCase().includes('ema') && code.toLowerCase().includes('crossover')) {
+      // Handle common strategy patterns with advanced indicators
+      if (code.toLowerCase().includes('williams') || code.toLowerCase().includes('%r')) {
+        return this.executeWilliamsRStrategy(data);
+      } else if (code.toLowerCase().includes('stochastic')) {
+        return this.executeStochasticStrategy(data);
+      } else if (code.toLowerCase().includes('atr')) {
+        return this.executeATRStrategy(data);
+      } else if (code.toLowerCase().includes('cci')) {
+        return this.executeCCIStrategy(data);
+      } else if (code.toLowerCase().includes('ema') && code.toLowerCase().includes('crossover')) {
         return this.executeEMACrossover(data);
       } else if (code.toLowerCase().includes('rsi')) {
         return this.executeRSIStrategy(data);
@@ -284,6 +299,112 @@ export class StrategyExecutor {
         bb_middle: bb.middle, 
         bb_lower: bb.lower 
       }
+    };
+  }
+
+  private static executeWilliamsRStrategy(data: MarketData): StrategySignals {
+    const williamsR = TechnicalAnalysis.williamsR(data.high, data.low, data.close, 14);
+    const entry: boolean[] = [];
+    const exit: boolean[] = [];
+
+    for (let i = 0; i < data.close.length; i++) {
+      // Entry: Williams %R crosses above -80 (oversold)
+      const entrySignal = i > 0 && williamsR[i] > -80 && williamsR[i-1] <= -80;
+      // Exit: Williams %R crosses below -20 (overbought)
+      const exitSignal = i > 0 && williamsR[i] < -20 && williamsR[i-1] >= -20;
+      
+      entry.push(entrySignal);
+      exit.push(exitSignal);
+    }
+
+    return {
+      entry,
+      exit,
+      indicators: { williamsR }
+    };
+  }
+
+  private static executeStochasticStrategy(data: MarketData): StrategySignals {
+    const stoch = TechnicalAnalysis.stochasticOscillator(data.high, data.low, data.close);
+    const entry: boolean[] = [];
+    const exit: boolean[] = [];
+
+    for (let i = 0; i < data.close.length; i++) {
+      // Entry: %K crosses above %D and both below 20 (oversold)
+      const entrySignal = i > 0 && 
+        stoch.k[i] > stoch.d[i] && 
+        stoch.k[i-1] <= stoch.d[i-1] && 
+        stoch.k[i] < 20;
+      
+      // Exit: %K crosses below %D and both above 80 (overbought)
+      const exitSignal = i > 0 && 
+        stoch.k[i] < stoch.d[i] && 
+        stoch.k[i-1] >= stoch.d[i-1] && 
+        stoch.k[i] > 80;
+      
+      entry.push(entrySignal);
+      exit.push(exitSignal);
+    }
+
+    return {
+      entry,
+      exit,
+      indicators: { 
+        stoch_k: stoch.k, 
+        stoch_d: stoch.d 
+      }
+    };
+  }
+
+  private static executeATRStrategy(data: MarketData): StrategySignals {
+    const atr = TechnicalAnalysis.atr(data.high, data.low, data.close, 14);
+    const sma = TechnicalAnalysis.sma(data.close, 20);
+    const entry: boolean[] = [];
+    const exit: boolean[] = [];
+
+    for (let i = 0; i < data.close.length; i++) {
+      // Entry: Price breaks above SMA + ATR (volatility breakout)
+      const entrySignal = i > 0 && 
+        !isNaN(atr[i]) && !isNaN(sma[i]) &&
+        data.close[i] > sma[i] + atr[i] && 
+        data.close[i-1] <= sma[i-1] + atr[i-1];
+      
+      // Exit: Price falls below SMA
+      const exitSignal = i > 0 && 
+        !isNaN(sma[i]) &&
+        data.close[i] < sma[i] && 
+        data.close[i-1] >= sma[i-1];
+      
+      entry.push(entrySignal);
+      exit.push(exitSignal);
+    }
+
+    return {
+      entry,
+      exit,
+      indicators: { atr, sma }
+    };
+  }
+
+  private static executeCCIStrategy(data: MarketData): StrategySignals {
+    const cci = TechnicalAnalysis.commodityChannelIndex(data.high, data.low, data.close, 20);
+    const entry: boolean[] = [];
+    const exit: boolean[] = [];
+
+    for (let i = 0; i < data.close.length; i++) {
+      // Entry: CCI crosses above -100 (oversold)
+      const entrySignal = i > 0 && cci[i] > -100 && cci[i-1] <= -100;
+      // Exit: CCI crosses below 100 (overbought)
+      const exitSignal = i > 0 && cci[i] < 100 && cci[i-1] >= 100;
+      
+      entry.push(entrySignal);
+      exit.push(exitSignal);
+    }
+
+    return {
+      entry,
+      exit,
+      indicators: { cci }
     };
   }
 

@@ -101,6 +101,100 @@ class TechnicalAnalysis {
     
     return [NaN, ...result];
   }
+
+  static atr(high: number[], low: number[], close: number[], period: number = 14): number[] {
+    if (high.length < 2 || low.length < 2 || close.length < 2) {
+      return new Array(close.length).fill(NaN);
+    }
+
+    const trueRanges: number[] = [];
+    
+    for (let i = 1; i < close.length; i++) {
+      const tr1 = high[i] - low[i];
+      const tr2 = Math.abs(high[i] - close[i - 1]);
+      const tr3 = Math.abs(low[i] - close[i - 1]);
+      trueRanges.push(Math.max(tr1, tr2, tr3));
+    }
+
+    const result = [NaN];
+
+    for (let i = 0; i < trueRanges.length; i++) {
+      if (i < period - 1) {
+        result.push(NaN);
+      } else {
+        const atr = trueRanges.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period;
+        result.push(atr);
+      }
+    }
+
+    return result;
+  }
+
+  static williamsR(high: number[], low: number[], close: number[], period: number = 14): number[] {
+    const result: number[] = [];
+
+    for (let i = 0; i < close.length; i++) {
+      if (i < period - 1) {
+        result.push(NaN);
+      } else {
+        const periodHigh = Math.max(...high.slice(i - period + 1, i + 1));
+        const periodLow = Math.min(...low.slice(i - period + 1, i + 1));
+
+        if (periodHigh === periodLow) {
+          result.push(-50);
+        } else {
+          const wr = ((periodHigh - close[i]) / (periodHigh - periodLow)) * -100;
+          result.push(wr);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  static stochasticOscillator(high: number[], low: number[], close: number[], kPeriod: number = 14, dPeriod: number = 3) {
+    const rawK: number[] = [];
+
+    for (let i = 0; i < close.length; i++) {
+      if (i < kPeriod - 1) {
+        rawK.push(NaN);
+      } else {
+        const periodHigh = Math.max(...high.slice(i - kPeriod + 1, i + 1));
+        const periodLow = Math.min(...low.slice(i - kPeriod + 1, i + 1));
+
+        if (periodHigh === periodLow) {
+          rawK.push(50);
+        } else {
+          const kVal = ((close[i] - periodLow) / (periodHigh - periodLow)) * 100;
+          rawK.push(kVal);
+        }
+      }
+    }
+
+    const kPercent = this.smoothValues(rawK, 3);
+    const dPercent = this.smoothValues(kPercent, dPeriod);
+
+    return { k: kPercent, d: dPercent };
+  }
+
+  private static smoothValues(values: number[], period: number): number[] {
+    const result: number[] = [];
+    
+    for (let i = 0; i < values.length; i++) {
+      if (i < period - 1 || isNaN(values[i])) {
+        result.push(NaN);
+      } else {
+        const validSlice = values.slice(i - period + 1, i + 1).filter(v => !isNaN(v));
+        if (validSlice.length > 0) {
+          result.push(validSlice.reduce((a, b) => a + b, 0) / validSlice.length);
+        } else {
+          result.push(NaN);
+        }
+      }
+    }
+
+    return result;
+  }
 }
 
 // Strategy Executor
@@ -123,8 +217,14 @@ class StrategyExecutor {
         volume: marketData.volume
       };
 
-      // Handle common strategy patterns
-      if (code.toLowerCase().includes('ema') && code.toLowerCase().includes('crossover')) {
+      // Handle advanced indicator patterns
+      if (code.toLowerCase().includes('williams') || code.toLowerCase().includes('%r')) {
+        return this.executeWilliamsRStrategy(data);
+      } else if (code.toLowerCase().includes('stochastic')) {
+        return this.executeAdvancedStochasticStrategy(data);
+      } else if (code.toLowerCase().includes('atr')) {
+        return this.executeATRStrategy(data);
+      } else if (code.toLowerCase().includes('ema') && code.toLowerCase().includes('crossover')) {
         return this.executeEMACrossover(data);
       } else if (code.toLowerCase().includes('rsi')) {
         return this.executeRSIStrategy(data);
@@ -186,6 +286,69 @@ class StrategyExecutor {
     }
 
     return { entry, exit, indicators: { rsi } };
+  }
+
+  private static executeWilliamsRStrategy(data: any) {
+    const williamsR = TechnicalAnalysis.williamsR(data.high, data.low, data.close, 14);
+    const entry: boolean[] = [];
+    const exit: boolean[] = [];
+
+    for (let i = 0; i < data.close.length; i++) {
+      const entrySignal = i > 0 && williamsR[i] > -80 && williamsR[i-1] <= -80;
+      const exitSignal = i > 0 && williamsR[i] < -20 && williamsR[i-1] >= -20;
+      
+      entry.push(entrySignal);
+      exit.push(exitSignal);
+    }
+
+    return { entry, exit, indicators: { williamsR } };
+  }
+
+  private static executeAdvancedStochasticStrategy(data: any) {
+    const stoch = TechnicalAnalysis.stochasticOscillator(data.high, data.low, data.close);
+    const entry: boolean[] = [];
+    const exit: boolean[] = [];
+
+    for (let i = 0; i < data.close.length; i++) {
+      const entrySignal = i > 0 && 
+        stoch.k[i] > stoch.d[i] && 
+        stoch.k[i-1] <= stoch.d[i-1] && 
+        stoch.k[i] < 20;
+      
+      const exitSignal = i > 0 && 
+        stoch.k[i] < stoch.d[i] && 
+        stoch.k[i-1] >= stoch.d[i-1] && 
+        stoch.k[i] > 80;
+      
+      entry.push(entrySignal);
+      exit.push(exitSignal);
+    }
+
+    return { entry, exit, indicators: { stoch_k: stoch.k, stoch_d: stoch.d } };
+  }
+
+  private static executeATRStrategy(data: any) {
+    const atr = TechnicalAnalysis.atr(data.high, data.low, data.close, 14);
+    const sma = TechnicalAnalysis.sma(data.close, 20);
+    const entry: boolean[] = [];
+    const exit: boolean[] = [];
+
+    for (let i = 0; i < data.close.length; i++) {
+      const entrySignal = i > 0 && 
+        !isNaN(atr[i]) && !isNaN(sma[i]) &&
+        data.close[i] > sma[i] + atr[i] && 
+        data.close[i-1] <= sma[i-1] + atr[i-1];
+      
+      const exitSignal = i > 0 && 
+        !isNaN(sma[i]) &&
+        data.close[i] < sma[i] && 
+        data.close[i-1] >= sma[i-1];
+      
+      entry.push(entrySignal);
+      exit.push(exitSignal);
+    }
+
+    return { entry, exit, indicators: { atr, sma } };
   }
 
   private static executeCustomStrategy(code: string, data: any) {
