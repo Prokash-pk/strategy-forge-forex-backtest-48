@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { PythonExecutor } from '@/services/pythonExecutor';
 
 export const useBacktest = () => {
   const [isRunning, setIsRunning] = useState(false);
@@ -49,7 +50,13 @@ export const useBacktest = () => {
         throw new Error('No market data available for the selected symbol and timeframe');
       }
 
-      // Step 2: Validate strategy code
+      // Step 2: Initialize Python execution environment
+      setCurrentStep('Initializing Python execution environment...');
+      
+      const isPythonAvailable = await PythonExecutor.isAvailable();
+      console.log(`Python execution ${isPythonAvailable ? 'enabled' : 'not available, using fallback'}`);
+
+      // Step 3: Validate strategy code
       setCurrentStep('Validating strategy configuration...');
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -57,30 +64,81 @@ export const useBacktest = () => {
         throw new Error('Strategy code is required');
       }
 
-      // Step 3: Run backtest with real data
-      setCurrentStep('Running backtest simulation with real market data...');
-      console.log('Starting backtest execution...');
-
-      const { data: backtestResponse, error: backtestError } = await supabase.functions.invoke('run-backtest', {
-        body: {
-          data: marketData,
-          strategy: {
-            code: strategy.code,
-            name: strategy.name,
-            initialBalance: strategy.initialBalance,
-            riskPerTrade: strategy.riskPerTrade,
-            stopLoss: strategy.stopLoss,
-            takeProfit: strategy.takeProfit,
-            spread: strategy.spread,
-            commission: strategy.commission,
-            slippage: strategy.slippage
-          }
+      // Step 4: Execute strategy (Python or JavaScript fallback)
+      setCurrentStep(isPythonAvailable ? 'Executing Python strategy...' : 'Running backtest simulation with pattern matching...');
+      
+      let backtestResponse;
+      
+      if (isPythonAvailable) {
+        // Use Python execution
+        console.log('Using Python execution for strategy');
+        
+        // Prepare market data for Python
+        const pythonMarketData = {
+          open: marketData.map((d: any) => d.open),
+          high: marketData.map((d: any) => d.high),
+          low: marketData.map((d: any) => d.low),
+          close: marketData.map((d: any) => d.close),
+          volume: marketData.map((d: any) => d.volume)
+        };
+        
+        // Execute strategy with Python
+        const strategyResult = await PythonExecutor.executeStrategy(strategy.code, pythonMarketData);
+        
+        if (strategyResult.error) {
+          console.warn('Python execution error, falling back to pattern matching:', strategyResult.error);
+          toast({
+            title: "Python Execution Warning",
+            description: `Strategy had errors: ${strategyResult.error}. Using fallback execution.`,
+            variant: "destructive",
+          });
         }
-      });
-
-      if (backtestError) {
-        console.error('Error running backtest:', backtestError);
-        throw new Error(`Backtest execution failed: ${backtestError.message}`);
+        
+        // Run backtest with Python-generated signals
+        const { data: response, error } = await supabase.functions.invoke('run-backtest', {
+          body: {
+            data: marketData,
+            strategy: {
+              code: strategy.code,
+              name: strategy.name,
+              initialBalance: strategy.initialBalance,
+              riskPerTrade: strategy.riskPerTrade,
+              stopLoss: strategy.stopLoss,
+              takeProfit: strategy.takeProfit,
+              spread: strategy.spread,
+              commission: strategy.commission,
+              slippage: strategy.slippage
+            },
+            pythonSignals: strategyResult.error ? undefined : strategyResult
+          }
+        });
+        
+        backtestResponse = response;
+        if (error) throw new Error(`Backtest execution failed: ${error.message}`);
+        
+      } else {
+        // Fallback to existing JavaScript pattern matching
+        console.log('Using JavaScript pattern matching for strategy');
+        
+        const { data: response, error } = await supabase.functions.invoke('run-backtest', {
+          body: {
+            data: marketData,
+            strategy: {
+              code: strategy.code,
+              name: strategy.name,
+              initialBalance: strategy.initialBalance,
+              riskPerTrade: strategy.riskPerTrade,
+              stopLoss: strategy.stopLoss,
+              takeProfit: strategy.takeProfit,
+              spread: strategy.spread,
+              commission: strategy.commission,
+              slippage: strategy.slippage
+            }
+          }
+        });
+        
+        backtestResponse = response;
+        if (error) throw new Error(`Backtest execution failed: ${error.message}`);
       }
 
       if (!backtestResponse.success) {
@@ -91,7 +149,7 @@ export const useBacktest = () => {
       const results = backtestResponse.results;
       console.log(`Backtest completed: ${results.totalTrades} trades executed`);
 
-      // Step 4: Complete
+      // Step 5: Complete
       setCurrentStep('Backtest completed successfully!');
       await new Promise(resolve => setTimeout(resolve, 500));
 
@@ -101,13 +159,14 @@ export const useBacktest = () => {
         symbol: strategy.symbol,
         timeframe: strategy.timeframe,
         period: `Real Data (${marketData.length} bars)`,
-        metadata: fetchResponse.metadata
+        metadata: fetchResponse.metadata,
+        executionMethod: isPythonAvailable ? 'Python' : 'JavaScript Pattern Matching'
       };
 
       onBacktestComplete(enhancedResults);
       
       toast({
-        title: "Real Data Backtest Complete",
+        title: isPythonAvailable ? "Python Strategy Backtest Complete" : "Pattern Matching Backtest Complete",
         description: `Strategy tested with ${results.totalTrades} trades on real ${strategy.symbol} data`,
       });
 

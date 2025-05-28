@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -25,6 +24,12 @@ interface BacktestRequest {
     spread: number;
     commission: number;
     slippage: number;
+  };
+  pythonSignals?: {
+    entry: boolean[];
+    exit: boolean[];
+    indicators?: Record<string, number[]>;
+    error?: string;
   };
 }
 
@@ -100,7 +105,13 @@ class TechnicalAnalysis {
 
 // Strategy Executor
 class StrategyExecutor {
-  static executeStrategy(code: string, marketData: any) {
+  static executeStrategy(code: string, marketData: any, pythonSignals?: any) {
+    // If Python signals are provided, use them directly
+    if (pythonSignals && !pythonSignals.error) {
+      console.log('Using Python-generated signals');
+      return pythonSignals;
+    }
+
     try {
       console.log('Executing strategy code:', code);
       
@@ -212,10 +223,14 @@ serve(async (req) => {
   }
 
   try {
-    const { data, strategy }: BacktestRequest = await req.json();
+    const { data, strategy, pythonSignals }: BacktestRequest = await req.json();
     
     console.log(`Running backtest for ${strategy.name} with ${data.length} data points`);
     console.log('Strategy code:', strategy.code);
+    
+    if (pythonSignals) {
+      console.log('Python signals provided:', pythonSignals.error ? `Error: ${pythonSignals.error}` : 'Valid signals');
+    }
 
     // Prepare market data for strategy execution
     const marketData = {
@@ -226,8 +241,8 @@ serve(async (req) => {
       volume: data.map(d => d.volume)
     };
 
-    // Execute the user's strategy
-    const signals = StrategyExecutor.executeStrategy(strategy.code, marketData);
+    // Execute the user's strategy (with Python signals if available)
+    const signals = StrategyExecutor.executeStrategy(strategy.code, marketData, pythonSignals);
     console.log('Strategy signals generated:', signals.entry.filter(Boolean).length, 'entry signals');
 
     // Simulate strategy execution using the generated signals
@@ -353,11 +368,12 @@ serve(async (req) => {
       avgWin: Math.round(avgWin * 100) / 100,
       avgLoss: Math.round(avgLoss * 100) / 100,
       equityCurve,
-      trades
+      trades,
+      executionMethod: pythonSignals && !pythonSignals.error ? 'Python' : 'JavaScript'
     };
 
     console.log(`Backtest completed: ${trades.length} trades, ${totalReturn.toFixed(2)}% return`);
-    console.log(`Strategy used: ${strategy.name}`);
+    console.log(`Strategy used: ${strategy.name} (${results.executionMethod})`);
 
     return new Response(
       JSON.stringify({

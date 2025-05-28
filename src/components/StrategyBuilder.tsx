@@ -1,10 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import StrategyConfiguration from './strategy/StrategyConfiguration';
 import RiskManagement from './strategy/RiskManagement';
 import ExecutionSettings from './strategy/ExecutionSettings';
 import BacktestProgress from './strategy/BacktestProgress';
 import { useBacktest } from '@/hooks/useBacktest';
+import { PythonExecutor } from '@/services/pythonExecutor';
+import { Card, CardContent } from '@/components/ui/card';
+import { CheckCircle, AlertCircle, Code } from 'lucide-react';
 
 interface StrategyBuilderProps {
   onStrategyUpdate: (strategy: any) => void;
@@ -27,15 +30,26 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ onStrategyUpdate, onB
 # This strategy uses exponential moving averages for entry and exit signals
 
 def strategy_logic(data):
-    # Calculate EMAs
-    short_ema = data['Close'].ewm(span=12).mean()
-    long_ema = data['Close'].ewm(span=26).mean()
+    # Calculate EMAs using the TechnicalAnalysis helper
+    short_ema = TechnicalAnalysis.ema(data['Close'].tolist(), 12)
+    long_ema = TechnicalAnalysis.ema(data['Close'].tolist(), 26)
     
     # Entry signal: short EMA crosses above long EMA
-    entry = (short_ema > long_ema) & (short_ema.shift(1) <= long_ema.shift(1))
+    entry = []
+    exit = []
     
-    # Exit signal: short EMA crosses below long EMA
-    exit = (short_ema < long_ema) & (short_ema.shift(1) >= long_ema.shift(1))
+    for i in range(len(data)):
+        if i == 0:
+            entry.append(False)
+            exit.append(False)
+        else:
+            # Entry: short EMA crosses above long EMA
+            entry_signal = short_ema[i] > long_ema[i] and short_ema[i-1] <= long_ema[i-1]
+            # Exit: short EMA crosses below long EMA
+            exit_signal = short_ema[i] < long_ema[i] and short_ema[i-1] >= long_ema[i-1]
+            
+            entry.append(entry_signal)
+            exit.append(exit_signal)
     
     return {
         'entry': entry,
@@ -46,13 +60,28 @@ def strategy_logic(data):
 
 # Alternative: RSI Strategy
 # def strategy_logic(data):
-#     rsi = calculate_rsi(data['Close'], 14)
-#     entry = rsi < 30  # Oversold
-#     exit = rsi > 70   # Overbought
+#     rsi = TechnicalAnalysis.rsi(data['Close'].tolist(), 14)
+#     entry = [rsi[i] < 30 for i in range(len(rsi))]  # Oversold
+#     exit = [rsi[i] > 70 for i in range(len(rsi))]   # Overbought
 #     return {'entry': entry, 'exit': exit, 'rsi': rsi}`
   });
 
+  const [pythonStatus, setPythonStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   const { isRunning, currentStep, runBacktest } = useBacktest();
+
+  useEffect(() => {
+    // Check Python availability on component mount
+    const checkPythonStatus = async () => {
+      try {
+        const isAvailable = await PythonExecutor.isAvailable();
+        setPythonStatus(isAvailable ? 'available' : 'unavailable');
+      } catch {
+        setPythonStatus('unavailable');
+      }
+    };
+
+    checkPythonStatus();
+  }, []);
 
   const handleStrategyChange = (updates: any) => {
     setStrategy(prev => ({ ...prev, ...updates }));
@@ -63,30 +92,60 @@ def strategy_logic(data):
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Strategy Configuration */}
-      <div className="lg:col-span-2 space-y-6">
-        <StrategyConfiguration 
-          strategy={strategy} 
-          onStrategyChange={handleStrategyChange} 
-        />
-      </div>
+    <div className="space-y-6">
+      {/* Python Execution Status */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <Code className="h-5 w-5 text-slate-400" />
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-white font-medium">Python Execution Engine</span>
+                {pythonStatus === 'checking' && (
+                  <div className="animate-spin h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full"></div>
+                )}
+                {pythonStatus === 'available' && (
+                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+                )}
+                {pythonStatus === 'unavailable' && (
+                  <AlertCircle className="h-4 w-4 text-yellow-400" />
+                )}
+              </div>
+              <p className="text-sm text-slate-400">
+                {pythonStatus === 'checking' && 'Initializing Python runtime...'}
+                {pythonStatus === 'available' && 'Ready - Full Python strategy execution available'}
+                {pythonStatus === 'unavailable' && 'Limited - Using pattern matching fallback'}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Risk Management & Execution */}
-      <div className="space-y-6">
-        <RiskManagement 
-          strategy={strategy} 
-          onStrategyChange={handleStrategyChange} 
-        />
-        
-        <ExecutionSettings 
-          strategy={strategy} 
-          onStrategyChange={handleStrategyChange}
-          onRunBacktest={handleRunBacktest}
-          isRunning={isRunning}
-        />
-        
-        <BacktestProgress currentStep={currentStep} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Strategy Configuration */}
+        <div className="lg:col-span-2 space-y-6">
+          <StrategyConfiguration 
+            strategy={strategy} 
+            onStrategyChange={handleStrategyChange} 
+          />
+        </div>
+
+        {/* Risk Management & Execution */}
+        <div className="space-y-6">
+          <RiskManagement 
+            strategy={strategy} 
+            onStrategyChange={handleStrategyChange} 
+          />
+          
+          <ExecutionSettings 
+            strategy={strategy} 
+            onStrategyChange={handleStrategyChange}
+            onRunBacktest={handleRunBacktest}
+            isRunning={isRunning}
+          />
+          
+          <BacktestProgress currentStep={currentStep} />
+        </div>
       </div>
     </div>
   );
