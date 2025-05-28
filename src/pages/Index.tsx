@@ -28,8 +28,8 @@ const Index = () => {
     setActiveTab('results');
   };
 
-  const handleAddToStrategy = (codeSnippet: string) => {
-    console.log('Adding code snippet to strategy:', codeSnippet);
+  const handleAddToStrategy = (codeSnippet: string, title: string = 'Strategy Coach Suggestion') => {
+    console.log('Adding code snippet to strategy:', { codeSnippet, title });
     
     if (!strategy) {
       toast({
@@ -44,7 +44,7 @@ const Index = () => {
       const updatedCode = StrategyCodeInsertion.insertCodeSnippet(
         strategy.code || '', 
         codeSnippet, 
-        'Strategy Coach Suggestion'
+        title
       );
 
       const updatedStrategy = { ...strategy, code: updatedCode };
@@ -57,7 +57,7 @@ const Index = () => {
       
       toast({
         title: "Code Added Successfully!",
-        description: "Strategy Coach suggestion has been added to your strategy",
+        description: `"${title}" has been integrated into your strategy`,
       });
     } catch (error) {
       console.error('Error adding code to strategy:', error);
@@ -77,7 +77,7 @@ const Index = () => {
             Enhanced Forex Strategy Backtester
           </h1>
           <p className="text-slate-300 text-lg">
-            Build, test, and optimize forex trading strategies with real market data and enhanced execution modeling
+            Build, test, and optimize forex trading strategies with real market data and AI-powered coaching
           </p>
         </div>
 
@@ -109,14 +109,15 @@ const Index = () => {
           <TabsContent value="results">
             <BacktestResults 
               results={results} 
-              onAddToStrategy={handleAddToStrategy}
+              onAddToStrategy={(snippet) => handleAddToStrategy(snippet)}
             />
           </TabsContent>
 
           <TabsContent value="coach">
             <StrategyCoach 
               results={results} 
-              onAddToStrategy={handleAddToStrategy}
+              onAddToStrategy={(snippet) => handleAddToStrategy(snippet)}
+              strategyCode={strategy?.code || ''}
             />
           </TabsContent>
 
