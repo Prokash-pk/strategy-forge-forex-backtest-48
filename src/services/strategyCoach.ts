@@ -1,4 +1,3 @@
-
 import { BacktestResults } from '@/types/backtest';
 
 export interface TradePattern {
@@ -114,73 +113,92 @@ export class StrategyCoach {
       recommendations.push({
         id: 'reduce_position_size',
         title: 'Reduce Position Size',
-        description: 'High drawdown detected. Consider reducing position size to limit risk.',
+        description: 'High drawdown detected. Implementing dynamic position sizing based on account balance.',
         category: 'risk_management',
         priority: 'high',
         estimatedImprovement: 8,
-        codeSnippet: `# Reduce position size calculation
-position_size = balance * 0.01  # Use 1% risk instead of 2%
-stop_loss_distance = entry_price * 0.002  # 20 pips for EUR/USD`,
-        explanation: 'Lower position sizes reduce individual trade impact on your account'
+        codeSnippet: `# Dynamic position sizing based on risk
+risk_per_trade = 0.01  # 1% risk per trade instead of 2%
+account_balance = 10000  # Update dynamically
+max_loss_per_trade = account_balance * risk_per_trade
+position_size = max_loss_per_trade / (stop_loss_distance * pip_value)`,
+        explanation: 'This reduces position size from 2% to 1% risk per trade, significantly lowering drawdown risk'
       });
     }
 
-    // Win Rate Improvements
+    // Win Rate Improvements with actual logic replacement
     const winRate = results.winRate || 0;
     if (winRate < 45) {
       recommendations.push({
         id: 'add_trend_filter',
         title: 'Add Trend Filter',
-        description: 'Low win rate suggests trading against the trend. Add trend confirmation.',
+        description: 'Low win rate suggests trading against trend. Adding 200 EMA trend filter.',
         category: 'entry_timing',
         priority: 'high',
         estimatedImprovement: 12,
         codeSnippet: `# Add trend filter using 200 EMA
 ema_200 = TechnicalAnalysis.ema(data['Close'].tolist(), 200)
-trend_up = data['Close'][i] > ema_200[i]
-
-# Only enter long trades in uptrend
-entry_signal = original_entry_signal and trend_up`,
-        explanation: 'Trading with the trend increases probability of success'
+trend_up = data['Close'][i] > ema_200[i] if not math.isnan(ema_200[i]) else False`,
+        explanation: 'Only takes trades in the direction of the longer-term trend, improving win rate'
       });
     }
 
-    // Profit Factor Improvements
+    // Profit Factor Improvements with enhanced exit logic
     const profitFactor = results.profitFactor || 0;
     if (profitFactor < 1.5) {
       recommendations.push({
         id: 'optimize_exit_strategy',
-        title: 'Optimize Exit Strategy',
-        description: 'Low profit factor suggests poor exit timing. Consider trailing stops.',
+        title: 'Implement Trailing Stop',
+        description: 'Low profit factor. Adding trailing stop to capture more profit during favorable moves.',
         category: 'exit_strategy',
         priority: 'medium',
         estimatedImprovement: 15,
-        codeSnippet: `# Implement trailing stop
-if position and current_price > position.entry * 1.002:  # 20 pips profit
-    trailing_stop = current_price * 0.998  # Trail by 20 pips
-    if current_price < trailing_stop:
-        exit_signal = True`,
-        explanation: 'Trailing stops help capture more profit during favorable moves'
+        codeSnippet: `# Implement dynamic trailing stop
+if i > 0 and entry[i-1]:  # Position opened in previous bar
+    entry_price = data['Close'][i-1]
+    current_profit_pips = (data['Close'][i] - entry_price) * 10000
+    
+    # Start trailing after 20 pips profit
+    if current_profit_pips > 20:
+        trailing_stop_distance = 15  # Trail by 15 pips
+        trailing_stop = data['Close'][i] - (trailing_stop_distance / 10000)`,
+        explanation: 'Trailing stops help capture more profit during strong moves while protecting gains'
       });
     }
 
-    // Trade Frequency Optimization
+    // Trade Frequency Optimization with volatility filter
     const avgTradesPerDay = this.calculateTradeFrequency(trades);
     if (avgTradesPerDay > 8) {
       recommendations.push({
         id: 'reduce_overtrading',
-        title: 'Reduce Overtrading',
-        description: 'High trade frequency may indicate noise trading. Add stronger filters.',
+        title: 'Add Volatility Filter',
+        description: 'High trade frequency detected. Adding ATR-based volatility filter.',
         category: 'entry_timing',
         priority: 'medium',
         estimatedImprovement: 10,
-        codeSnippet: `# Add volatility filter
+        codeSnippet: `# Add volatility filter using ATR
 atr = TechnicalAnalysis.atr(data['High'], data['Low'], data['Close'], 14)
-volatility_threshold = atr[i] > atr[i-20:i].mean() * 1.2
+atr_ma = TechnicalAnalysis.sma(atr, 20)
+volatility_threshold = atr[i] > atr_ma[i] * 1.2 if not math.isnan(atr[i]) else False`,
+        explanation: 'Only trades during higher volatility periods, reducing noise and improving signal quality'
+      });
+    }
 
-# Only trade during higher volatility
-entry_signal = original_entry_signal and volatility_threshold`,
-        explanation: 'Trading only during higher volatility periods improves signal quality'
+    // Add stop loss optimization if many large losses
+    const largeLosses = trades.filter(t => t.pnl < -100);
+    if (largeLosses.length > trades.length * 0.2) {
+      recommendations.push({
+        id: 'optimize_stop_loss',
+        title: 'Dynamic Stop Loss',
+        description: 'Large losses detected. Implementing ATR-based dynamic stop loss.',
+        category: 'risk_management',
+        priority: 'high',
+        estimatedImprovement: 12,
+        codeSnippet: `# Dynamic stop loss based on ATR
+atr = TechnicalAnalysis.atr(data['High'], data['Low'], data['Close'], 14)
+dynamic_sl_distance = atr[i] * 2  # 2x ATR stop loss
+stop_loss_price = entry_price - dynamic_sl_distance if not math.isnan(atr[i]) else entry_price - 0.005`,
+        explanation: 'ATR-based stops adapt to market volatility, preventing large losses in volatile conditions'
       });
     }
 
@@ -298,6 +316,13 @@ entry_signal = original_entry_signal and volatility_threshold`,
         category: 'entry_timing',
         priority: 'high',
         estimatedImprovement: 0,
+        codeSnippet: `# More permissive entry conditions
+# Try reducing thresholds or adding alternative signals
+entry_signal = short_ema[i] > long_ema[i]  # Remove crossover requirement
+# OR add RSI oversold condition
+rsi = TechnicalAnalysis.rsi(data['Close'].tolist(), 14)
+rsi_oversold = rsi[i] < 35 if not math.isnan(rsi[i]) else False
+entry_signal = entry_signal or rsi_oversold`,
         explanation: 'A strategy that generates no trades needs more permissive entry conditions'
       }],
       lossAnalysis: {

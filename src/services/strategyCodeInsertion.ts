@@ -38,37 +38,28 @@ def strategy_logic(data):
       return existingCode;
     }
 
-    // Find the strategy_logic function and insert the snippet
+    // Find the strategy_logic function and intelligently integrate the snippet
     const functionMatch = existingCode.match(/def strategy_logic\(data\):([\s\S]*?)(?=\n\ndef|\n# Alternative|\n$|$)/);
     
     if (functionMatch) {
-      const functionBody = functionMatch[1];
-      const insertionPoint = functionBody.search(/(?=\s*entry\s*=|return\s*\{)/);
+      let updatedCode = existingCode;
       
-      if (insertionPoint !== -1) {
-        // Insert before entry/return logic
-        const beforeInsertion = functionBody.substring(0, insertionPoint);
-        const afterInsertion = functionBody.substring(insertionPoint);
-        
-        const newFunctionBody = `${beforeInsertion}
-    # ${title} (Strategy Coach Suggestion)
-    ${snippet}
-    ${afterInsertion}`;
-
-        const result = existingCode.replace(functionMatch[0], `def strategy_logic(data):${newFunctionBody}`);
-        console.log('Code insertion successful');
-        return result;
+      // Handle different types of recommendations
+      if (title.includes('Trend Filter') || title.includes('Add Trend')) {
+        updatedCode = this.integrateTrendFilter(updatedCode, snippet, functionMatch);
+      } else if (title.includes('Trailing Stop') || title.includes('Exit Strategy')) {
+        updatedCode = this.integrateExitStrategy(updatedCode, snippet, functionMatch);
+      } else if (title.includes('Position Size') || title.includes('Risk')) {
+        updatedCode = this.integrateRiskManagement(updatedCode, snippet, functionMatch);
+      } else if (title.includes('Volatility') || title.includes('Filter')) {
+        updatedCode = this.integrateVolatilityFilter(updatedCode, snippet, functionMatch);
       } else {
-        // Append at the end of the function body
-        const newFunctionBody = `${functionBody}
-    
-    # ${title} (Strategy Coach Suggestion)
-    ${snippet}`;
-
-        const result = existingCode.replace(functionMatch[0], `def strategy_logic(data):${newFunctionBody}`);
-        console.log('Code insertion successful (appended)');
-        return result;
+        // Generic integration - add before entry/exit logic
+        updatedCode = this.integrateGenericSnippet(updatedCode, snippet, title, functionMatch);
       }
+      
+      console.log('Code integration successful');
+      return updatedCode;
     } else {
       // Append as a comment at the end if no strategy_logic function found
       const result = `${existingCode}
@@ -77,6 +68,117 @@ def strategy_logic(data):
 # ${snippet}`;
       console.log('Code insertion as comment');
       return result;
+    }
+  }
+
+  private static integrateTrendFilter(code: string, snippet: string, functionMatch: RegExpMatchArray): string {
+    // Look for existing entry logic and enhance it with trend filter
+    const entryPattern = /(\s+)(entry_signal\s*=.*?)(\n)/;
+    const entryMatch = functionMatch[1].match(entryPattern);
+    
+    if (entryMatch) {
+      const indent = entryMatch[1];
+      const existingEntry = entryMatch[2];
+      const trendFilterCode = `${indent}# Trend filter enhancement
+${indent}${snippet.replace(/\n/g, '\n' + indent)}
+${indent}
+${indent}# Enhanced entry with trend filter
+${indent}${existingEntry} and trend_up`;
+      
+      return code.replace(entryMatch[0], trendFilterCode + '\n');
+    }
+    
+    // Fallback to generic integration
+    return this.integrateGenericSnippet(code, snippet, 'Trend Filter', functionMatch);
+  }
+
+  private static integrateExitStrategy(code: string, snippet: string, functionMatch: RegExpMatchArray): string {
+    // Look for existing exit logic and enhance it
+    const exitPattern = /(\s+)(exit_signal\s*=.*?)(\n)/;
+    const exitMatch = functionMatch[1].match(exitPattern);
+    
+    if (exitMatch) {
+      const indent = exitMatch[1];
+      const existingExit = exitMatch[2];
+      const trailingStopCode = `${indent}# Enhanced exit strategy
+${indent}${snippet.replace(/\n/g, '\n' + indent)}
+${indent}
+${indent}# Enhanced exit with trailing stop
+${indent}enhanced_exit = ${existingExit} or (position and current_price < trailing_stop)`;
+      
+      // Replace the exit logic
+      let updatedCode = code.replace(exitMatch[0], trailingStopCode + '\n');
+      // Update the exit.append call to use enhanced_exit
+      updatedCode = updatedCode.replace(/exit\.append\(exit_signal\)/, 'exit.append(enhanced_exit)');
+      return updatedCode;
+    }
+    
+    return this.integrateGenericSnippet(code, snippet, 'Exit Strategy', functionMatch);
+  }
+
+  private static integrateRiskManagement(code: string, snippet: string, functionMatch: RegExpMatchArray): string {
+    // Insert risk management code at the beginning of the function
+    const functionBody = functionMatch[1];
+    const insertionPoint = functionBody.search(/\s*#/);
+    
+    if (insertionPoint !== -1) {
+      const beforeInsertion = functionBody.substring(0, insertionPoint);
+      const afterInsertion = functionBody.substring(insertionPoint);
+      
+      const newFunctionBody = `${beforeInsertion}
+    # Risk Management Enhancement
+    ${snippet.replace(/\n/g, '\n    ')}
+    ${afterInsertion}`;
+
+      return code.replace(functionMatch[0], `def strategy_logic(data):${newFunctionBody}`);
+    }
+    
+    return this.integrateGenericSnippet(code, snippet, 'Risk Management', functionMatch);
+  }
+
+  private static integrateVolatilityFilter(code: string, snippet: string, functionMatch: RegExpMatchArray): string {
+    // Look for entry logic and add volatility filter
+    const entryPattern = /(\s+)(entry_signal\s*=.*?)(\n)/;
+    const entryMatch = functionMatch[1].match(entryPattern);
+    
+    if (entryMatch) {
+      const indent = entryMatch[1];
+      const existingEntry = entryMatch[2];
+      const volatilityCode = `${indent}# Volatility filter
+${indent}${snippet.replace(/\n/g, '\n' + indent)}
+${indent}
+${indent}# Entry with volatility filter
+${indent}${existingEntry} and volatility_threshold`;
+      
+      return code.replace(entryMatch[0], volatilityCode + '\n');
+    }
+    
+    return this.integrateGenericSnippet(code, snippet, 'Volatility Filter', functionMatch);
+  }
+
+  private static integrateGenericSnippet(code: string, snippet: string, title: string, functionMatch: RegExpMatchArray): string {
+    const functionBody = functionMatch[1];
+    const insertionPoint = functionBody.search(/(?=\s*entry\s*=|return\s*\{)/);
+    
+    if (insertionPoint !== -1) {
+      // Insert before entry/return logic
+      const beforeInsertion = functionBody.substring(0, insertionPoint);
+      const afterInsertion = functionBody.substring(insertionPoint);
+      
+      const newFunctionBody = `${beforeInsertion}
+    # ${title} (Strategy Coach Enhancement)
+    ${snippet.replace(/\n/g, '\n    ')}
+    ${afterInsertion}`;
+
+      return code.replace(functionMatch[0], `def strategy_logic(data):${newFunctionBody}`);
+    } else {
+      // Append at the end of the function body
+      const newFunctionBody = `${functionBody}
+    
+    # ${title} (Strategy Coach Enhancement)
+    ${snippet.replace(/\n/g, '\n    ')}`;
+
+      return code.replace(functionMatch[0], `def strategy_logic(data):${newFunctionBody}`);
     }
   }
 
