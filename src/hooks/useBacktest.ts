@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { PythonExecutor } from '@/services/pythonExecutor';
+import { StrategyStorage } from '@/services/strategyStorage';
 
 export const useBacktest = () => {
   const [isRunning, setIsRunning] = useState(false);
@@ -156,7 +157,29 @@ export const useBacktest = () => {
       const results = backtestResponse.results;
       console.log(`Backtest completed: ${results.totalTrades} trades executed`);
 
-      // Step 5: Complete
+      // Step 5: Save strategy results to database
+      setCurrentStep('Saving strategy results...');
+      
+      try {
+        await StrategyStorage.saveStrategyResult({
+          strategy_name: strategy.name,
+          strategy_code: strategy.code,
+          symbol: strategy.symbol,
+          timeframe: strategy.timeframe,
+          win_rate: results.winRate,
+          total_return: results.totalReturn,
+          total_trades: results.totalTrades,
+          profit_factor: results.profitFactor,
+          max_drawdown: results.maxDrawdown
+        });
+        
+        console.log('Strategy results saved to database');
+      } catch (saveError) {
+        console.warn('Failed to save strategy results:', saveError);
+        // Don't fail the backtest if saving fails
+      }
+
+      // Step 6: Complete
       setCurrentStep('Backtest completed successfully!');
       await new Promise(resolve => setTimeout(resolve, 500));
 
