@@ -13,6 +13,19 @@ interface ForexDataRequest {
   outputsize?: number;
 }
 
+// Convert Yahoo Finance symbol format to Twelve Data format
+function convertSymbolFormat(symbol: string): string {
+  // Remove =X suffix and convert to proper forex format
+  if (symbol.endsWith('=X')) {
+    const cleanSymbol = symbol.replace('=X', '');
+    // Insert slash between currency pairs (e.g., EURUSD -> EUR/USD)
+    if (cleanSymbol.length === 6) {
+      return `${cleanSymbol.slice(0, 3)}/${cleanSymbol.slice(3)}`;
+    }
+  }
+  return symbol;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -28,12 +41,15 @@ serve(async (req) => {
       throw new Error('API key not configured');
     }
 
-    console.log(`Fetching data for ${symbol} with interval ${interval}`);
+    // Convert symbol to Twelve Data format
+    const convertedSymbol = convertSymbolFormat(symbol);
+    console.log(`Converting symbol ${symbol} to ${convertedSymbol}`);
+    console.log(`Fetching data for ${convertedSymbol} with interval ${interval}`);
 
     // Build Twelve Data API URL
     const baseUrl = 'https://api.twelvedata.com/time_series';
     const params = new URLSearchParams({
-      symbol: symbol,
+      symbol: convertedSymbol,
       interval: interval,
       outputsize: outputsize.toString(),
       apikey: apiKey,
@@ -76,7 +92,7 @@ serve(async (req) => {
         success: true,
         data: transformedData,
         metadata: {
-          symbol: data.meta?.symbol || symbol,
+          symbol: data.meta?.symbol || convertedSymbol,
           interval: data.meta?.interval || interval,
           currency_base: data.meta?.currency_base,
           currency_quote: data.meta?.currency_quote,
