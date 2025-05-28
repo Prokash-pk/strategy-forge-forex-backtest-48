@@ -1,164 +1,131 @@
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API key not configured');
-    }
+    const { results, strategy } = await req.json()
+    
+    const analysis = analyzeStrategy(results, strategy)
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        analysis: analysis
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    )
+  } catch (error) {
+    console.error('Analysis error:', error)
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message 
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    )
+  }
+})
 
-    const { strategy_code, backtest_results, market_data } = await req.json();
-
-    if (!strategy_code || !backtest_results) {
-      throw new Error('Strategy code and backtest results are required');
-    }
-
-    const systemPrompt = `You are an expert quantitative trading analyst and strategy developer. Analyze the provided Python trading strategy code and its backtest results to provide intelligent, actionable recommendations.
-
-Your analysis should be thorough and practical, focusing on:
-1. Code quality and logic flaws
-2. Risk management issues
-3. Entry/exit timing problems
-4. Market condition adaptability
-5. Position sizing optimization
-
-Return your analysis in this exact JSON format:
-
-{
-  "overall_assessment": "Brief overall assessment of the strategy's performance and potential",
-  "strengths_identified": ["Array of specific strengths found in the strategy"],
-  "weaknesses_identified": ["Array of specific weaknesses and issues"],
-  "market_condition_analysis": "Analysis of how the strategy performs in different market conditions",
-  "risk_level": "low|medium|high",
-  "complexity_score": number_between_0_and_100,
-  "market_suitability": ["Array of market conditions where this strategy works best"],
-  "recommendations": [
-    {
-      "id": "unique_id",
-      "title": "Short descriptive title",
-      "description": "Brief description of the recommendation", 
-      "category": "risk_management|entry_timing|exit_strategy|position_sizing|market_analysis",
-      "priority": "high|medium|low",
-      "estimated_improvement": number_percentage_improvement,
-      "confidence": number_between_0_and_100,
-      "reasoning": "Detailed AI reasoning for this recommendation",
-      "code_snippet": "Python code that implements this improvement (if applicable)",
-      "explanation": "Clear explanation of what this code does and why it helps"
-    }
-  ]
+function analyzeStrategy(results: any, strategy: any) {
+  const { winRate, totalReturn, profitFactor, maxDrawdown, totalTrades } = results
+  
+  let overall_assessment = "Needs Improvement"
+  let risk_level = "High"
+  let recommendations = []
+  
+  // Assess overall performance
+  if (winRate > 60 && totalReturn > 10 && profitFactor > 1.5 && maxDrawdown < 15) {
+    overall_assessment = "Excellent"
+    risk_level = "Low"
+  } else if (winRate > 50 && totalReturn > 5 && profitFactor > 1.2 && maxDrawdown < 25) {
+    overall_assessment = "Good"
+    risk_level = "Medium"
+  } else if (winRate > 40 && totalReturn > 0 && profitFactor > 1.0 && maxDrawdown < 35) {
+    overall_assessment = "Fair"
+    risk_level = "Medium-High"
+  }
+  
+  // Generate recommendations
+  if (winRate < 50) {
+    recommendations.push("Consider tightening entry criteria to improve win rate")
+    recommendations.push("Review and optimize your entry signals")
+  }
+  
+  if (maxDrawdown > 20) {
+    recommendations.push("Implement better risk management to reduce drawdown")
+    recommendations.push("Consider reducing position sizes")
+  }
+  
+  if (profitFactor < 1.2) {
+    recommendations.push("Focus on improving profit factor by optimizing take profit levels")
+    recommendations.push("Consider trailing stops to maximize winning trades")
+  }
+  
+  if (totalTrades < 10) {
+    recommendations.push("Run backtest on longer time period for more reliable results")
+    recommendations.push("Consider using shorter timeframes to generate more trades")
+  }
+  
+  // Strategy-specific recommendations
+  if (strategy.name.toLowerCase().includes('ema') || strategy.name.toLowerCase().includes('moving average')) {
+    recommendations.push("Consider adding volume or momentum filters to EMA crossover signals")
+    recommendations.push("Test different EMA periods (e.g., 9/21 or 8/21)")
+  }
+  
+  if (strategy.name.toLowerCase().includes('rsi')) {
+    recommendations.push("Consider combining RSI with trend filters")
+    recommendations.push("Test different RSI levels (e.g., 25/75 instead of 30/70)")
+  }
+  
+  return {
+    overall_assessment,
+    risk_level,
+    recommendations,
+    strengths: generateStrengths(results),
+    weaknesses: generateWeaknesses(results),
+    optimization_suggestions: [
+      "Test different timeframes to find optimal entry/exit timing",
+      "Experiment with dynamic position sizing based on volatility",
+      "Consider market session filters (e.g., only trade during active hours)",
+      "Add fundamental analysis filters for major news events"
+    ]
+  }
 }
 
-Focus on providing actionable Python code snippets that can be integrated into the strategy_logic function. Make recommendations specific to the actual issues you see in the code and results.`;
+function generateStrengths(results: any): string[] {
+  const strengths = []
+  
+  if (results.winRate > 55) strengths.push(`Strong win rate of ${results.winRate.toFixed(1)}%`)
+  if (results.totalReturn > 10) strengths.push(`Excellent total return of ${results.totalReturn.toFixed(1)}%`)
+  if (results.profitFactor > 1.5) strengths.push(`Good profit factor of ${results.profitFactor.toFixed(2)}`)
+  if (results.maxDrawdown < 15) strengths.push(`Low maximum drawdown of ${results.maxDrawdown.toFixed(1)}%`)
+  if (results.totalTrades > 50) strengths.push(`Sufficient trade sample size (${results.totalTrades} trades)`)
+  
+  return strengths.length > 0 ? strengths : ["Strategy shows potential for improvement"]
+}
 
-    const userPrompt = `Please analyze this trading strategy:
-
-STRATEGY CODE:
-${strategy_code}
-
-BACKTEST RESULTS:
-- Win Rate: ${backtest_results.winRate}%
-- Total Trades: ${backtest_results.totalTrades}
-- Profit Factor: ${backtest_results.profitFactor}
-- Max Drawdown: ${backtest_results.maxDrawdown}%
-- Total Return: ${backtest_results.totalReturn}%
-- Sharpe Ratio: ${backtest_results.sharpeRatio || 'N/A'}
-
-${backtest_results.trades ? `SAMPLE TRADES (first 10):
-${JSON.stringify(backtest_results.trades.slice(0, 10), null, 2)}` : ''}
-
-Provide a comprehensive AI analysis with specific, actionable recommendations for improvement.`;
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 3000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
-    }
-
-    const data = await response.json();
-    const analysisText = data.choices[0].message.content;
-
-    // Parse the JSON response
-    let analysis;
-    try {
-      // Extract JSON from the response (in case it's wrapped in markdown)
-      const jsonMatch = analysisText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        analysis = JSON.parse(jsonMatch[0]);
-      } else {
-        analysis = JSON.parse(analysisText);
-      }
-    } catch (parseError) {
-      console.error('Failed to parse AI response:', parseError);
-      throw new Error('Invalid AI response format');
-    }
-
-    // Validate and ensure required fields
-    const validatedAnalysis = {
-      overall_assessment: analysis.overall_assessment || 'Analysis completed',
-      strengths_identified: Array.isArray(analysis.strengths_identified) ? analysis.strengths_identified : ['Strategy executes without errors'],
-      weaknesses_identified: Array.isArray(analysis.weaknesses_identified) ? analysis.weaknesses_identified : ['No specific issues identified'],
-      market_condition_analysis: analysis.market_condition_analysis || 'Market analysis unavailable',
-      risk_level: ['low', 'medium', 'high'].includes(analysis.risk_level) ? analysis.risk_level : 'medium',
-      complexity_score: typeof analysis.complexity_score === 'number' ? Math.min(100, Math.max(0, analysis.complexity_score)) : 50,
-      market_suitability: Array.isArray(analysis.market_suitability) ? analysis.market_suitability : ['General Market Conditions'],
-      recommendations: Array.isArray(analysis.recommendations) ? analysis.recommendations.map((rec: any, index: number) => ({
-        id: rec.id || `ai_rec_${index}`,
-        title: rec.title || 'Strategy Improvement',
-        description: rec.description || 'AI-generated recommendation',
-        category: ['risk_management', 'entry_timing', 'exit_strategy', 'position_sizing', 'market_analysis'].includes(rec.category) 
-          ? rec.category : 'market_analysis',
-        priority: ['high', 'medium', 'low'].includes(rec.priority) ? rec.priority : 'medium',
-        estimatedImprovement: typeof rec.estimated_improvement === 'number' ? rec.estimated_improvement : 0,
-        confidence: typeof rec.confidence === 'number' ? Math.min(100, Math.max(0, rec.confidence)) : 75,
-        reasoning: rec.reasoning || 'AI-generated reasoning',
-        codeSnippet: rec.code_snippet || null,
-        explanation: rec.explanation || 'AI-generated explanation'
-      })) : []
-    };
-
-    return new Response(JSON.stringify({ 
-      success: true,
-      analysis: validatedAnalysis
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (error) {
-    console.error('AI strategy analysis error:', error);
-    return new Response(JSON.stringify({ 
-      success: false,
-      error: error.message 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-});
+function generateWeaknesses(results: any): string[] {
+  const weaknesses = []
+  
+  if (results.winRate < 45) weaknesses.push(`Low win rate of ${results.winRate.toFixed(1)}%`)
+  if (results.totalReturn < 0) weaknesses.push(`Negative total return of ${results.totalReturn.toFixed(1)}%`)
+  if (results.profitFactor < 1.1) weaknesses.push(`Poor profit factor of ${results.profitFactor.toFixed(2)}`)
+  if (results.maxDrawdown > 25) weaknesses.push(`High maximum drawdown of ${results.maxDrawdown.toFixed(1)}%`)
+  if (results.totalTrades < 10) weaknesses.push(`Insufficient trade sample size (${results.totalTrades} trades)`)
+  
+  return weaknesses.length > 0 ? weaknesses : ["Strategy shows good overall performance"]
+}

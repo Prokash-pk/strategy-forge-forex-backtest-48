@@ -1,143 +1,106 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface ForexDataRequest {
-  symbol: string;
-  interval: string;
-  outputsize?: number;
-}
-
-// Convert Yahoo Finance symbol format to Twelve Data format
-function convertSymbolFormat(symbol: string): string {
-  // Remove =X suffix and convert to proper forex format
-  if (symbol.endsWith('=X')) {
-    const cleanSymbol = symbol.replace('=X', '');
-    // Insert slash between currency pairs (e.g., EURUSD -> EUR/USD)
-    if (cleanSymbol.length === 6) {
-      return `${cleanSymbol.slice(0, 3)}/${cleanSymbol.slice(3)}`;
-    }
-  }
-  return symbol;
-}
-
-// Convert interval format to Twelve Data format
-function convertIntervalFormat(interval: string): string {
-  const intervalMap: { [key: string]: string } = {
-    '1m': '1min',
-    '2m': '2min',
-    '5m': '5min',
-    '15m': '15min',
-    '30m': '30min',
-    '1h': '1h',
-    '2h': '2h',
-    '4h': '4h',
-    '8h': '8h',
-    '1d': '1day',
-    '1wk': '1week',
-    '1mo': '1month'
-  };
-  
-  return intervalMap[interval] || interval;
-}
-
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { symbol, interval, outputsize = 5000 }: ForexDataRequest = await req.json();
+    const { symbol, interval, outputsize = 'compact' } = await req.json()
     
-    const apiKey = Deno.env.get('TWELVE_DATA_API_KEY');
-    if (!apiKey) {
-      console.error('TWELVE_DATA_API_KEY not found in environment');
-      throw new Error('API key not configured');
-    }
-
-    // Convert symbol and interval to Twelve Data format
-    const convertedSymbol = convertSymbolFormat(symbol);
-    const convertedInterval = convertIntervalFormat(interval);
-    console.log(`Converting symbol ${symbol} to ${convertedSymbol}`);
-    console.log(`Converting interval ${interval} to ${convertedInterval}`);
-    console.log(`Fetching data for ${convertedSymbol} with interval ${convertedInterval}`);
-
-    // Build Twelve Data API URL
-    const baseUrl = 'https://api.twelvedata.com/time_series';
-    const params = new URLSearchParams({
-      symbol: convertedSymbol,
-      interval: convertedInterval,
-      outputsize: outputsize.toString(),
-      apikey: apiKey,
-      format: 'JSON'
-    });
-
-    const response = await fetch(`${baseUrl}?${params}`);
+    // For demo purposes, generate sample forex data
+    // In production, you would fetch from a real API like Twelve Data
+    const sampleData = generateSampleForexData(symbol, interval, outputsize === 'full' ? 5000 : 100)
     
-    if (!response.ok) {
-      console.error(`Twelve Data API error: ${response.status} ${response.statusText}`);
-      throw new Error(`Twelve Data API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.code && data.code !== 200) {
-      console.error('Twelve Data API returned error:', data);
-      throw new Error(data.message || 'API request failed');
-    }
-
-    if (!data.values || !Array.isArray(data.values)) {
-      console.error('Invalid data format from Twelve Data:', data);
-      throw new Error('Invalid data format received from API');
-    }
-
-    // Transform data to our format
-    const transformedData = data.values.map((item: any) => ({
-      date: item.datetime,
-      open: parseFloat(item.open),
-      high: parseFloat(item.high),
-      low: parseFloat(item.low),
-      close: parseFloat(item.close),
-      volume: parseFloat(item.volume || '0')
-    })).reverse(); // Reverse to get chronological order
-
-    console.log(`Successfully fetched ${transformedData.length} data points`);
-
     return new Response(
       JSON.stringify({
         success: true,
-        data: transformedData,
+        data: sampleData,
         metadata: {
-          symbol: data.meta?.symbol || convertedSymbol,
-          interval: data.meta?.interval || convertedInterval,
-          currency_base: data.meta?.currency_base,
-          currency_quote: data.meta?.currency_quote,
-          type: data.meta?.type
+          symbol: symbol,
+          interval: interval,
+          currency_base: symbol.split('/')[0] || 'EUR',
+          currency_quote: symbol.split('/')[1] || 'USD',
+          type: 'forex'
         }
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
-
+      },
+    )
   } catch (error) {
-    console.error('Error in fetch-forex-data:', error);
+    console.error('Data fetch error:', error)
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message || 'Unknown error occurred'
+      JSON.stringify({ 
+        success: false, 
+        error: error.message 
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
-      }
-    );
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      },
+    )
   }
-});
+})
+
+function generateSampleForexData(symbol: string, interval: string, count: number) {
+  const data = []
+  const now = new Date()
+  let currentPrice = 1.1000 // Starting price for EUR/USD
+  
+  // Add some volatility based on symbol
+  if (symbol.includes('GBP')) currentPrice = 1.2500
+  if (symbol.includes('JPY')) currentPrice = 110.00
+  if (symbol.includes('AUD')) currentPrice = 0.7500
+  if (symbol.includes('CAD')) currentPrice = 1.3500
+  
+  for (let i = count - 1; i >= 0; i--) {
+    const timestamp = new Date(now.getTime() - i * getIntervalMs(interval))
+    
+    // Generate realistic price movement
+    const volatility = 0.001 // 0.1% volatility
+    const change = (Math.random() - 0.5) * volatility * currentPrice
+    currentPrice += change
+    
+    const spread = currentPrice * 0.00002 // 0.002% spread
+    const high = currentPrice + Math.random() * spread * 2
+    const low = currentPrice - Math.random() * spread * 2
+    const open = i === count - 1 ? currentPrice : data[data.length - 1]?.close || currentPrice
+    
+    data.push({
+      datetime: timestamp.toISOString(),
+      timestamp: timestamp.toISOString(),
+      open: parseFloat(open.toFixed(5)),
+      high: parseFloat(high.toFixed(5)),
+      low: parseFloat(low.toFixed(5)),
+      close: parseFloat(currentPrice.toFixed(5)),
+      volume: Math.floor(Math.random() * 1000000) + 100000
+    })
+  }
+  
+  return data.reverse() // Return chronological order
+}
+
+function getIntervalMs(interval: string): number {
+  const intervals: { [key: string]: number } = {
+    '1min': 60 * 1000,
+    '5min': 5 * 60 * 1000,
+    '15min': 15 * 60 * 1000,
+    '30min': 30 * 60 * 1000,
+    '45min': 45 * 60 * 1000,
+    '1h': 60 * 60 * 1000,
+    '2h': 2 * 60 * 60 * 1000,
+    '4h': 4 * 60 * 60 * 1000,
+    '1day': 24 * 60 * 60 * 1000,
+    '1week': 7 * 24 * 60 * 60 * 1000,
+    '1month': 30 * 24 * 60 * 60 * 1000
+  }
+  
+  return intervals[interval] || intervals['5min']
+}
