@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { analyzeStrategy, generateDynamicEquityCurve, generateDynamicTrades } from '@/utils/strategyAnalyzer';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useBacktest = () => {
   const [isRunning, setIsRunning] = useState(false);
@@ -20,74 +20,108 @@ export const useBacktest = () => {
     setIsRunning(true);
     
     try {
-      // Step 1: Fetch data
-      setCurrentStep('Fetching latest market data...');
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Step 1: Fetch real market data
+      setCurrentStep('Fetching real market data from Twelve Data...');
+      console.log(`Fetching real data for ${strategy.symbol} with ${strategy.timeframe} timeframe`);
       
-      const selectedTimeframe = timeframes.find(tf => tf.value === strategy.timeframe);
-      console.log(`Fetching ${strategy.symbol} data for ${selectedTimeframe?.period}`);
-      
-      // Step 2: Analyze strategy
-      setCurrentStep('Analyzing strategy code...');
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const { baseTrades, baseWinRate, baseReturn } = analyzeStrategy(strategy.code, strategy.timeframe);
-      
-      // Step 3: Run simulation
-      setCurrentStep('Running backtest simulation...');
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Dynamic results based on strategy and parameters
-      const totalTrades = baseTrades + Math.floor(Math.random() * 10 - 5);
-      const winRate = Math.max(30, Math.min(85, baseWinRate + (Math.random() * 10 - 5)));
-      const winningTrades = Math.floor(totalTrades * (winRate / 100));
-      const losingTrades = totalTrades - winningTrades;
-      
-      const totalReturn = baseReturn * (strategy.riskPerTrade / 1) * (1 - strategy.spread / 100);
-      const finalBalance = strategy.initialBalance * (1 + totalReturn / 100);
-      
-      const avgWin = 50 + (strategy.takeProfit / strategy.stopLoss) * 80 + Math.random() * 40;
-      const avgLoss = -(30 + (strategy.stopLoss / strategy.takeProfit) * 50 + Math.random() * 30);
-      
-      const maxDrawdown = Math.max(2, Math.min(25, 15 - (winRate - 50) * 0.3 + Math.random() * 8));
-      const sharpeRatio = Math.max(0.2, Math.min(3.0, (totalReturn / 100) / (maxDrawdown / 100) + Math.random() * 0.5));
-      const profitFactor = winningTrades > 0 && losingTrades > 0 ? 
-        (winningTrades * avgWin) / (losingTrades * Math.abs(avgLoss)) : 1.5;
+      const { data: fetchResponse, error: fetchError } = await supabase.functions.invoke('fetch-forex-data', {
+        body: {
+          symbol: strategy.symbol,
+          interval: strategy.timeframe,
+          outputsize: 5000
+        }
+      });
 
-      const mockResults = {
-        strategy: strategy.name,
-        symbol: strategy.symbol,
-        timeframe: strategy.timeframe,
-        period: `Latest ${selectedTimeframe?.period} (${selectedTimeframe?.dataPoints.toLocaleString()} data points)`,
-        initialBalance: strategy.initialBalance,
-        finalBalance: Math.round(finalBalance * 100) / 100,
-        totalReturn: Math.round(totalReturn * 100) / 100,
-        totalTrades,
-        winningTrades,
-        losingTrades,
-        winRate: Math.round(winRate * 100) / 100,
-        maxDrawdown: Math.round(maxDrawdown * 100) / 100,
-        sharpeRatio: Math.round(sharpeRatio * 100) / 100,
-        profitFactor: Math.round(profitFactor * 100) / 100,
-        avgWin: Math.round(avgWin * 100) / 100,
-        avgLoss: Math.round(avgLoss * 100) / 100,
-        equityCurve: generateDynamicEquityCurve(strategy.initialBalance, finalBalance, totalTrades),
-        trades: generateDynamicTrades(totalTrades, avgWin, avgLoss, winRate)
-      };
+      if (fetchError) {
+        console.error('Error fetching data:', fetchError);
+        throw new Error(`Failed to fetch market data: ${fetchError.message}`);
+      }
 
+      if (!fetchResponse.success) {
+        console.error('API error:', fetchResponse.error);
+        throw new Error(fetchResponse.error || 'Failed to fetch market data');
+      }
+
+      const marketData = fetchResponse.data;
+      console.log(`Fetched ${marketData.length} data points for ${strategy.symbol}`);
+
+      if (marketData.length === 0) {
+        throw new Error('No market data available for the selected symbol and timeframe');
+      }
+
+      // Step 2: Validate strategy code
+      setCurrentStep('Validating strategy configuration...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      if (!strategy.code || strategy.code.trim().length === 0) {
+        throw new Error('Strategy code is required');
+      }
+
+      // Step 3: Run backtest with real data
+      setCurrentStep('Running backtest simulation with real market data...');
+      console.log('Starting backtest execution...');
+
+      const { data: backtestResponse, error: backtestError } = await supabase.functions.invoke('run-backtest', {
+        body: {
+          data: marketData,
+          strategy: {
+            code: strategy.code,
+            name: strategy.name,
+            initialBalance: strategy.initialBalance,
+            riskPerTrade: strategy.riskPerTrade,
+            stopLoss: strategy.stopLoss,
+            takeProfit: strategy.takeProfit,
+            spread: strategy.spread,
+            commission: strategy.commission,
+            slippage: strategy.slippage
+          }
+        }
+      });
+
+      if (backtestError) {
+        console.error('Error running backtest:', backtestError);
+        throw new Error(`Backtest execution failed: ${backtestError.message}`);
+      }
+
+      if (!backtestResponse.success) {
+        console.error('Backtest error:', backtestResponse.error);
+        throw new Error(backtestResponse.error || 'Backtest execution failed');
+      }
+
+      const results = backtestResponse.results;
+      console.log(`Backtest completed: ${results.totalTrades} trades executed`);
+
+      // Step 4: Complete
       setCurrentStep('Backtest completed successfully!');
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      onBacktestComplete(mockResults);
+      // Update results with real data info
+      const enhancedResults = {
+        ...results,
+        symbol: strategy.symbol,
+        timeframe: strategy.timeframe,
+        period: `Real Data (${marketData.length} bars)`,
+        metadata: fetchResponse.metadata
+      };
+
+      onBacktestComplete(enhancedResults);
       
       toast({
-        title: "Backtest Complete",
-        description: `Strategy tested with ${mockResults.totalTrades} trades over ${selectedTimeframe?.period}`,
+        title: "Real Data Backtest Complete",
+        description: `Strategy tested with ${results.totalTrades} trades on real ${strategy.symbol} data`,
       });
+
     } catch (error) {
+      console.error('Backtest failed:', error);
+      
+      let errorMessage = 'An error occurred while running the backtest';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: "Backtest Failed",
-        description: "An error occurred while running the backtest",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
