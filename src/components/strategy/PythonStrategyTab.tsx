@@ -3,7 +3,7 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Save, Play } from 'lucide-react';
+import { Save, Play, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -27,6 +27,17 @@ const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({
 }) => {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = React.useState(false);
+  const [codeChanged, setCodeChanged] = React.useState(false);
+
+  // Watch for external code changes (from Quick Add)
+  React.useEffect(() => {
+    setCodeChanged(false);
+  }, [strategy.code]);
+
+  const handleCodeChange = (newCode: string) => {
+    onStrategyChange({code: newCode});
+    setCodeChanged(true);
+  };
 
   const handleSaveStrategy = async () => {
     if (!strategy.name.trim()) {
@@ -75,6 +86,8 @@ const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({
         description: `"${strategy.name}" has been saved successfully`,
       });
 
+      setCodeChanged(false);
+
     } catch (error) {
       console.error('Save strategy error:', error);
       toast({
@@ -94,10 +107,16 @@ const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({
         <Textarea
           id="strategyCode"
           value={strategy.code}
-          onChange={(e) => onStrategyChange({code: e.target.value})}
+          onChange={(e) => handleCodeChange(e.target.value)}
           className="bg-slate-700 border-slate-600 text-white font-mono text-sm min-h-[300px] mt-2"
           placeholder="def strategy_logic(data):&#10;    # Your strategy logic here&#10;    return {'entry': [], 'exit': []}"
         />
+        {codeChanged && (
+          <p className="text-orange-400 text-xs mt-1 flex items-center gap-1">
+            <RefreshCw className="h-3 w-3" />
+            Code modified - run backtest to see changes
+          </p>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -115,7 +134,7 @@ const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({
             ) : (
               <>
                 <Play className="h-4 w-4 mr-2" />
-                Run Backtest
+                {codeChanged ? 'Run Backtest (Code Changed)' : 'Run Backtest'}
               </>
             )}
           </Button>

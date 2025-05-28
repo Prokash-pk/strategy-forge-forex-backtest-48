@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -273,25 +274,34 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
 
   return (
     <Card className="bg-slate-800 border-slate-700">
-      <CardHeader>
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Brain className="h-5 w-5 text-emerald-400" />
-            <CardTitle className="text-white">
-              Strategy Coach {useAI && <Badge className="ml-2 bg-purple-500/10 text-purple-400">AI Enhanced</Badge>}
-            </CardTitle>
+          <div className="flex items-center gap-3">
+            <Brain className="h-6 w-6 text-emerald-400" />
+            <div>
+              <CardTitle className="text-white text-lg">
+                Strategy Coach 
+                {useAI && <Badge className="ml-2 bg-purple-500/10 text-purple-400">AI Enhanced</Badge>}
+              </CardTitle>
+              <p className="text-slate-400 text-sm mt-1">
+                {useAI 
+                  ? 'Advanced AI-powered analysis and recommendations'
+                  : `Rule-based analysis and recommendations${canRunAIAnalysis ? ' - upgrade to AI for deeper insights' : ' - run backtest for AI analysis'}`
+                }
+              </p>
+            </div>
           </div>
           {!useAI && !isAiAnalyzing && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
               {!canRunAIAnalysis && (
-                <div className="text-xs text-slate-500 mr-2">
+                <div className="text-xs text-slate-500">
                   Need: code + results
                 </div>
               )}
               <Button
                 onClick={handleAIAnalysis}
                 disabled={!canRunAIAnalysis}
-                className={`${canRunAIAnalysis ? 'bg-purple-600 hover:bg-purple-700' : 'bg-slate-600 cursor-not-allowed'} text-white`}
+                className={`${canRunAIAnalysis ? 'bg-purple-600 hover:bg-purple-700' : 'bg-slate-600 cursor-not-allowed'} text-white px-4 py-2`}
                 size="sm"
               >
                 <Sparkles className="h-4 w-4 mr-2" />
@@ -300,14 +310,8 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
             </div>
           )}
         </div>
-        <p className="text-slate-400 text-sm">
-          {useAI 
-            ? 'Advanced AI-powered analysis and recommendations'
-            : `Rule-based analysis and recommendations${canRunAIAnalysis ? ' - upgrade to AI for deeper insights' : ' - run backtest for AI analysis'}`
-          }
-        </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0">
         <Tabs defaultValue="insights" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3 bg-slate-700">
             <TabsTrigger value="insights">Key Insights</TabsTrigger>
@@ -424,7 +428,7 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
                 <Button
                   onClick={handleAddAllRecommendations}
                   disabled={isAddingAll}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2"
                 >
                   <Zap className="h-4 w-4 mr-2" />
                   {isAddingAll ? 'Adding All...' : `Add All Recommendations (${availableRecommendations.length})`}
@@ -483,7 +487,7 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
                                   size="sm"
                                   onClick={() => handleQuickAdd(rec)}
                                   disabled={addedSnippets.has(rec.id)}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1"
                                 >
                                   <Plus className="h-3 w-3 mr-1" />
                                   {addedSnippets.has(rec.id) ? 'Added' : 'Quick Add'}
@@ -493,7 +497,7 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy,
                                 size="sm"
                                 variant="outline"
                                 onClick={() => copyToClipboard(rec.codeSnippet!)}
-                                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                                className="border-slate-600 text-slate-300 hover:bg-slate-700 px-3 py-1"
                               >
                                 <Copy className="h-3 w-3 mr-1" />
                                 Copy
