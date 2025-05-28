@@ -22,8 +22,8 @@ const Index = () => {
                 <TrendingUp className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">Forex Strategy Lab</h1>
-                <p className="text-slate-400 text-sm">Professional Backtesting Suite</p>
+                <h1 className="text-2xl font-bold text-white">Stratyx</h1>
+                <p className="text-slate-400 text-sm">Professional Forex Backtesting Platform</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 text-sm text-slate-400">

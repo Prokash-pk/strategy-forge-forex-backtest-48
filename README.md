@@ -1,8 +1,18 @@
-# Welcome to your Lovable project
+
+# Stratyx - Professional Forex Backtesting Platform
 
 ## Project info
 
 **URL**: https://lovable.dev/projects/0ac6f77a-06eb-4d44-8e40-776afbcaf28c
+
+## About Stratyx
+
+Stratyx is a comprehensive forex strategy backtesting platform that enables traders to:
+- Build and test forex trading strategies
+- Analyze historical market data
+- Evaluate strategy performance with detailed metrics
+- Implement advanced technical indicators
+- Perform multi-timeframe analysis
 
 ## How can I edit this code?
 
@@ -59,12 +69,22 @@ This project is built with:
 - React
 - shadcn-ui
 - Tailwind CSS
+- Supabase (for data management)
+
+## Features
+
+- **Strategy Builder**: Visual and code-based strategy creation
+- **Data Manager**: Historical forex data management
+- **Backtest Engine**: Comprehensive strategy testing
+- **Performance Analytics**: Detailed metrics and visualizations
+- **Multi-timeframe Analysis**: Advanced strategy validation
+- **Technical Indicators**: Comprehensive library of indicators
 
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/0ac6f77a-06eb-4d44-8e40-776afbcaf28c) and click on Share -> Publish.
 
-## Can I connect a custom domain to my Lovable project?
+## Can I connect a custom domain to my Stratyx project?
 
 Yes, you can!
 
