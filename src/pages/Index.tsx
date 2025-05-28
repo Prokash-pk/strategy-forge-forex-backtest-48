@@ -52,7 +52,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="results">
-            <BacktestResults results={backtestResults} strategy={strategy} />
+            <BacktestResults results={backtestResults} />
           </TabsContent>
 
           <TabsContent value="data">
