@@ -9,12 +9,14 @@ interface StrategyBuilderProps {
   onStrategyUpdate: (strategy: any) => void;
   onBacktestComplete: (results: any) => void;
   onNavigateToResults: () => void;
+  initialStrategy?: any;
 }
 
 const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ 
   onStrategyUpdate, 
   onBacktestComplete, 
-  onNavigateToResults 
+  onNavigateToResults,
+  initialStrategy 
 }) => {
   const {
     strategy,
@@ -22,7 +24,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({
     handleStrategyChange,
     handleStrategySelect,
     handleBacktestComplete
-  } = useStrategyBuilder(onStrategyUpdate, onBacktestComplete, onNavigateToResults);
+  } = useStrategyBuilder(onStrategyUpdate, onBacktestComplete, onNavigateToResults, initialStrategy);
 
   const { isRunning, currentStep, runBacktest } = useBacktest();
 

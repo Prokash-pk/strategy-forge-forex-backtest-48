@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { PythonExecutor } from '@/services/pythonExecutor';
 import { StrategyStorage, StrategyResult } from '@/services/strategyStorage';
@@ -7,7 +6,8 @@ import { useToast } from '@/hooks/use-toast';
 export const useStrategyBuilder = (
   onStrategyUpdate: (strategy: any) => void,
   onBacktestComplete: (results: any) => void,
-  onNavigateToResults: () => void
+  onNavigateToResults: () => void,
+  initialStrategy?: any
 ) => {
   const [strategy, setStrategy] = useState({
     name: 'EMA Crossover Strategy',
@@ -65,6 +65,13 @@ def strategy_logic(data):
   const [pythonStatus, setPythonStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   const { toast } = useToast();
 
+  // Update strategy when initialStrategy changes
+  useEffect(() => {
+    if (initialStrategy) {
+      setStrategy(prev => ({ ...prev, ...initialStrategy }));
+    }
+  }, [initialStrategy]);
+
   useEffect(() => {
     const checkPythonStatus = async () => {
       try {
@@ -79,7 +86,9 @@ def strategy_logic(data):
   }, []);
 
   const handleStrategyChange = (updates: any) => {
-    setStrategy(prev => ({ ...prev, ...updates }));
+    const newStrategy = { ...strategy, ...updates };
+    setStrategy(newStrategy);
+    onStrategyUpdate(newStrategy);
   };
 
   const handleStrategySelect = (savedStrategy: StrategyResult) => {

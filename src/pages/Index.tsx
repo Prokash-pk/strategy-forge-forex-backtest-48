@@ -4,13 +4,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StrategyBuilder from '@/components/StrategyBuilder';
 import BacktestResults from '@/components/BacktestResults';
 import DataManager from '@/components/DataManager';
+import { StrategyCodeInsertion } from '@/services/strategyCodeInsertion';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
   const [results, setResults] = useState(null);
   const [activeTab, setActiveTab] = useState('builder');
+  const [strategy, setStrategy] = useState(null);
+  const { toast } = useToast();
 
-  const handleStrategyUpdate = (strategy: any) => {
-    console.log('Strategy updated:', strategy);
+  const handleStrategyUpdate = (strategyData: any) => {
+    console.log('Strategy updated:', strategyData);
+    setStrategy(strategyData);
   };
 
   const handleBacktestComplete = (backtestResults: any) => {
@@ -20,6 +25,29 @@ const Index = () => {
 
   const handleNavigateToResults = () => {
     setActiveTab('results');
+  };
+
+  const handleAddToStrategy = (codeSnippet: string) => {
+    if (!strategy) {
+      toast({
+        title: "No Strategy Found",
+        description: "Please create a strategy first in the Strategy Builder",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const updatedCode = StrategyCodeInsertion.insertCodeSnippet(
+      strategy.code || '', 
+      codeSnippet, 
+      'Strategy Coach Suggestion'
+    );
+
+    const updatedStrategy = { ...strategy, code: updatedCode };
+    setStrategy(updatedStrategy);
+    
+    // Switch to builder tab to show the updated code
+    setActiveTab('builder');
   };
 
   return (
@@ -52,11 +80,15 @@ const Index = () => {
               onStrategyUpdate={handleStrategyUpdate}
               onBacktestComplete={handleBacktestComplete}
               onNavigateToResults={handleNavigateToResults}
+              initialStrategy={strategy}
             />
           </TabsContent>
 
           <TabsContent value="results">
-            <BacktestResults results={results} />
+            <BacktestResults 
+              results={results} 
+              onAddToStrategy={handleAddToStrategy}
+            />
           </TabsContent>
 
           <TabsContent value="data">

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,9 +13,10 @@ import StrategyCoach from './backtest/StrategyCoach';
 
 interface BacktestResultsProps {
   results: any;
+  onAddToStrategy?: (codeSnippet: string) => void;
 }
 
-const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
+const BacktestResults: React.FC<BacktestResultsProps> = ({ results, onAddToStrategy }) => {
   console.log('BacktestResults received results:', results);
 
   if (!results) {
@@ -115,7 +115,7 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
         </TabsContent>
 
         <TabsContent value="coach">
-          <StrategyCoach results={results} />
+          <StrategyCoach results={results} onAddToStrategy={onAddToStrategy} />
         </TabsContent>
       </Tabs>
     </div>

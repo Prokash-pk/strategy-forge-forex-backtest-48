@@ -1,22 +1,23 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, Copy, TrendingUp, AlertTriangle, Target, Brain } from 'lucide-react';
+import { ChevronDown, ChevronUp, Copy, TrendingUp, AlertTriangle, Target, Brain, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StrategyCoach as StrategyCoachService, StrategyAnalysis } from '@/services/strategyCoach';
 
 interface StrategyCoachProps {
   results: any;
+  onAddToStrategy?: (codeSnippet: string) => void;
 }
 
-const StrategyCoach: React.FC<StrategyCoachProps> = ({ results }) => {
+const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy }) => {
   const [analysis, setAnalysis] = useState<StrategyAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [openRecommendations, setOpenRecommendations] = useState<Set<string>>(new Set());
+  const [addedSnippets, setAddedSnippets] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   console.log('StrategyCoach received results:', results);
@@ -55,6 +56,34 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results }) => {
     toast({
       title: "Copied!",
       description: "Code snippet copied to clipboard",
+    });
+  };
+
+  const handleQuickAdd = (recommendation: any) => {
+    if (!onAddToStrategy || !recommendation.codeSnippet) {
+      toast({
+        title: "Cannot Add",
+        description: "No code snippet available or strategy editor not connected",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (addedSnippets.has(recommendation.id)) {
+      toast({
+        title: "Already Added",
+        description: "This recommendation has already been added to your strategy",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    onAddToStrategy(recommendation.codeSnippet);
+    setAddedSnippets(prev => new Set([...prev, recommendation.id]));
+    
+    toast({
+      title: "Strategy Updated!",
+      description: `"${recommendation.title}" has been added to your strategy editor`,
     });
   };
 
@@ -210,18 +239,31 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results }) => {
                       </div>
                       
                       {rec.codeSnippet && (
-                        <div className="bg-slate-900 p-3 rounded border border-slate-600">
+                        <div className="bg-slate-900 p-3 rounded border border-slate-600 mb-3">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-slate-300 text-sm font-medium">Code Implementation</span>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => copyToClipboard(rec.codeSnippet!)}
-                              className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                            >
-                              <Copy className="h-3 w-3 mr-1" />
-                              Copy
-                            </Button>
+                            <div className="flex gap-2">
+                              {onAddToStrategy && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleQuickAdd(rec)}
+                                  disabled={addedSnippets.has(rec.id)}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                                >
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  {addedSnippets.has(rec.id) ? 'Added' : 'Quick Add'}
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => copyToClipboard(rec.codeSnippet!)}
+                                className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                              >
+                                <Copy className="h-3 w-3 mr-1" />
+                                Copy
+                              </Button>
+                            </div>
                           </div>
                           <pre className="text-slate-300 text-xs overflow-x-auto whitespace-pre-wrap">
                             <code>{rec.codeSnippet}</code>
