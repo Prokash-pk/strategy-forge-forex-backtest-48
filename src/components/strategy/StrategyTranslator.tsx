@@ -107,7 +107,7 @@ const StrategyTranslator: React.FC<StrategyTranslatorProps> = ({
           <Button
             onClick={handleGenerateStrategy}
             disabled={isGenerating || !englishInput.trim()}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
           >
             {isGenerating ? (
               <>
@@ -133,7 +133,7 @@ const StrategyTranslator: React.FC<StrategyTranslatorProps> = ({
             <button
               key={index}
               onClick={() => handleExampleClick(example)}
-              className="w-full text-left p-3 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-colors"
+              className="w-full text-left p-3 rounded-md bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-colors border border-slate-600"
             >
               {example}
             </button>

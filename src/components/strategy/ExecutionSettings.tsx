@@ -72,7 +72,7 @@ const ExecutionSettings: React.FC<ExecutionSettingsProps> = ({
         <Button
           onClick={onRunBacktest}
           disabled={isRunning}
-          className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
         >
           {isRunning ? (
             <>
