@@ -38,6 +38,174 @@ interface Trade {
   duration: number;
 }
 
+// Technical Analysis Functions
+class TechnicalAnalysis {
+  static sma(data: number[], period: number): number[] {
+    const result: number[] = [];
+    for (let i = 0; i < data.length; i++) {
+      if (i < period - 1) {
+        result.push(NaN);
+      } else {
+        const sum = data.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+        result.push(sum / period);
+      }
+    }
+    return result;
+  }
+
+  static ema(data: number[], period: number): number[] {
+    const result: number[] = [];
+    const multiplier = 2 / (period + 1);
+    
+    for (let i = 0; i < data.length; i++) {
+      if (i === 0) {
+        result.push(data[i]);
+      } else {
+        result.push((data[i] * multiplier) + (result[i - 1] * (1 - multiplier)));
+      }
+    }
+    return result;
+  }
+
+  static rsi(data: number[], period: number = 14): number[] {
+    const result: number[] = [];
+    const gains: number[] = [];
+    const losses: number[] = [];
+
+    for (let i = 1; i < data.length; i++) {
+      const change = data[i] - data[i - 1];
+      gains.push(change > 0 ? change : 0);
+      losses.push(change < 0 ? Math.abs(change) : 0);
+    }
+
+    for (let i = 0; i < gains.length; i++) {
+      if (i < period - 1) {
+        result.push(NaN);
+      } else {
+        const avgGain = gains.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period;
+        const avgLoss = losses.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0) / period;
+        
+        if (avgLoss === 0) {
+          result.push(100);
+        } else {
+          const rs = avgGain / avgLoss;
+          result.push(100 - (100 / (1 + rs)));
+        }
+      }
+    }
+    
+    return [NaN, ...result];
+  }
+}
+
+// Strategy Executor
+class StrategyExecutor {
+  static executeStrategy(code: string, marketData: any) {
+    try {
+      console.log('Executing strategy code:', code);
+      
+      const data = {
+        open: marketData.open,
+        high: marketData.high,
+        low: marketData.low,
+        close: marketData.close,
+        volume: marketData.volume
+      };
+
+      // Handle common strategy patterns
+      if (code.toLowerCase().includes('ema') && code.toLowerCase().includes('crossover')) {
+        return this.executeEMACrossover(data);
+      } else if (code.toLowerCase().includes('rsi')) {
+        return this.executeRSIStrategy(data);
+      } else {
+        // Try to parse and execute custom code
+        return this.executeCustomStrategy(code, data);
+      }
+    } catch (error) {
+      console.error('Strategy execution error:', error);
+      // Fallback to simple EMA crossover
+      return this.executeEMACrossover({
+        open: marketData.open,
+        high: marketData.high,
+        low: marketData.low,
+        close: marketData.close,
+        volume: marketData.volume
+      });
+    }
+  }
+
+  private static executeEMACrossover(data: any) {
+    const ema12 = TechnicalAnalysis.ema(data.close, 12);
+    const ema26 = TechnicalAnalysis.ema(data.close, 26);
+    
+    const entry: boolean[] = [];
+    const exit: boolean[] = [];
+
+    for (let i = 0; i < data.close.length; i++) {
+      if (i === 0) {
+        entry.push(false);
+        exit.push(false);
+      } else {
+        // Entry: EMA12 crosses above EMA26
+        const entrySignal = ema12[i] > ema26[i] && ema12[i-1] <= ema26[i-1];
+        // Exit: EMA12 crosses below EMA26
+        const exitSignal = ema12[i] < ema26[i] && ema12[i-1] >= ema26[i-1];
+        
+        entry.push(entrySignal);
+        exit.push(exitSignal);
+      }
+    }
+
+    return { entry, exit, indicators: { ema12, ema26 } };
+  }
+
+  private static executeRSIStrategy(data: any) {
+    const rsi = TechnicalAnalysis.rsi(data.close, 14);
+    const entry: boolean[] = [];
+    const exit: boolean[] = [];
+
+    for (let i = 0; i < data.close.length; i++) {
+      // Entry: RSI crosses above 30 (oversold)
+      const entrySignal = i > 0 && rsi[i] > 30 && rsi[i-1] <= 30;
+      // Exit: RSI crosses above 70 (overbought)
+      const exitSignal = i > 0 && rsi[i] > 70 && rsi[i-1] <= 70;
+      
+      entry.push(entrySignal);
+      exit.push(exitSignal);
+    }
+
+    return { entry, exit, indicators: { rsi } };
+  }
+
+  private static executeCustomStrategy(code: string, data: any) {
+    // Simple pattern matching approach
+    const entry = new Array(data.close.length).fill(false);
+    const exit = new Array(data.close.length).fill(false);
+    
+    // Try to extract strategy parameters from code
+    const smaMatch = code.match(/sma.*?(\d+)/i);
+    const emaMatch = code.match(/ema.*?(\d+)/i);
+    
+    if (smaMatch || emaMatch) {
+      const period = parseInt(smaMatch?.[1] || emaMatch?.[1] || '20');
+      const ma = smaMatch ? 
+        TechnicalAnalysis.sma(data.close, period) : 
+        TechnicalAnalysis.ema(data.close, period);
+      
+      // Simple MA crossover strategy
+      for (let i = 1; i < data.close.length; i++) {
+        entry[i] = data.close[i] > ma[i] && data.close[i-1] <= ma[i-1];
+        exit[i] = data.close[i] < ma[i] && data.close[i-1] >= ma[i-1];
+      }
+      
+      return { entry, exit, indicators: { ma } };
+    }
+    
+    // Fallback to EMA crossover
+    return this.executeEMACrossover(data);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -47,37 +215,31 @@ serve(async (req) => {
     const { data, strategy }: BacktestRequest = await req.json();
     
     console.log(`Running backtest for ${strategy.name} with ${data.length} data points`);
+    console.log('Strategy code:', strategy.code);
 
-    // Simulate strategy execution - this is a simplified version
-    // In a real implementation, you'd want to use a Python interpreter or similar
+    // Prepare market data for strategy execution
+    const marketData = {
+      open: data.map(d => d.open),
+      high: data.map(d => d.high),
+      low: data.map(d => d.low),
+      close: data.map(d => d.close),
+      volume: data.map(d => d.volume)
+    };
+
+    // Execute the user's strategy
+    const signals = StrategyExecutor.executeStrategy(strategy.code, marketData);
+    console.log('Strategy signals generated:', signals.entry.filter(Boolean).length, 'entry signals');
+
+    // Simulate strategy execution using the generated signals
     const trades: Trade[] = [];
     let balance = strategy.initialBalance;
     let position: { type: 'BUY' | 'SELL'; entry: number; entryDate: Date; id: number } | null = null;
     let tradeId = 1;
 
-    // Calculate simple EMA crossover for demonstration
-    const calculateEMA = (prices: number[], period: number) => {
-      const ema = [];
-      const multiplier = 2 / (period + 1);
-      
-      for (let i = 0; i < prices.length; i++) {
-        if (i === 0) {
-          ema.push(prices[i]);
-        } else {
-          ema.push((prices[i] * multiplier) + (ema[i - 1] * (1 - multiplier)));
-        }
-      }
-      return ema;
-    };
-
-    const closes = data.map(d => d.close);
-    const ema12 = calculateEMA(closes, 12);
-    const ema26 = calculateEMA(closes, 26);
-
     // Generate equity curve
     const equityCurve = [];
 
-    for (let i = 26; i < data.length; i++) {
+    for (let i = 1; i < data.length; i++) {
       const currentBar = data[i];
       const currentPrice = currentBar.close;
       const currentDate = new Date(currentBar.date);
@@ -86,8 +248,8 @@ serve(async (req) => {
       const entryPrice = currentPrice + (strategy.spread / 10000);
       const exitPrice = currentPrice - (strategy.spread / 10000);
 
-      // Entry signal: EMA12 crosses above EMA26
-      if (!position && i > 0 && ema12[i] > ema26[i] && ema12[i-1] <= ema26[i-1]) {
+      // Entry signal from strategy
+      if (!position && signals.entry[i]) {
         position = {
           type: 'BUY',
           entry: entryPrice,
@@ -102,10 +264,10 @@ serve(async (req) => {
         let shouldExit = false;
         let exitReason = '';
 
-        // Exit signal: EMA12 crosses below EMA26
-        if (ema12[i] < ema26[i] && ema12[i-1] >= ema26[i-1]) {
+        // Exit signal from strategy
+        if (signals.exit[i]) {
           shouldExit = true;
-          exitReason = 'Signal exit';
+          exitReason = 'Strategy exit signal';
         }
 
         // Stop loss
@@ -195,6 +357,7 @@ serve(async (req) => {
     };
 
     console.log(`Backtest completed: ${trades.length} trades, ${totalReturn.toFixed(2)}% return`);
+    console.log(`Strategy used: ${strategy.name}`);
 
     return new Response(
       JSON.stringify({

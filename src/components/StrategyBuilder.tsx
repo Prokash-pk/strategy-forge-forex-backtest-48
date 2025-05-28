@@ -24,7 +24,10 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ onStrategyUpdate, onB
     commission: 0.5,
     slippage: 1,
     code: `# EMA Crossover Strategy
+# This strategy uses exponential moving averages for entry and exit signals
+
 def strategy_logic(data):
+    # Calculate EMAs
     short_ema = data['Close'].ewm(span=12).mean()
     long_ema = data['Close'].ewm(span=26).mean()
     
@@ -39,7 +42,14 @@ def strategy_logic(data):
         'exit': exit,
         'short_ema': short_ema,
         'long_ema': long_ema
-    }`
+    }
+
+# Alternative: RSI Strategy
+# def strategy_logic(data):
+#     rsi = calculate_rsi(data['Close'], 14)
+#     entry = rsi < 30  # Oversold
+#     exit = rsi > 70   # Overbought
+#     return {'entry': entry, 'exit': exit, 'rsi': rsi}`
   });
 
   const { isRunning, currentStep, runBacktest } = useBacktest();
