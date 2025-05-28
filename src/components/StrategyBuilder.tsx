@@ -15,9 +15,14 @@ import { useToast } from '@/hooks/use-toast';
 interface StrategyBuilderProps {
   onStrategyUpdate: (strategy: any) => void;
   onBacktestComplete: (results: any) => void;
+  onNavigateToResults: () => void;
 }
 
-const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ onStrategyUpdate, onBacktestComplete }) => {
+const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ 
+  onStrategyUpdate, 
+  onBacktestComplete, 
+  onNavigateToResults 
+}) => {
   const [strategy, setStrategy] = useState({
     name: 'EMA Crossover Strategy',
     symbol: 'EURUSD=X',
@@ -29,6 +34,8 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ onStrategyUpdate, onB
     spread: 2,
     commission: 0.5,
     slippage: 1,
+    maxPositionSize: 100000, // New: Maximum position size
+    riskModel: 'fixed', // New: 'fixed' or 'percentage'
     code: `# EMA Crossover Strategy
 # This strategy uses exponential moving averages for entry and exit signals
 
@@ -124,8 +131,16 @@ def strategy_logic(data):
       await StrategyStorage.saveStrategyResult(strategyResult);
       
       toast({
-        title: "Strategy Saved",
-        description: "Backtest results have been saved to your history",
+        title: "Backtest Complete!",
+        description: `Strategy tested with ${results.totalTrades} trades. Click to view detailed results.`,
+        action: (
+          <button 
+            onClick={onNavigateToResults}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1 rounded text-sm"
+          >
+            View Results
+          </button>
+        ),
       });
     } catch (error) {
       console.error('Failed to save strategy results:', error);
@@ -136,8 +151,13 @@ def strategy_logic(data):
       });
     }
 
-    // Call the original callback
+    // Call the original callback and auto-navigate
     onBacktestComplete(results);
+    
+    // Auto-navigate to results after a short delay
+    setTimeout(() => {
+      onNavigateToResults();
+    }, 2000);
   };
 
   const handleRunBacktest = () => {
@@ -153,7 +173,7 @@ def strategy_logic(data):
             <Code className="h-5 w-5 text-slate-400" />
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-white font-medium">Python Execution Engine</span>
+                <span className="text-white font-medium">Enhanced Python Execution Engine</span>
                 {pythonStatus === 'checking' && (
                   <div className="animate-spin h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full"></div>
                 )}
@@ -165,9 +185,9 @@ def strategy_logic(data):
                 )}
               </div>
               <p className="text-sm text-slate-400">
-                {pythonStatus === 'checking' && 'Initializing Python runtime...'}
-                {pythonStatus === 'available' && 'Ready - Full Python strategy execution available'}
-                {pythonStatus === 'unavailable' && 'Limited - Using pattern matching fallback'}
+                {pythonStatus === 'checking' && 'Initializing enhanced Python runtime...'}
+                {pythonStatus === 'available' && 'Ready - Enhanced accuracy with dynamic spreads, realistic slippage, and advanced position sizing'}
+                {pythonStatus === 'unavailable' && 'Limited - Using pattern matching fallback with basic execution modeling'}
               </p>
             </div>
           </div>

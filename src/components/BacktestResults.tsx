@@ -2,7 +2,8 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { BarChart3, CheckCircle, AlertCircle } from 'lucide-react';
 import PerformanceMetrics from './backtest/PerformanceMetrics';
 import StrategyInfo from './backtest/StrategyInfo';
 import EquityCurveChart from './backtest/EquityCurveChart';
@@ -29,6 +30,55 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
 
   return (
     <div className="space-y-6">
+      {/* Enhanced Execution Status */}
+      {results.enhancedFeatures && (
+        <Card className="bg-slate-800 border-slate-700">
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-emerald-400" />
+                  <span className="text-white font-medium">Enhanced Backtest Execution</span>
+                </div>
+                <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400">
+                  {results.executionMethod}
+                </Badge>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                {results.enhancedFeatures.dynamicSpreads ? 
+                  <CheckCircle className="h-4 w-4 text-emerald-400" /> : 
+                  <AlertCircle className="h-4 w-4 text-yellow-400" />
+                }
+                <span className="text-slate-300">Dynamic Spreads</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {results.enhancedFeatures.realisticSlippage ? 
+                  <CheckCircle className="h-4 w-4 text-emerald-400" /> : 
+                  <AlertCircle className="h-4 w-4 text-yellow-400" />
+                }
+                <span className="text-slate-300">Realistic Slippage</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {results.enhancedFeatures.advancedPositionSizing ? 
+                  <CheckCircle className="h-4 w-4 text-emerald-400" /> : 
+                  <AlertCircle className="h-4 w-4 text-yellow-400" />
+                }
+                <span className="text-slate-300">Advanced Position Sizing</span>
+              </div>
+              <div className="flex items-center gap-2">
+                {results.enhancedFeatures.marketImpact ? 
+                  <CheckCircle className="h-4 w-4 text-emerald-400" /> : 
+                  <AlertCircle className="h-4 w-4 text-yellow-400" />
+                }
+                <span className="text-slate-300">Market Impact</span>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Summary Cards */}
       <PerformanceMetrics results={results} />
 

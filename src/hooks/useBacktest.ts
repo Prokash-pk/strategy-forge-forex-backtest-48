@@ -22,7 +22,18 @@ export const useBacktest = () => {
     setIsRunning(true);
     
     try {
-      // Step 1: Fetch real market data
+      // Step 1: Validate strategy parameters
+      setCurrentStep('Validating enhanced strategy parameters...');
+      
+      if (!strategy.code || strategy.code.trim().length === 0) {
+        throw new Error('Strategy code is required');
+      }
+      
+      if (strategy.riskPerTrade <= 0 || strategy.riskPerTrade > 100) {
+        throw new Error('Risk per trade must be between 0 and 100%');
+      }
+
+      // Step 2: Fetch real market data
       setCurrentStep('Fetching real market data from Twelve Data...');
       console.log(`Fetching real data for ${strategy.symbol} with ${strategy.timeframe} timeframe`);
       
@@ -51,28 +62,20 @@ export const useBacktest = () => {
         throw new Error('No market data available for the selected symbol and timeframe');
       }
 
-      // Step 2: Initialize Python execution environment
-      setCurrentStep('Initializing Python execution environment...');
+      // Step 3: Initialize Python execution environment
+      setCurrentStep('Initializing enhanced Python execution environment...');
       
       const isPythonAvailable = await PythonExecutor.isAvailable();
       console.log(`Python execution ${isPythonAvailable ? 'enabled' : 'not available, using fallback'}`);
 
-      // Step 3: Validate strategy code
-      setCurrentStep('Validating strategy configuration...');
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      if (!strategy.code || strategy.code.trim().length === 0) {
-        throw new Error('Strategy code is required');
-      }
-
-      // Step 4: Execute strategy (Python or JavaScript fallback)
-      setCurrentStep(isPythonAvailable ? 'Executing Python strategy...' : 'Running backtest simulation with pattern matching...');
+      // Step 4: Execute strategy with enhanced features
+      setCurrentStep(isPythonAvailable ? 'Executing Python strategy with enhanced modeling...' : 'Running backtest simulation with pattern matching...');
       
       let backtestResponse;
       
       if (isPythonAvailable) {
         // Use Python execution
-        console.log('Using Python execution for strategy');
+        console.log('Using enhanced Python execution for strategy');
         
         // Prepare market data for Python with proper data structure
         const pythonMarketData = {
@@ -98,7 +101,7 @@ export const useBacktest = () => {
         // Get timeframe info for accurate duration calculation
         const timeframeInfo = timeframes.find(tf => tf.value === strategy.timeframe);
         
-        // Run backtest with Python-generated signals and timeframe info
+        // Run enhanced backtest with Python-generated signals and timeframe info
         const { data: response, error } = await supabase.functions.invoke('run-backtest', {
           body: {
             data: marketData,
@@ -111,15 +114,18 @@ export const useBacktest = () => {
               takeProfit: strategy.takeProfit,
               spread: strategy.spread,
               commission: strategy.commission,
-              slippage: strategy.slippage
+              slippage: strategy.slippage,
+              maxPositionSize: strategy.maxPositionSize,
+              riskModel: strategy.riskModel
             },
             pythonSignals: strategyResult.error ? undefined : strategyResult,
-            timeframeInfo: timeframeInfo
+            timeframeInfo: timeframeInfo,
+            enhancedMode: true // Enable enhanced backtest features
           }
         });
         
         backtestResponse = response;
-        if (error) throw new Error(`Backtest execution failed: ${error.message}`);
+        if (error) throw new Error(`Enhanced backtest execution failed: ${error.message}`);
         
       } else {
         // Fallback to existing JavaScript pattern matching
@@ -139,9 +145,12 @@ export const useBacktest = () => {
               takeProfit: strategy.takeProfit,
               spread: strategy.spread,
               commission: strategy.commission,
-              slippage: strategy.slippage
+              slippage: strategy.slippage,
+              maxPositionSize: strategy.maxPositionSize,
+              riskModel: strategy.riskModel
             },
-            timeframeInfo: timeframeInfo
+            timeframeInfo: timeframeInfo,
+            enhancedMode: false
           }
         });
         
@@ -155,10 +164,10 @@ export const useBacktest = () => {
       }
 
       const results = backtestResponse.results;
-      console.log(`Backtest completed: ${results.totalTrades} trades executed`);
+      console.log(`Enhanced backtest completed: ${results.totalTrades} trades executed`);
 
       // Step 5: Save strategy results to database
-      setCurrentStep('Saving strategy results...');
+      setCurrentStep('Saving enhanced strategy results...');
       
       try {
         await StrategyStorage.saveStrategyResult({
@@ -173,43 +182,44 @@ export const useBacktest = () => {
           max_drawdown: results.maxDrawdown
         });
         
-        console.log('Strategy results saved to database');
+        console.log('Enhanced strategy results saved to database');
       } catch (saveError) {
         console.warn('Failed to save strategy results:', saveError);
         // Don't fail the backtest if saving fails
       }
 
       // Step 6: Complete
-      setCurrentStep('Backtest completed successfully!');
+      setCurrentStep('Enhanced backtest completed successfully!');
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Update results with real data info
+      // Update results with real data info and enhanced metrics
       const enhancedResults = {
         ...results,
         symbol: strategy.symbol,
         timeframe: strategy.timeframe,
         period: `Real Data (${marketData.length} bars)`,
         metadata: fetchResponse.metadata,
-        executionMethod: isPythonAvailable ? 'Python' : 'JavaScript Pattern Matching'
+        executionMethod: isPythonAvailable ? 'Enhanced Python' : 'JavaScript Pattern Matching',
+        enhancedFeatures: {
+          dynamicSpreads: isPythonAvailable,
+          realisticSlippage: isPythonAvailable,
+          advancedPositionSizing: true,
+          marketImpact: isPythonAvailable
+        }
       };
 
       onBacktestComplete(enhancedResults);
-      
-      toast({
-        title: isPythonAvailable ? "Python Strategy Backtest Complete" : "Pattern Matching Backtest Complete",
-        description: `Strategy tested with ${results.totalTrades} trades on real ${strategy.symbol} data`,
-      });
 
     } catch (error) {
-      console.error('Backtest failed:', error);
+      console.error('Enhanced backtest failed:', error);
       
-      let errorMessage = 'An error occurred while running the backtest';
+      let errorMessage = 'An error occurred while running the enhanced backtest';
       if (error instanceof Error) {
         errorMessage = error.message;
       }
 
       toast({
-        title: "Backtest Failed",
+        title: "Enhanced Backtest Failed",
         description: errorMessage,
         variant: "destructive",
       });
