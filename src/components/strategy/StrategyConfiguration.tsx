@@ -4,8 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Settings, Code, Languages } from 'lucide-react';
 import StrategyTranslator from './StrategyTranslator';
-import PythonStrategyTab from './PythonStrategyTab';
-import StrategyBasicSettings from './StrategyBasicSettings';
+import StrategyConfigurationTab from './StrategyConfigurationTab';
 
 interface StrategyConfigurationProps {
   strategy: {
@@ -13,6 +12,15 @@ interface StrategyConfigurationProps {
     symbol: string;
     timeframe: string;
     code: string;
+    initialBalance: number;
+    riskPerTrade: number;
+    stopLoss: number;
+    takeProfit: number;
+    spread: number;
+    commission: number;
+    slippage: number;
+    maxPositionSize: number;
+    riskModel: string;
   };
   onStrategyChange: (updates: any) => void;
   onRunBacktest?: () => void;
@@ -25,14 +33,14 @@ const StrategyConfiguration: React.FC<StrategyConfigurationProps> = ({
   onRunBacktest,
   isRunning = false
 }) => {
-  const [activeTab, setActiveTab] = React.useState('settings');
+  const [activeTab, setActiveTab] = React.useState('configuration');
 
   const handleStrategyGenerated = (code: string) => {
     onStrategyChange({ code });
   };
 
   const handleSwitchToCode = () => {
-    setActiveTab('python');
+    setActiveTab('configuration');
   };
 
   return (
@@ -45,25 +53,23 @@ const StrategyConfiguration: React.FC<StrategyConfigurationProps> = ({
       </CardHeader>
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 bg-slate-700">
-            <TabsTrigger value="settings">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
+          <TabsList className="grid w-full grid-cols-2 bg-slate-700">
+            <TabsTrigger value="configuration">
+              <Code className="h-4 w-4 mr-2" />
+              Configuration & Code
             </TabsTrigger>
             <TabsTrigger value="english">
               <Languages className="h-4 w-4 mr-2" />
-              English
-            </TabsTrigger>
-            <TabsTrigger value="python">
-              <Code className="h-4 w-4 mr-2" />
-              Python
+              English to Python
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="settings" className="space-y-4 mt-6">
-            <StrategyBasicSettings 
+          <TabsContent value="configuration" className="space-y-4 mt-6">
+            <StrategyConfigurationTab 
               strategy={strategy} 
-              onStrategyChange={onStrategyChange} 
+              onStrategyChange={onStrategyChange}
+              onRunBacktest={onRunBacktest}
+              isRunning={isRunning}
             />
           </TabsContent>
 
@@ -71,15 +77,6 @@ const StrategyConfiguration: React.FC<StrategyConfigurationProps> = ({
             <StrategyTranslator 
               onStrategyGenerated={handleStrategyGenerated}
               onSwitchToCode={handleSwitchToCode}
-            />
-          </TabsContent>
-
-          <TabsContent value="python">
-            <PythonStrategyTab 
-              strategy={strategy} 
-              onStrategyChange={onStrategyChange}
-              onRunBacktest={onRunBacktest}
-              isRunning={isRunning}
             />
           </TabsContent>
         </Tabs>
