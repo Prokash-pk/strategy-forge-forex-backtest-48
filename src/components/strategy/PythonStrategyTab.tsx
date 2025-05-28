@@ -3,7 +3,7 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Save } from 'lucide-react';
+import { Save, Play } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -15,9 +15,16 @@ interface PythonStrategyTabProps {
     code: string;
   };
   onStrategyChange: (updates: any) => void;
+  onRunBacktest?: () => void;
+  isRunning?: boolean;
 }
 
-const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({ strategy, onStrategyChange }) => {
+const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({ 
+  strategy, 
+  onStrategyChange, 
+  onRunBacktest,
+  isRunning = false 
+}) => {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = React.useState(false);
 
@@ -93,24 +100,46 @@ const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({ strategy, onStrat
         />
       </div>
 
-      <Button
-        onClick={handleSaveStrategy}
-        disabled={isSaving}
-        variant="outline"
-        className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
-      >
-        {isSaving ? (
-          <>
-            <div className="animate-spin h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full mr-2"></div>
-            Saving...
-          </>
-        ) : (
-          <>
-            <Save className="h-4 w-4 mr-2" />
-            Save Strategy
-          </>
+      <div className="space-y-3">
+        {onRunBacktest && (
+          <Button
+            onClick={onRunBacktest}
+            disabled={isRunning || !strategy.code.trim()}
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+          >
+            {isRunning ? (
+              <>
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                Running Backtest...
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                Run Backtest
+              </>
+            )}
+          </Button>
         )}
-      </Button>
+
+        <Button
+          onClick={handleSaveStrategy}
+          disabled={isSaving}
+          variant="outline"
+          className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
+        >
+          {isSaving ? (
+            <>
+              <div className="animate-spin h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full mr-2"></div>
+              Saving...
+            </>
+          ) : (
+            <>
+              <Save className="h-4 w-4 mr-2" />
+              Save Strategy
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 };
