@@ -17,6 +17,8 @@ interface BacktestResultsProps {
 }
 
 const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
+  console.log('BacktestResults received results:', results);
+
   if (!results) {
     return (
       <Card className="bg-slate-800 border-slate-700 p-8">
@@ -91,7 +93,7 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
         <TabsList className="grid w-full grid-cols-5 bg-slate-800 border border-slate-700">
           <TabsTrigger value="equity" className="data-[state=active]:bg-emerald-600">Equity Curve</TabsTrigger>
           <TabsTrigger value="monthly" className="data-[state=active]:bg-emerald-600">Monthly Returns</TabsTrigger>
-          <TabsTrigger value="trades" className="data-[state=active]:bg-emerald-600">Trade Log ({results.trades.length})</TabsTrigger>
+          <TabsTrigger value="trades" className="data-[state=active]:bg-emerald-600">Trade Log ({results.trades?.length || 0})</TabsTrigger>
           <TabsTrigger value="stats" className="data-[state=active]:bg-emerald-600">Statistics</TabsTrigger>
           <TabsTrigger value="coach" className="data-[state=active]:bg-emerald-600">Strategy Coach</TabsTrigger>
         </TabsList>
@@ -105,7 +107,7 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
         </TabsContent>
 
         <TabsContent value="trades">
-          <TradeLogTable trades={results.trades} />
+          <TradeLogTable trades={results.trades || []} />
         </TabsContent>
 
         <TabsContent value="stats">

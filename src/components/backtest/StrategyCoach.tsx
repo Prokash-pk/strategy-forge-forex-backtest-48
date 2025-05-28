@@ -19,14 +19,23 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results }) => {
   const [openRecommendations, setOpenRecommendations] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
+  console.log('StrategyCoach received results:', results);
+
   React.useEffect(() => {
     if (results && results.trades) {
+      console.log('Starting strategy analysis...');
       setIsAnalyzing(true);
       // Simulate analysis delay for better UX
       setTimeout(() => {
-        const analysisResult = StrategyCoachService.analyzeBacktest(results);
-        setAnalysis(analysisResult);
-        setIsAnalyzing(false);
+        try {
+          const analysisResult = StrategyCoachService.analyzeBacktest(results);
+          console.log('Analysis completed:', analysisResult);
+          setAnalysis(analysisResult);
+          setIsAnalyzing(false);
+        } catch (error) {
+          console.error('Analysis failed:', error);
+          setIsAnalyzing(false);
+        }
       }, 1500);
     }
   }, [results]);
@@ -73,7 +82,17 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results }) => {
     );
   }
 
-  if (!analysis) return null;
+  if (!analysis) {
+    return (
+      <Card className="bg-slate-800 border-slate-700">
+        <CardContent className="p-8 text-center">
+          <AlertTriangle className="h-16 w-16 mx-auto mb-4 text-yellow-500" />
+          <h3 className="text-xl font-semibold text-white mb-2">Analysis Failed</h3>
+          <p className="text-slate-400">Unable to analyze the strategy results</p>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -109,63 +128,48 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results }) => {
         <Tabs defaultValue="insights" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3 bg-slate-700">
             <TabsTrigger value="insights">Key Insights</TabsTrigger>
-            <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
-            <TabsTrigger value="patterns">Trade Patterns</TabsTrigger>
+            <TabsTrigger value="recommendations">Recommendations ({analysis.recommendations.length})</TabsTrigger>
+            <TabsTrigger value="patterns">Trade Patterns ({analysis.patterns.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="insights" className="space-y-4">
+            {/* Performance Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Performance Metrics */}
               <Card className="bg-slate-700 border-slate-600">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm text-slate-300">Performance Overview</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400 text-sm">Overtrading Risk</span>
-                    <Badge variant={analysis.performanceMetrics.overtrading ? "destructive" : "default"} className="text-xs">
-                      {analysis.performanceMetrics.overtrading ? "High" : "Normal"}
-                    </Badge>
+                    <span className="text-slate-400 text-sm">Win Rate</span>
+                    <span className="text-white font-semibold">{results.winRate?.toFixed(1)}%</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400 text-sm">Drawdown Risk</span>
-                    <Badge 
-                      variant={analysis.performanceMetrics.drawdownRisk === 'high' ? "destructive" : 
-                              analysis.performanceMetrics.drawdownRisk === 'medium' ? "secondary" : "default"} 
-                      className="text-xs"
-                    >
-                      {analysis.performanceMetrics.drawdownRisk}
-                    </Badge>
+                    <span className="text-slate-400 text-sm">Total Trades</span>
+                    <span className="text-white font-semibold">{results.totalTrades}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400 text-sm">Consistency Score</span>
-                    <span className="text-white font-semibold">{analysis.performanceMetrics.consistency}%</span>
+                    <span className="text-slate-400 text-sm">Profit Factor</span>
+                    <span className="text-white font-semibold">{results.profitFactor?.toFixed(2)}</span>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Loss Analysis */}
               <Card className="bg-slate-700 border-slate-600">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm text-slate-300">Loss Analysis</CardTitle>
+                  <CardTitle className="text-sm text-slate-300">Risk Analysis</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div>
-                    <span className="text-slate-400 text-sm">Major Loss Cause</span>
-                    <p className="text-white text-sm mt-1">{analysis.lossAnalysis.majorLossCause}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 text-sm">Max Drawdown</span>
+                    <span className="text-red-400 font-semibold">{results.maxDrawdown?.toFixed(2)}%</span>
                   </div>
-                  <div>
-                    <span className="text-slate-400 text-sm">Average Loss Size</span>
-                    <p className="text-red-400 font-semibold">${analysis.lossAnalysis.avgLossSize.toFixed(2)}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-400 text-sm">Total Return</span>
+                    <span className={`font-semibold ${results.totalReturn >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {results.totalReturn?.toFixed(2)}%
+                    </span>
                   </div>
-                  {analysis.lossAnalysis.lossClusters.length > 0 && (
-                    <div>
-                      <span className="text-slate-400 text-sm">Loss Clusters</span>
-                      {analysis.lossAnalysis.lossClusters.map((cluster, index) => (
-                        <p key={index} className="text-yellow-400 text-xs mt-1">{cluster}</p>
-                      ))}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </div>
@@ -182,66 +186,49 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results }) => {
               <div className="space-y-3">
                 {analysis.recommendations.map((rec) => (
                   <Card key={rec.id} className="bg-slate-700 border-slate-600">
-                    <Collapsible 
-                      open={openRecommendations.has(rec.id)}
-                      onOpenChange={() => toggleRecommendation(rec.id)}
-                    >
-                      <CollapsibleTrigger className="w-full">
-                        <CardHeader className="hover:bg-slate-600/50 transition-colors">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              {getCategoryIcon(rec.category)}
-                              <div className="text-left">
-                                <h3 className="text-white font-medium">{rec.title}</h3>
-                                <p className="text-slate-400 text-sm">{rec.description}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge className={getPriorityColor(rec.priority)}>
-                                {rec.priority}
-                              </Badge>
-                              <span className="text-emerald-400 text-sm font-medium">
-                                +{rec.estimatedImprovement}%
-                              </span>
-                              {openRecommendations.has(rec.id) ? 
-                                <ChevronUp className="h-4 w-4 text-slate-400" /> : 
-                                <ChevronDown className="h-4 w-4 text-slate-400" />
-                              }
-                            </div>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          {getCategoryIcon(rec.category)}
+                          <div>
+                            <h3 className="text-white font-medium">{rec.title}</h3>
+                            <p className="text-slate-400 text-sm">{rec.description}</p>
                           </div>
-                        </CardHeader>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
-                        <CardContent className="pt-0">
-                          <div className="space-y-4">
-                            <div className="bg-slate-800 p-3 rounded border border-slate-600">
-                              <h4 className="text-slate-300 text-sm font-medium mb-2">Explanation</h4>
-                              <p className="text-slate-400 text-sm">{rec.explanation}</p>
-                            </div>
-                            
-                            {rec.codeSnippet && (
-                              <div className="bg-slate-900 p-3 rounded border border-slate-600">
-                                <div className="flex items-center justify-between mb-2">
-                                  <h4 className="text-slate-300 text-sm font-medium">Code Implementation</h4>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => copyToClipboard(rec.codeSnippet!)}
-                                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                                  >
-                                    <Copy className="h-3 w-3 mr-1" />
-                                    Copy
-                                  </Button>
-                                </div>
-                                <pre className="text-slate-300 text-xs overflow-x-auto">
-                                  <code>{rec.codeSnippet}</code>
-                                </pre>
-                              </div>
-                            )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={getPriorityColor(rec.priority)}>
+                            {rec.priority}
+                          </Badge>
+                          <span className="text-emerald-400 text-sm font-medium">
+                            +{rec.estimatedImprovement}%
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-slate-800 p-3 rounded border border-slate-600 mb-3">
+                        <p className="text-slate-400 text-sm">{rec.explanation}</p>
+                      </div>
+                      
+                      {rec.codeSnippet && (
+                        <div className="bg-slate-900 p-3 rounded border border-slate-600">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-slate-300 text-sm font-medium">Code Implementation</span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => copyToClipboard(rec.codeSnippet!)}
+                              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                            >
+                              <Copy className="h-3 w-3 mr-1" />
+                              Copy
+                            </Button>
                           </div>
-                        </CardContent>
-                      </CollapsibleContent>
-                    </Collapsible>
+                          <pre className="text-slate-300 text-xs overflow-x-auto whitespace-pre-wrap">
+                            <code>{rec.codeSnippet}</code>
+                          </pre>
+                        </div>
+                      )}
+                    </CardContent>
                   </Card>
                 ))}
               </div>
