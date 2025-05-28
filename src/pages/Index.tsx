@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StrategyBuilder from '@/components/StrategyBuilder';
 import BacktestResults from '@/components/BacktestResults';
 import DataManager from '@/components/DataManager';
+import UserMenu from '@/components/UserMenu';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('strategy');
@@ -25,13 +26,16 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
-            Quantitative Trading Platform
-          </h1>
-          <p className="text-slate-400 mt-2">
-            Build, backtest, and optimize your trading strategies with advanced analytics
-          </p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
+              Quantitative Trading Platform
+            </h1>
+            <p className="text-slate-400 mt-2">
+              Build, backtest, and optimize your trading strategies with advanced analytics
+            </p>
+          </div>
+          <UserMenu />
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

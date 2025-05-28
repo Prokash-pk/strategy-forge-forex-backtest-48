@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface StrategyResult {
   id?: string;
+  user_id?: string;
   strategy_name: string;
   strategy_code: string;
   symbol: string;
@@ -16,11 +17,17 @@ export interface StrategyResult {
 }
 
 export class StrategyStorage {
-  static async saveStrategyResult(result: Omit<StrategyResult, 'id' | 'created_at'>) {
+  static async saveStrategyResult(result: Omit<StrategyResult, 'id' | 'created_at' | 'user_id'>) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('strategy_results')
-        .insert([result])
+        .insert([{
+          ...result,
+          user_id: user.id
+        }])
         .select()
         .single();
 
@@ -39,9 +46,13 @@ export class StrategyStorage {
 
   static async getStrategyResults(limit: number = 50) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('strategy_results')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -59,10 +70,14 @@ export class StrategyStorage {
 
   static async getStrategyByName(strategyName: string) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
       const { data, error } = await supabase
         .from('strategy_results')
         .select('*')
         .eq('strategy_name', strategyName)
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) {

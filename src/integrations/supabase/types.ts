@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       strategy_results: {
         Row: {
           created_at: string | null
@@ -21,6 +45,7 @@ export type Database = {
           timeframe: string
           total_return: number | null
           total_trades: number | null
+          user_id: string | null
           win_rate: number | null
         }
         Insert: {
@@ -34,6 +59,7 @@ export type Database = {
           timeframe: string
           total_return?: number | null
           total_trades?: number | null
+          user_id?: string | null
           win_rate?: number | null
         }
         Update: {
@@ -47,6 +73,7 @@ export type Database = {
           timeframe?: string
           total_return?: number | null
           total_trades?: number | null
+          user_id?: string | null
           win_rate?: number | null
         }
         Relationships: []
