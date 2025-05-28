@@ -1,6 +1,8 @@
 
 export class StrategyCodeInsertion {
   static insertCodeSnippet(existingCode: string, snippet: string, title: string): string {
+    console.log('Inserting code snippet:', { title, snippet: snippet.substring(0, 100) + '...' });
+    
     if (!existingCode.trim()) {
       // If editor is empty, create a basic strategy structure with the snippet
       return `# Strategy with ${title}
@@ -30,7 +32,9 @@ def strategy_logic(data):
     }
 
     // Check if snippet already exists to prevent duplicates
-    if (existingCode.includes(snippet.trim())) {
+    const snippetCore = snippet.trim().split('\n')[0].trim();
+    if (existingCode.includes(snippetCore)) {
+      console.log('Snippet already exists, skipping');
       return existingCode;
     }
 
@@ -51,7 +55,9 @@ def strategy_logic(data):
     ${snippet}
     ${afterInsertion}`;
 
-        return existingCode.replace(functionMatch[0], `def strategy_logic(data):${newFunctionBody}`);
+        const result = existingCode.replace(functionMatch[0], `def strategy_logic(data):${newFunctionBody}`);
+        console.log('Code insertion successful');
+        return result;
       } else {
         // Append at the end of the function body
         const newFunctionBody = `${functionBody}
@@ -59,14 +65,29 @@ def strategy_logic(data):
     # ${title} (Strategy Coach Suggestion)
     ${snippet}`;
 
-        return existingCode.replace(functionMatch[0], `def strategy_logic(data):${newFunctionBody}`);
+        const result = existingCode.replace(functionMatch[0], `def strategy_logic(data):${newFunctionBody}`);
+        console.log('Code insertion successful (appended)');
+        return result;
       }
     } else {
       // Append as a comment at the end if no strategy_logic function found
-      return `${existingCode}
+      const result = `${existingCode}
 
 # ${title} (Strategy Coach Suggestion)
 # ${snippet}`;
+      console.log('Code insertion as comment');
+      return result;
     }
+  }
+
+  static insertMultipleSnippets(existingCode: string, snippets: Array<{code: string, title: string}>): string {
+    let updatedCode = existingCode;
+    
+    snippets.forEach((snippet, index) => {
+      console.log(`Inserting snippet ${index + 1}/${snippets.length}: ${snippet.title}`);
+      updatedCode = this.insertCodeSnippet(updatedCode, snippet.code, snippet.title);
+    });
+    
+    return updatedCode;
   }
 }

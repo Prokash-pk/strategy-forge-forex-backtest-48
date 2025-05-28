@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Copy, TrendingUp, AlertTriangle, Target, Brain, Plus } from 'lucide-react';
+import { Copy, TrendingUp, AlertTriangle, Target, Brain, Plus, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StrategyCoach as StrategyCoachService, StrategyAnalysis } from '@/services/strategyCoach';
 
@@ -16,6 +17,7 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy 
   const [analysis, setAnalysis] = useState<StrategyAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [addedSnippets, setAddedSnippets] = useState<Set<string>>(new Set());
+  const [isAddingAll, setIsAddingAll] = useState(false);
   const { toast } = useToast();
 
   console.log('StrategyCoach received results:', results);
@@ -24,7 +26,6 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy 
     if (results && results.trades) {
       console.log('Starting strategy analysis...');
       setIsAnalyzing(true);
-      // Simulate analysis delay for better UX
       setTimeout(() => {
         try {
           const analysisResult = StrategyCoachService.analyzeBacktest(results);
@@ -76,6 +77,64 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy 
       title: "Strategy Updated!",
       description: `"${recommendation.title}" has been added to your strategy editor`,
     });
+  };
+
+  const handleAddAllRecommendations = async () => {
+    if (!onAddToStrategy || !analysis?.recommendations.length) {
+      toast({
+        title: "Cannot Add All",
+        description: "No recommendations available or strategy editor not connected",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAddingAll(true);
+    
+    // Filter out already added recommendations
+    const recommendationsToAdd = analysis.recommendations.filter(
+      rec => rec.codeSnippet && !addedSnippets.has(rec.id)
+    );
+
+    if (recommendationsToAdd.length === 0) {
+      toast({
+        title: "All Added",
+        description: "All available recommendations have already been added",
+        variant: "destructive",
+      });
+      setIsAddingAll(false);
+      return;
+    }
+
+    try {
+      // Add each recommendation with a small delay for better UX
+      for (let i = 0; i < recommendationsToAdd.length; i++) {
+        const rec = recommendationsToAdd[i];
+        console.log(`Adding recommendation ${i + 1}/${recommendationsToAdd.length}:`, rec.title);
+        
+        onAddToStrategy(rec.codeSnippet!);
+        setAddedSnippets(prev => new Set([...prev, rec.id]));
+        
+        // Small delay between additions
+        if (i < recommendationsToAdd.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
+
+      toast({
+        title: "All Recommendations Added!",
+        description: `${recommendationsToAdd.length} improvements added to your strategy`,
+      });
+    } catch (error) {
+      console.error('Error adding all recommendations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add some recommendations",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingAll(false);
+    }
   };
 
   if (!results || !results.trades) {
@@ -133,6 +192,10 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy 
     }
   };
 
+  const availableRecommendations = analysis.recommendations.filter(
+    rec => rec.codeSnippet && !addedSnippets.has(rec.id)
+  );
+
   return (
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
@@ -141,14 +204,16 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy 
           Strategy Coach
         </CardTitle>
         <p className="text-slate-400 text-sm">
-          AI-powered analysis and recommendations to improve your strategy performance
+          Rule-based analysis and recommendations to improve your strategy performance
         </p>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue="insights" className="space-y-4">
           <TabsList className="grid w-full grid-cols-3 bg-slate-700">
             <TabsTrigger value="insights">Key Insights</TabsTrigger>
-            <TabsTrigger value="recommendations">Recommendations ({analysis.recommendations.length})</TabsTrigger>
+            <TabsTrigger value="recommendations">
+              Recommendations ({analysis.recommendations.length})
+            </TabsTrigger>
             <TabsTrigger value="patterns">Trade Patterns ({analysis.patterns.length})</TabsTrigger>
           </TabsList>
 
@@ -196,6 +261,20 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy 
           </TabsContent>
 
           <TabsContent value="recommendations" className="space-y-4">
+            {/* Add All Button */}
+            {availableRecommendations.length > 0 && onAddToStrategy && (
+              <div className="flex justify-end mb-4">
+                <Button
+                  onClick={handleAddAllRecommendations}
+                  disabled={isAddingAll}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  {isAddingAll ? 'Adding All...' : `Add All Recommendations (${availableRecommendations.length})`}
+                </Button>
+              </div>
+            )}
+
             {analysis.recommendations.length === 0 ? (
               <Card className="bg-slate-700 border-slate-600 p-6 text-center">
                 <Target className="h-12 w-12 mx-auto mb-3 text-emerald-400" />

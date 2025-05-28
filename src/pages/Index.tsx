@@ -29,6 +29,8 @@ const Index = () => {
   };
 
   const handleAddToStrategy = (codeSnippet: string) => {
+    console.log('Adding code snippet to strategy:', codeSnippet);
+    
     if (!strategy) {
       toast({
         title: "No Strategy Found",
@@ -38,22 +40,33 @@ const Index = () => {
       return;
     }
 
-    const updatedCode = StrategyCodeInsertion.insertCodeSnippet(
-      strategy.code || '', 
-      codeSnippet, 
-      'Strategy Coach Suggestion'
-    );
+    try {
+      const updatedCode = StrategyCodeInsertion.insertCodeSnippet(
+        strategy.code || '', 
+        codeSnippet, 
+        'Strategy Coach Suggestion'
+      );
 
-    const updatedStrategy = { ...strategy, code: updatedCode };
-    setStrategy(updatedStrategy);
-    
-    // Switch to builder tab to show the updated code
-    setActiveTab('builder');
-    
-    toast({
-      title: "Code Added Successfully!",
-      description: "Strategy Coach suggestion has been added to your strategy",
-    });
+      const updatedStrategy = { ...strategy, code: updatedCode };
+      setStrategy(updatedStrategy);
+      
+      console.log('Strategy updated successfully with new code');
+      
+      // Switch to builder tab to show the updated code
+      setActiveTab('builder');
+      
+      toast({
+        title: "Code Added Successfully!",
+        description: "Strategy Coach suggestion has been added to your strategy",
+      });
+    } catch (error) {
+      console.error('Error adding code to strategy:', error);
+      toast({
+        title: "Error Adding Code",
+        description: "Failed to add the code snippet to your strategy",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
