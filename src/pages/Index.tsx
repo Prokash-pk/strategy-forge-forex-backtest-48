@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StrategyBuilder from '@/components/StrategyBuilder';
 import BacktestResults from '@/components/BacktestResults';
 import DataManager from '@/components/DataManager';
+import StrategyCoach from '@/components/backtest/StrategyCoach';
 import { StrategyCodeInsertion } from '@/services/strategyCodeInsertion';
 import { useToast } from '@/hooks/use-toast';
 
@@ -48,6 +49,11 @@ const Index = () => {
     
     // Switch to builder tab to show the updated code
     setActiveTab('builder');
+    
+    toast({
+      title: "Code Added Successfully!",
+      description: "Strategy Coach suggestion has been added to your strategy",
+    });
   };
 
   return (
@@ -63,12 +69,15 @@ const Index = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-slate-800 border border-slate-700">
+          <TabsList className="grid w-full grid-cols-4 bg-slate-800 border border-slate-700">
             <TabsTrigger value="builder" className="data-[state=active]:bg-emerald-600">
               Strategy Builder
             </TabsTrigger>
             <TabsTrigger value="results" className="data-[state=active]:bg-emerald-600">
               Backtest Results
+            </TabsTrigger>
+            <TabsTrigger value="coach" className="data-[state=active]:bg-emerald-600">
+              Strategy Coach
             </TabsTrigger>
             <TabsTrigger value="data" className="data-[state=active]:bg-emerald-600">
               Data Manager
@@ -86,6 +95,13 @@ const Index = () => {
 
           <TabsContent value="results">
             <BacktestResults 
+              results={results} 
+              onAddToStrategy={handleAddToStrategy}
+            />
+          </TabsContent>
+
+          <TabsContent value="coach">
+            <StrategyCoach 
               results={results} 
               onAddToStrategy={handleAddToStrategy}
             />

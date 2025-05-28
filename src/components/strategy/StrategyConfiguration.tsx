@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Settings, Code, Languages } from 'lucide-react';
 import StrategyTranslator from './StrategyTranslator';
-import VisualStrategyTab from './VisualStrategyTab';
 import PythonStrategyTab from './PythonStrategyTab';
 import StrategyBasicSettings from './StrategyBasicSettings';
 
@@ -26,7 +25,7 @@ const StrategyConfiguration: React.FC<StrategyConfigurationProps> = ({
   onRunBacktest,
   isRunning = false
 }) => {
-  const [activeTab, setActiveTab] = React.useState('visual');
+  const [activeTab, setActiveTab] = React.useState('settings');
 
   const handleStrategyGenerated = (code: string) => {
     onStrategyChange({ code });
@@ -47,9 +46,9 @@ const StrategyConfiguration: React.FC<StrategyConfigurationProps> = ({
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3 bg-slate-700">
-            <TabsTrigger value="visual">
+            <TabsTrigger value="settings">
               <Settings className="h-4 w-4 mr-2" />
-              Visual
+              Settings
             </TabsTrigger>
             <TabsTrigger value="english">
               <Languages className="h-4 w-4 mr-2" />
@@ -61,12 +60,11 @@ const StrategyConfiguration: React.FC<StrategyConfigurationProps> = ({
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="visual" className="space-y-4 mt-6">
+          <TabsContent value="settings" className="space-y-4 mt-6">
             <StrategyBasicSettings 
               strategy={strategy} 
               onStrategyChange={onStrategyChange} 
             />
-            <VisualStrategyTab />
           </TabsContent>
 
           <TabsContent value="english" className="mt-6">

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,7 +10,6 @@ import EquityCurveChart from './backtest/EquityCurveChart';
 import MonthlyReturnsChart from './backtest/MonthlyReturnsChart';
 import TradeLogTable from './backtest/TradeLogTable';
 import StatisticsCards from './backtest/StatisticsCards';
-import StrategyCoach from './backtest/StrategyCoach';
 
 interface BacktestResultsProps {
   results: any;
@@ -90,12 +90,11 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results, onAddToStrat
 
       {/* Charts and Details */}
       <Tabs defaultValue="equity" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 bg-slate-800 border border-slate-700">
+        <TabsList className="grid w-full grid-cols-4 bg-slate-800 border border-slate-700">
           <TabsTrigger value="equity" className="data-[state=active]:bg-emerald-600">Equity Curve</TabsTrigger>
           <TabsTrigger value="monthly" className="data-[state=active]:bg-emerald-600">Monthly Returns</TabsTrigger>
           <TabsTrigger value="trades" className="data-[state=active]:bg-emerald-600">Trade Log ({results.trades?.length || 0})</TabsTrigger>
           <TabsTrigger value="stats" className="data-[state=active]:bg-emerald-600">Statistics</TabsTrigger>
-          <TabsTrigger value="coach" className="data-[state=active]:bg-emerald-600">Strategy Coach</TabsTrigger>
         </TabsList>
 
         <TabsContent value="equity">
@@ -112,10 +111,6 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results, onAddToStrat
 
         <TabsContent value="stats">
           <StatisticsCards results={results} />
-        </TabsContent>
-
-        <TabsContent value="coach">
-          <StrategyCoach results={results} onAddToStrategy={onAddToStrategy} />
         </TabsContent>
       </Tabs>
     </div>

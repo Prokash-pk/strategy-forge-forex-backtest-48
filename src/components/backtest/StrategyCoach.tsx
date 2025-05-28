@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, Copy, TrendingUp, AlertTriangle, Target, Brain, Plus } from 'lucide-react';
+import { Copy, TrendingUp, AlertTriangle, Target, Brain, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { StrategyCoach as StrategyCoachService, StrategyAnalysis } from '@/services/strategyCoach';
 
@@ -16,7 +15,6 @@ interface StrategyCoachProps {
 const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy }) => {
   const [analysis, setAnalysis] = useState<StrategyAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [openRecommendations, setOpenRecommendations] = useState<Set<string>>(new Set());
   const [addedSnippets, setAddedSnippets] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
@@ -41,16 +39,6 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy 
     }
   }, [results]);
 
-  const toggleRecommendation = (id: string) => {
-    const newOpen = new Set(openRecommendations);
-    if (newOpen.has(id)) {
-      newOpen.delete(id);
-    } else {
-      newOpen.add(id);
-    }
-    setOpenRecommendations(newOpen);
-  };
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({
@@ -60,6 +48,8 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy 
   };
 
   const handleQuickAdd = (recommendation: any) => {
+    console.log('Quick Add clicked for:', recommendation.title);
+    
     if (!onAddToStrategy || !recommendation.codeSnippet) {
       toast({
         title: "Cannot Add",
@@ -78,6 +68,7 @@ const StrategyCoach: React.FC<StrategyCoachProps> = ({ results, onAddToStrategy 
       return;
     }
 
+    console.log('Adding code snippet:', recommendation.codeSnippet);
     onAddToStrategy(recommendation.codeSnippet);
     setAddedSnippets(prev => new Set([...prev, recommendation.id]));
     
