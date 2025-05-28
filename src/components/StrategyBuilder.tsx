@@ -4,10 +4,13 @@ import StrategyConfiguration from './strategy/StrategyConfiguration';
 import RiskManagement from './strategy/RiskManagement';
 import ExecutionSettings from './strategy/ExecutionSettings';
 import BacktestProgress from './strategy/BacktestProgress';
+import StrategyHistory from './strategy/StrategyHistory';
 import { useBacktest } from '@/hooks/useBacktest';
 import { PythonExecutor } from '@/services/pythonExecutor';
+import { StrategyStorage, StrategyResult } from '@/services/strategyStorage';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle, AlertCircle, Code } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface StrategyBuilderProps {
   onStrategyUpdate: (strategy: any) => void;
@@ -68,6 +71,7 @@ def strategy_logic(data):
 
   const [pythonStatus, setPythonStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   const { isRunning, currentStep, runBacktest } = useBacktest();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check Python availability on component mount
@@ -87,8 +91,57 @@ def strategy_logic(data):
     setStrategy(prev => ({ ...prev, ...updates }));
   };
 
+  const handleStrategySelect = (savedStrategy: StrategyResult) => {
+    setStrategy(prev => ({
+      ...prev,
+      name: savedStrategy.strategy_name,
+      code: savedStrategy.strategy_code,
+      symbol: savedStrategy.symbol,
+      timeframe: savedStrategy.timeframe
+    }));
+    
+    toast({
+      title: "Strategy Loaded",
+      description: `Loaded "${savedStrategy.strategy_name}" strategy`,
+    });
+  };
+
+  const handleBacktestComplete = async (results: any) => {
+    // Save strategy results to database
+    try {
+      const strategyResult = {
+        strategy_name: strategy.name,
+        strategy_code: strategy.code,
+        symbol: strategy.symbol,
+        timeframe: strategy.timeframe,
+        win_rate: results.winRate || 0,
+        total_return: results.totalReturn || 0,
+        total_trades: results.totalTrades || 0,
+        profit_factor: results.profitFactor || 0,
+        max_drawdown: results.maxDrawdown || 0,
+      };
+
+      await StrategyStorage.saveStrategyResult(strategyResult);
+      
+      toast({
+        title: "Strategy Saved",
+        description: "Backtest results have been saved to your history",
+      });
+    } catch (error) {
+      console.error('Failed to save strategy results:', error);
+      toast({
+        title: "Save Failed",
+        description: "Could not save strategy results",
+        variant: "destructive",
+      });
+    }
+
+    // Call the original callback
+    onBacktestComplete(results);
+  };
+
   const handleRunBacktest = () => {
-    runBacktest(strategy, onBacktestComplete);
+    runBacktest(strategy, handleBacktestComplete);
   };
 
   return (
@@ -145,6 +198,8 @@ def strategy_logic(data):
           />
           
           <BacktestProgress currentStep={currentStep} />
+          
+          <StrategyHistory onStrategySelect={handleStrategySelect} />
         </div>
       </div>
     </div>
