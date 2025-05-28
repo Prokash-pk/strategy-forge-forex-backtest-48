@@ -1,186 +1,138 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { description } = await req.json()
-    
-    // Simple strategy translation based on keywords
-    const pythonCode = translateDescriptionToPython(description)
-    
-    return new Response(
-      JSON.stringify({
-        success: true,
-        strategy_code: pythonCode,
-        strategy_name: extractStrategyName(description)
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
-    )
-  } catch (error) {
-    console.error('Translation error:', error)
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
-    )
-  }
-})
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
 
-function translateDescriptionToPython(description: string): string {
-  const lowerDesc = description.toLowerCase()
-  
-  // RSI Strategy
-  if (lowerDesc.includes('rsi') || lowerDesc.includes('relative strength')) {
-    return `# RSI Strategy
-# Buy when RSI is oversold (below 30), sell when overbought (above 70)
+    const { natural_language } = await req.json();
+
+    if (!natural_language || typeof natural_language !== 'string') {
+      throw new Error('Natural language description is required');
+    }
+
+    const systemPrompt = `You are an expert trading strategy developer. Convert natural language trading descriptions into Python code that follows this exact format:
 
 def strategy_logic(data):
+    # Your code here using TechnicalAnalysis helper functions
+    # Available functions: ema(), sma(), rsi(), bollinger_bands(), macd()
+    # data is a DataFrame with columns: Open, High, Low, Close, Volume
+    
+    # Return format must be:
+    return {
+        'entry': [list of boolean values for entry signals],
+        'exit': [list of boolean values for exit signals],
+        'indicator_name': [optional: list of indicator values for plotting]
+    }
+
+Key requirements:
+1. Use only the TechnicalAnalysis helper functions provided
+2. Return boolean lists for entry/exit that match the data length
+3. Handle edge cases (first few bars where indicators may be undefined)
+4. Include comments explaining the logic
+5. Add any calculated indicators to the return dict for plotting
+
+Available TechnicalAnalysis functions:
+- TechnicalAnalysis.ema(prices, period)
+- TechnicalAnalysis.sma(prices, period)  
+- TechnicalAnalysis.rsi(prices, period)
+- TechnicalAnalysis.bollinger_bands(prices, period, std_dev)
+- TechnicalAnalysis.macd(prices, fast=12, slow=26, signal=9)
+
+Example for "Buy when RSI below 30, sell when RSI above 70":
+
+def strategy_logic(data):
+    # Calculate RSI with 14-period
     rsi = TechnicalAnalysis.rsi(data['Close'].tolist(), 14)
     
+    # Generate entry and exit signals
     entry = []
     exit = []
     
     for i in range(len(data)):
-        if i == 0:
+        if i < 14:  # Not enough data for RSI
             entry.append(False)
             exit.append(False)
         else:
-            # Entry: RSI oversold
-            entry_signal = rsi[i] < 30 and rsi[i-1] >= 30
-            # Exit: RSI overbought
-            exit_signal = rsi[i] > 70 and rsi[i-1] <= 70
-            
-            entry.append(entry_signal)
-            exit.append(exit_signal)
+            # Entry: RSI below 30 (oversold)
+            entry.append(rsi[i] < 30)
+            # Exit: RSI above 70 (overbought)  
+            exit.append(rsi[i] > 70)
     
     return {
         'entry': entry,
         'exit': exit,
         'rsi': rsi
-    }`
+    }
+
+Convert the following strategy description to Python code:`;
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openAIApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: natural_language }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    const data = await response.json();
+    const generatedCode = data.choices[0].message.content;
+
+    // Clean up the response to extract just the Python function
+    let pythonCode = generatedCode;
+    
+    // Remove markdown code blocks if present
+    pythonCode = pythonCode.replace(/```python\s*/g, '').replace(/```\s*/g, '');
+    
+    // Ensure it starts with def strategy_logic
+    if (!pythonCode.includes('def strategy_logic')) {
+      throw new Error('Generated code does not contain strategy_logic function');
+    }
+
+    return new Response(JSON.stringify({ 
+      success: true,
+      python_code: pythonCode.trim(),
+      original_description: natural_language
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error) {
+    console.error('Strategy translation error:', error);
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
-  
-  // MACD Strategy
-  if (lowerDesc.includes('macd')) {
-    return `# MACD Strategy
-# Buy when MACD line crosses above signal line, sell when crosses below
-
-def strategy_logic(data):
-    macd_line, signal_line, histogram = TechnicalAnalysis.macd(data['Close'].tolist())
-    
-    entry = []
-    exit = []
-    
-    for i in range(len(data)):
-        if i == 0:
-            entry.append(False)
-            exit.append(False)
-        else:
-            # Entry: MACD crosses above signal
-            entry_signal = macd_line[i] > signal_line[i] and macd_line[i-1] <= signal_line[i-1]
-            # Exit: MACD crosses below signal
-            exit_signal = macd_line[i] < signal_line[i] and macd_line[i-1] >= signal_line[i-1]
-            
-            entry.append(entry_signal)
-            exit.append(exit_signal)
-    
-    return {
-        'entry': entry,
-        'exit': exit,
-        'macd': macd_line,
-        'signal': signal_line,
-        'histogram': histogram
-    }`
-  }
-  
-  // Bollinger Bands Strategy
-  if (lowerDesc.includes('bollinger') || lowerDesc.includes('band')) {
-    return `# Bollinger Bands Strategy
-# Buy when price touches lower band, sell when touches upper band
-
-def strategy_logic(data):
-    bb_upper, bb_middle, bb_lower = TechnicalAnalysis.bollinger_bands(data['Close'].tolist(), 20, 2)
-    
-    entry = []
-    exit = []
-    
-    for i in range(len(data)):
-        if i == 0:
-            entry.append(False)
-            exit.append(False)
-        else:
-            # Entry: Price touches lower band
-            entry_signal = data['Close'][i] <= bb_lower[i] and data['Close'][i-1] > bb_lower[i-1]
-            # Exit: Price touches upper band
-            exit_signal = data['Close'][i] >= bb_upper[i] and data['Close'][i-1] < bb_upper[i-1]
-            
-            entry.append(entry_signal)
-            exit.append(exit_signal)
-    
-    return {
-        'entry': entry,
-        'exit': exit,
-        'bb_upper': bb_upper,
-        'bb_middle': bb_middle,
-        'bb_lower': bb_lower
-    }`
-  }
-  
-  // Default EMA Crossover Strategy
-  return `# EMA Crossover Strategy
-# Buy when fast EMA crosses above slow EMA, sell when crosses below
-
-def strategy_logic(data):
-    fast_ema = TechnicalAnalysis.ema(data['Close'].tolist(), 12)
-    slow_ema = TechnicalAnalysis.ema(data['Close'].tolist(), 26)
-    
-    entry = []
-    exit = []
-    
-    for i in range(len(data)):
-        if i == 0:
-            entry.append(False)
-            exit.append(False)
-        else:
-            # Entry: Fast EMA crosses above slow EMA
-            entry_signal = fast_ema[i] > slow_ema[i] and fast_ema[i-1] <= slow_ema[i-1]
-            # Exit: Fast EMA crosses below slow EMA
-            exit_signal = fast_ema[i] < slow_ema[i] and fast_ema[i-1] >= slow_ema[i-1]
-            
-            entry.append(entry_signal)
-            exit.append(exit_signal)
-    
-    return {
-        'entry': entry,
-        'exit': exit,
-        'fast_ema': fast_ema,
-        'slow_ema': slow_ema
-    }`
-}
-
-function extractStrategyName(description: string): string {
-  const lowerDesc = description.toLowerCase()
-  
-  if (lowerDesc.includes('rsi')) return 'RSI Strategy'
-  if (lowerDesc.includes('macd')) return 'MACD Strategy'
-  if (lowerDesc.includes('bollinger')) return 'Bollinger Bands Strategy'
-  if (lowerDesc.includes('moving average') || lowerDesc.includes('ema') || lowerDesc.includes('sma')) return 'Moving Average Strategy'
-  
-  return 'Custom Strategy'
-}
+});

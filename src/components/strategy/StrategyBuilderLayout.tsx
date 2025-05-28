@@ -1,7 +1,9 @@
 
 import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import StrategyConfiguration from './StrategyConfiguration';
 import StrategyHistory from './StrategyHistory';
+import StrategyCoach from '../backtest/StrategyCoach';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
@@ -25,15 +27,36 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   onAddToStrategy
 }) => {
   return (
-    <div className="space-y-6">
-      <StrategyConfiguration
-        strategy={strategy}
-        onStrategyChange={onStrategyChange}
-        onRunBacktest={onRunBacktest}
-        isRunning={isRunning}
-      />
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 space-y-6">
+        <StrategyConfiguration
+          strategy={strategy}
+          onStrategyChange={onStrategyChange}
+          onRunBacktest={onRunBacktest}
+          isRunning={isRunning}
+        />
+        
+        <StrategyHistory onStrategySelect={onStrategySelect} />
+      </div>
       
-      <StrategyHistory onStrategySelect={onStrategySelect} />
+      <div className="lg:col-span-1">
+        {backtestResults ? (
+          <StrategyCoach 
+            results={backtestResults} 
+            onAddToStrategy={onAddToStrategy}
+            strategyCode={strategy.code}
+          />
+        ) : (
+          <Card className="bg-slate-800 border-slate-700">
+            <CardContent className="p-8 text-center">
+              <div className="text-slate-400">
+                <p className="text-lg font-medium mb-2">Strategy Coach</p>
+                <p className="text-sm">Run a backtest to get AI-powered recommendations</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };

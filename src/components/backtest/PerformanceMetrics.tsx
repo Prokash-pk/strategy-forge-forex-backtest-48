@@ -11,28 +11,28 @@ const PerformanceMetrics: React.FC<PerformanceMetricsProps> = ({ results }) => {
   const performanceMetrics = [
     {
       label: 'Total Return',
-      value: `${(results.totalReturn || 0).toFixed(2)}%`,
+      value: `${results.totalReturn.toFixed(2)}%`,
       icon: TrendingUp,
-      color: (results.totalReturn || 0) > 0 ? 'text-emerald-400' : 'text-red-400',
-      bgColor: (results.totalReturn || 0) > 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'
+      color: results.totalReturn > 0 ? 'text-emerald-400' : 'text-red-400',
+      bgColor: results.totalReturn > 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'
     },
     {
       label: 'Win Rate',
-      value: `${(results.winRate || 0).toFixed(1)}%`,
+      value: `${results.winRate.toFixed(1)}%`,
       icon: Target,
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/10'
     },
     {
       label: 'Max Drawdown',
-      value: `${(results.maxDrawdown || 0).toFixed(2)}%`,
+      value: `${results.maxDrawdown.toFixed(2)}%`,
       icon: TrendingDown,
       color: 'text-orange-400',
       bgColor: 'bg-orange-500/10'
     },
     {
       label: 'Sharpe Ratio',
-      value: (results.sharpeRatio || 0).toFixed(2),
+      value: results.sharpeRatio.toFixed(2),
       icon: Shield,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10'
