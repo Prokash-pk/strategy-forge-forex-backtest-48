@@ -73,6 +73,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, List, Any
 import json
+import math
 
 class TechnicalAnalysis:
     @staticmethod
@@ -134,19 +135,137 @@ class TechnicalAnalysis:
         
         return result
 
+    @staticmethod
+    def stddev(data: List[float], period: int) -> List[float]:
+        """Standard Deviation"""
+        result = []
+        for i in range(len(data)):
+            if i < period - 1:
+                result.append(float('nan'))
+            else:
+                slice_data = data[i-period+1:i+1]
+                mean = sum(slice_data) / len(slice_data)
+                variance = sum((x - mean) ** 2 for x in slice_data) / len(slice_data)
+                result.append(math.sqrt(variance))
+        return result
+    
+    @staticmethod
+    def bollinger_bands(data: List[float], period: int = 20, std_dev: float = 2):
+        """Bollinger Bands"""
+        sma = TechnicalAnalysis.sma(data, period)
+        std = TechnicalAnalysis.stddev(data, period)
+        
+        upper = []
+        lower = []
+        
+        for i in range(len(data)):
+            if math.isnan(sma[i]) or math.isnan(std[i]):
+                upper.append(float('nan'))
+                lower.append(float('nan'))
+            else:
+                upper.append(sma[i] + (std[i] * std_dev))
+                lower.append(sma[i] - (std[i] * std_dev))
+        
+        return {
+            'upper': upper,
+            'middle': sma,
+            'lower': lower
+        }
+    
+    @staticmethod
+    def macd(data: List[float], fast: int = 12, slow: int = 26, signal: int = 9):
+        """MACD Indicator"""
+        ema_fast = TechnicalAnalysis.ema(data, fast)
+        ema_slow = TechnicalAnalysis.ema(data, slow)
+        
+        macd_line = []
+        for i in range(len(data)):
+            macd_line.append(ema_fast[i] - ema_slow[i])
+        
+        # Remove NaN values for signal calculation
+        valid_macd = [x for x in macd_line if not math.isnan(x)]
+        signal_line = TechnicalAnalysis.ema(valid_macd, signal)
+        
+        # Pad signal line to match original length
+        padded_signal = [float('nan')] * (len(macd_line) - len(signal_line)) + signal_line
+        
+        histogram = []
+        for i in range(len(macd_line)):
+            if math.isnan(macd_line[i]) or math.isnan(padded_signal[i]):
+                histogram.append(float('nan'))
+            else:
+                histogram.append(macd_line[i] - padded_signal[i])
+        
+        return {
+            'macd': macd_line,
+            'signal': padded_signal,
+            'histogram': histogram
+        }
+    
+    @staticmethod
+    def stochastic(high: List[float], low: List[float], close: List[float], k_period: int = 14, d_period: int = 3):
+        """Stochastic Oscillator"""
+        k_percent = []
+        
+        for i in range(len(close)):
+            if i < k_period - 1:
+                k_percent.append(float('nan'))
+            else:
+                period_high = max(high[i-k_period+1:i+1])
+                period_low = min(low[i-k_period+1:i+1])
+                
+                if period_high == period_low:
+                    k_percent.append(50)
+                else:
+                    k_val = ((close[i] - period_low) / (period_high - period_low)) * 100
+                    k_percent.append(k_val)
+        
+        # Calculate %D (SMA of %K)
+        d_percent = TechnicalAnalysis.sma([x for x in k_percent if not math.isnan(x)], d_period)
+        padded_d = [float('nan')] * (len(k_percent) - len(d_percent)) + d_percent
+        
+        return {
+            'k': k_percent,
+            'd': padded_d
+        }
+
 def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: str) -> Dict[str, Any]:
     """Execute the user's strategy code safely"""
     try:
-        # Convert JavaScript data to proper Python lists
-        data_dict = {
-            'Open': list(market_data_dict['open']),
-            'High': list(market_data_dict['high']),
-            'Low': list(market_data_dict['low']),
-            'Close': list(market_data_dict['close']),
-            'Volume': list(market_data_dict['volume'])
-        }
+        # Convert JavaScript data to proper Python lists with validation
+        data_dict = {}
         
-        # Create DataFrame from converted data
+        for key in ['open', 'high', 'low', 'close', 'volume']:
+            if key in market_data_dict:
+                # Convert to list and ensure all values are floats
+                raw_data = market_data_dict[key]
+                if hasattr(raw_data, 'to_py'):
+                    raw_data = raw_data.to_py()
+                
+                converted_data = []
+                for val in raw_data:
+                    try:
+                        converted_data.append(float(val))
+                    except (ValueError, TypeError):
+                        converted_data.append(float('nan'))
+                
+                data_dict[key.capitalize()] = converted_data
+            else:
+                # Provide default empty list if key is missing
+                data_dict[key.capitalize()] = []
+        
+        # Ensure all data arrays have the same length
+        if data_dict['Close']:
+            data_length = len(data_dict['Close'])
+            for key in data_dict:
+                if len(data_dict[key]) != data_length:
+                    # Pad or truncate to match close data length
+                    if len(data_dict[key]) < data_length:
+                        data_dict[key].extend([float('nan')] * (data_length - len(data_dict[key])))
+                    else:
+                        data_dict[key] = data_dict[key][:data_length]
+        
+        # Create DataFrame from validated data
         df = pd.DataFrame(data_dict)
         
         # Create a safe execution environment
@@ -155,6 +274,7 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
             'np': np,
             'data': df,
             'TechnicalAnalysis': TechnicalAnalysis,
+            'math': math,
             '__builtins__': {
                 'len': len,
                 'range': range,
@@ -170,6 +290,8 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
                 'dict': dict,
                 'enumerate': enumerate,
                 'zip': zip,
+                'any': any,
+                'all': all,
             }
         }
         
@@ -206,11 +328,19 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
                     processed_result['indicators'] = {}
                 if hasattr(value, 'tolist'):
                     processed_result['indicators'][key] = [float(x) if pd.notna(x) else float('nan') for x in value.tolist()]
+                elif isinstance(value, dict):
+                    # Handle complex indicators like Bollinger Bands
+                    processed_result['indicators'][key] = {}
+                    for sub_key, sub_value in value.items():
+                        if hasattr(sub_value, 'tolist'):
+                            processed_result['indicators'][key][sub_key] = [float(x) if pd.notna(x) else float('nan') for x in sub_value.tolist()]
+                        else:
+                            processed_result['indicators'][key][sub_key] = sub_value
                 else:
                     processed_result['indicators'][key] = value
         
         # Ensure entry and exit signals exist
-        data_length = len(data_dict['Close'])
+        data_length = len(data_dict.get('Close', []))
         if 'entry' not in processed_result:
             processed_result['entry'] = [False] * data_length
         if 'exit' not in processed_result:
@@ -222,8 +352,8 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
         import traceback
         error_msg = f"Strategy execution error: {str(e)}\\n{traceback.format_exc()}"
         return {
-            'entry': [False] * len(market_data_dict['close']),
-            'exit': [False] * len(market_data_dict['close']),
+            'entry': [False] * len(market_data_dict.get('close', [])),
+            'exit': [False] * len(market_data_dict.get('close', [])),
             'error': error_msg
         }
     `);
@@ -238,13 +368,13 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
       
       console.log('Executing Python strategy code...');
       
-      // Convert market data to plain JavaScript object
+      // Convert market data to plain JavaScript object with proper data conversion
       const plainMarketData = {
-        open: Array.from(marketData.open),
-        high: Array.from(marketData.high),
-        low: Array.from(marketData.low),
-        close: Array.from(marketData.close),
-        volume: Array.from(marketData.volume)
+        open: Array.from(marketData.open).map(x => Number(x)),
+        high: Array.from(marketData.high).map(x => Number(x)),
+        low: Array.from(marketData.low).map(x => Number(x)),
+        close: Array.from(marketData.close).map(x => Number(x)),
+        volume: Array.from(marketData.volume).map(x => Number(x))
       };
       
       // Set the data and code in Python using proper conversion
@@ -254,7 +384,7 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
       // Execute the strategy with proper data conversion
       const result = pyodide.runPython(`
 # Convert JS data to Python and execute strategy
-result = execute_strategy(js_market_data.to_py(), js_strategy_code)
+result = execute_strategy(js_market_data, js_strategy_code)
 result
       `);
       
