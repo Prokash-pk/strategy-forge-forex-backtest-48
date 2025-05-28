@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -13,21 +12,105 @@ serve(async (req) => {
 
   try {
     const { symbol, interval, outputsize = 'compact' } = await req.json()
+    const twelveDataApiKey = Deno.env.get('TWELVE_DATA_API_KEY')
     
-    // For demo purposes, generate sample forex data
-    // In production, you would fetch from a real API like Twelve Data
-    const sampleData = generateSampleForexData(symbol, interval, outputsize === 'full' ? 5000 : 100)
+    console.log(`Fetching real data for ${symbol} with ${interval} interval`)
+    
+    if (!twelveDataApiKey) {
+      console.warn('Twelve Data API key not found, using sample data')
+      const sampleData = generateSampleForexData(symbol, interval, outputsize === 'full' ? 5000 : 100)
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: sampleData,
+          metadata: {
+            symbol: symbol,
+            interval: interval,
+            currency_base: symbol.split('/')[0] || 'EUR',
+            currency_quote: symbol.split('/')[1] || 'USD',
+            type: 'forex',
+            source: 'sample_data'
+          }
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+
+    // Convert symbol format for Twelve Data API (EUR/USD -> EURUSD)
+    const twelveDataSymbol = symbol.replace('/', '')
+    
+    // Map our intervals to Twelve Data intervals
+    const intervalMap: { [key: string]: string } = {
+      '1min': '1min',
+      '5min': '5min',
+      '15min': '15min',
+      '30min': '30min',
+      '45min': '45min',
+      '1h': '1h',
+      '2h': '2h',
+      '4h': '4h',
+      '1day': '1day',
+      '1week': '1week',
+      '1month': '1month'
+    }
+    
+    const twelveDataInterval = intervalMap[interval] || '5min'
+    const outputSizeLimit = outputsize === 'full' ? 5000 : 100
+    
+    // Fetch real data from Twelve Data API
+    const apiUrl = `https://api.twelvedata.com/time_series?symbol=${twelveDataSymbol}&interval=${twelveDataInterval}&outputsize=${outputSizeLimit}&apikey=${twelveDataApiKey}&format=JSON`
+    
+    console.log(`Calling Twelve Data API: ${apiUrl.replace(twelveDataApiKey, '[API_KEY]')}`)
+    
+    const response = await fetch(apiUrl)
+    const apiData = await response.json()
+    
+    if (apiData.status === 'error' || apiData.code) {
+      console.error('Twelve Data API error:', apiData)
+      
+      // Fallback to sample data if API fails
+      console.log('Falling back to sample data due to API error')
+      const sampleData = generateSampleForexData(symbol, interval, outputSizeLimit)
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: sampleData,
+          metadata: {
+            symbol: symbol,
+            interval: interval,
+            currency_base: symbol.split('/')[0] || 'EUR',
+            currency_quote: symbol.split('/')[1] || 'USD',
+            type: 'forex',
+            source: 'sample_data_fallback',
+            api_error: apiData.message || 'API request failed'
+          }
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
+    
+    // Transform Twelve Data response to our format
+    const transformedData = transformTwelveDataResponse(apiData)
+    console.log(`Successfully fetched ${transformedData.length} real data points`)
     
     return new Response(
       JSON.stringify({
         success: true,
-        data: sampleData,
+        data: transformedData,
         metadata: {
           symbol: symbol,
           interval: interval,
           currency_base: symbol.split('/')[0] || 'EUR',
           currency_quote: symbol.split('/')[1] || 'USD',
-          type: 'forex'
+          type: 'forex',
+          source: 'twelve_data_api',
+          api_status: 'success'
         }
       }),
       {
@@ -36,18 +119,60 @@ serve(async (req) => {
     )
   } catch (error) {
     console.error('Data fetch error:', error)
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message 
-      }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      },
-    )
+    
+    // Fallback to sample data on any error
+    try {
+      const { symbol, interval, outputsize = 'compact' } = await req.json()
+      const sampleData = generateSampleForexData(symbol, interval, outputsize === 'full' ? 5000 : 100)
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: sampleData,
+          metadata: {
+            symbol: symbol,
+            interval: interval,
+            currency_base: symbol.split('/')[0] || 'EUR',
+            currency_quote: symbol.split('/')[1] || 'USD',
+            type: 'forex',
+            source: 'sample_data_error_fallback',
+            error: error.message
+          }
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    } catch (fallbackError) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: error.message 
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        },
+      )
+    }
   }
 })
+
+function transformTwelveDataResponse(apiData: any) {
+  if (!apiData.values || !Array.isArray(apiData.values)) {
+    throw new Error('Invalid API response format')
+  }
+  
+  return apiData.values.map((item: any) => ({
+    datetime: item.datetime,
+    timestamp: item.datetime,
+    open: parseFloat(item.open),
+    high: parseFloat(item.high),
+    low: parseFloat(item.low),
+    close: parseFloat(item.close),
+    volume: parseInt(item.volume) || 0
+  })).reverse() // Twelve Data returns newest first, we want oldest first
+}
 
 function generateSampleForexData(symbol: string, interval: string, count: number) {
   const data = []
