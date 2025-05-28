@@ -1,11 +1,9 @@
 
 import React from 'react';
+import { Card, CardContent } from '@/components/ui/card';
 import StrategyConfiguration from './StrategyConfiguration';
-import RiskManagement from './RiskManagement';
-import ExecutionSettings from './ExecutionSettings';
-import BacktestProgress from './BacktestProgress';
 import StrategyHistory from './StrategyHistory';
-import { StrategyResult } from '@/services/strategyStorage';
+import StrategyCoach from '../backtest/StrategyCoach';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
@@ -13,7 +11,9 @@ interface StrategyBuilderLayoutProps {
   onRunBacktest: () => void;
   isRunning: boolean;
   currentStep: string;
-  onStrategySelect: (savedStrategy: StrategyResult) => void;
+  onStrategySelect: (strategy: any) => void;
+  backtestResults?: any;
+  onAddToStrategy?: (codeSnippet: string) => void;
 }
 
 const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
@@ -22,37 +22,40 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   onRunBacktest,
   isRunning,
   currentStep,
-  onStrategySelect
+  onStrategySelect,
+  backtestResults,
+  onAddToStrategy
 }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Strategy Configuration */}
       <div className="lg:col-span-2 space-y-6">
-        <StrategyConfiguration 
-          strategy={strategy} 
+        <StrategyConfiguration
+          strategy={strategy}
           onStrategyChange={onStrategyChange}
           onRunBacktest={onRunBacktest}
           isRunning={isRunning}
         />
-      </div>
-
-      {/* Risk Management & Execution */}
-      <div className="space-y-6">
-        <RiskManagement 
-          strategy={strategy} 
-          onStrategyChange={onStrategyChange} 
-        />
-        
-        <ExecutionSettings 
-          strategy={strategy} 
-          onStrategyChange={onStrategyChange}
-          onRunBacktest={onRunBacktest}
-          isRunning={isRunning}
-        />
-        
-        <BacktestProgress currentStep={currentStep} />
         
         <StrategyHistory onStrategySelect={onStrategySelect} />
+      </div>
+      
+      <div className="lg:col-span-1">
+        {backtestResults ? (
+          <StrategyCoach 
+            results={backtestResults} 
+            onAddToStrategy={onAddToStrategy}
+            strategyCode={strategy.code}
+          />
+        ) : (
+          <Card className="bg-slate-800 border-slate-700">
+            <CardContent className="p-8 text-center">
+              <div className="text-slate-400">
+                <p className="text-lg font-medium mb-2">Strategy Coach</p>
+                <p className="text-sm">Run a backtest to get AI-powered recommendations</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

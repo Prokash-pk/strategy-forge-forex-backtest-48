@@ -10,13 +10,15 @@ interface StrategyBuilderProps {
   onBacktestComplete: (results: any) => void;
   onNavigateToResults: () => void;
   initialStrategy?: any;
+  backtestResults?: any;
 }
 
 const StrategyBuilder: React.FC<StrategyBuilderProps> = ({ 
   onStrategyUpdate, 
   onBacktestComplete, 
   onNavigateToResults,
-  initialStrategy 
+  initialStrategy,
+  backtestResults 
 }) => {
   const {
     strategy,
@@ -32,6 +34,11 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({
     runBacktest(strategy, handleBacktestComplete);
   };
 
+  const handleAddToStrategy = (codeSnippet: string) => {
+    const updatedCode = strategy.code + '\n\n' + codeSnippet;
+    handleStrategyChange({ code: updatedCode });
+  };
+
   return (
     <div className="space-y-6">
       <StrategyBuilderStatus pythonStatus={pythonStatus} />
@@ -43,6 +50,8 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({
         isRunning={isRunning}
         currentStep={currentStep}
         onStrategySelect={handleStrategySelect}
+        backtestResults={backtestResults}
+        onAddToStrategy={handleAddToStrategy}
       />
     </div>
   );
