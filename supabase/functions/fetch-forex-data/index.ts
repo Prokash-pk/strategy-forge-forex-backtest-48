@@ -26,6 +26,26 @@ function convertSymbolFormat(symbol: string): string {
   return symbol;
 }
 
+// Convert interval format to Twelve Data format
+function convertIntervalFormat(interval: string): string {
+  const intervalMap: { [key: string]: string } = {
+    '1m': '1min',
+    '2m': '2min',
+    '5m': '5min',
+    '15m': '15min',
+    '30m': '30min',
+    '1h': '1h',
+    '2h': '2h',
+    '4h': '4h',
+    '8h': '8h',
+    '1d': '1day',
+    '1wk': '1week',
+    '1mo': '1month'
+  };
+  
+  return intervalMap[interval] || interval;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -41,16 +61,18 @@ serve(async (req) => {
       throw new Error('API key not configured');
     }
 
-    // Convert symbol to Twelve Data format
+    // Convert symbol and interval to Twelve Data format
     const convertedSymbol = convertSymbolFormat(symbol);
+    const convertedInterval = convertIntervalFormat(interval);
     console.log(`Converting symbol ${symbol} to ${convertedSymbol}`);
-    console.log(`Fetching data for ${convertedSymbol} with interval ${interval}`);
+    console.log(`Converting interval ${interval} to ${convertedInterval}`);
+    console.log(`Fetching data for ${convertedSymbol} with interval ${convertedInterval}`);
 
     // Build Twelve Data API URL
     const baseUrl = 'https://api.twelvedata.com/time_series';
     const params = new URLSearchParams({
       symbol: convertedSymbol,
-      interval: interval,
+      interval: convertedInterval,
       outputsize: outputsize.toString(),
       apikey: apiKey,
       format: 'JSON'
@@ -93,7 +115,7 @@ serve(async (req) => {
         data: transformedData,
         metadata: {
           symbol: data.meta?.symbol || convertedSymbol,
-          interval: data.meta?.interval || interval,
+          interval: data.meta?.interval || convertedInterval,
           currency_base: data.meta?.currency_base,
           currency_quote: data.meta?.currency_quote,
           type: data.meta?.type
