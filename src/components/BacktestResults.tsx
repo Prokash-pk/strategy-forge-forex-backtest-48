@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +10,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 interface BacktestResultsProps {
   results: any;
 }
+
+// Helper function to safely format dates
+const formatDate = (date: any): string => {
+  if (!date) return 'N/A';
+  
+  // If it's already a Date object
+  if (date instanceof Date) {
+    return date.toLocaleDateString();
+  }
+  
+  // If it's a string, convert to Date first
+  if (typeof date === 'string') {
+    const dateObj = new Date(date);
+    return dateObj.toLocaleDateString();
+  }
+  
+  // Fallback
+  return String(date);
+};
 
 const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
   if (!results) {
@@ -145,7 +165,7 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
                     <XAxis 
                       dataKey="date" 
                       stroke="#9CA3AF"
-                      tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                      tickFormatter={(value) => formatDate(value)}
                     />
                     <YAxis stroke="#9CA3AF" />
                     <Tooltip 
@@ -155,6 +175,7 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
                         borderRadius: '8px'
                       }}
                       labelStyle={{ color: '#9CA3AF' }}
+                      labelFormatter={(value) => formatDate(value)}
                     />
                     <Line 
                       type="monotone" 
@@ -225,7 +246,7 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
                     {results.trades.map((trade: any) => (
                       <TableRow key={trade.id} className="border-slate-700 hover:bg-slate-700/30">
                         <TableCell className="text-white font-medium">{trade.id}</TableCell>
-                        <TableCell className="text-slate-300">{trade.date.toLocaleDateString()}</TableCell>
+                        <TableCell className="text-slate-300">{formatDate(trade.date)}</TableCell>
                         <TableCell>
                           <Badge variant={trade.type === 'BUY' ? 'default' : 'secondary'} className="text-xs">
                             {trade.type}
