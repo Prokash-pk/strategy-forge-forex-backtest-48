@@ -56,7 +56,7 @@ const Auth = () => {
       await signUp(email, password, fullName);
       toast({
         title: "Account Created!",
-        description: "Welcome to the Quantitative Trading Platform.",
+        description: "Welcome to Stratyx.",
       });
       navigate('/');
     } catch (error: any) {
@@ -75,13 +75,20 @@ const Auth = () => {
       <div className="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
         {/* Left side - Branding */}
         <div className="space-y-6">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-blue-400 bg-clip-text text-transparent">
-              Quantitative Trading Platform
-            </h1>
-            <p className="text-slate-400 text-lg mt-2">
-              Professional-grade strategy building and backtesting
-            </p>
+          <div className="flex items-center gap-4">
+            <img 
+              src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0idXJsKCNncmFkaWVudDApIi8+CjxwYXRoIGQ9Ik04IDIwSDI0TDE2IDEyTDggMjBaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNOCAxMkgyNEwxNiAyMEw4IDEyWiIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuNyIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudDAiIHgxPSIwIiB5MT0iMCIgeDI9IjMyIiB5Mj0iMzIiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agc3RvcC1jb2xvcj0iIzEwQjk4MSIvPgo8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwRDlDODgiLz4KPC9saW5lYXJHcmFkaWVudD4KPC9kZWZzPgo8L3N2Zz4K" 
+              alt="Stratyx Logo" 
+              className="h-16 w-16"
+            />
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">
+                Stratyx
+              </h1>
+              <p className="text-slate-400 text-lg mt-2">
+                Professional-grade forex strategy backtesting
+              </p>
+            </div>
           </div>
           
           <div className="space-y-4">
@@ -90,11 +97,11 @@ const Auth = () => {
               <span>Advanced Strategy Builder with Python Support</span>
             </div>
             <div className="flex items-center gap-3">
-              <BarChart3 className="h-6 w-6 text-blue-400" />
+              <BarChart3 className="h-6 w-6 text-emerald-400" />
               <span>Real Market Data & Comprehensive Analytics</span>
             </div>
             <div className="flex items-center gap-3">
-              <Shield className="h-6 w-6 text-purple-400" />
+              <Shield className="h-6 w-6 text-emerald-400" />
               <span>Secure Strategy Storage & History</span>
             </div>
           </div>
@@ -122,7 +129,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-slate-700 border-slate-600 text-white"
+                      className="bg-slate-700 border-slate-600 text-white focus:border-emerald-400"
                     />
                   </div>
                   <div className="space-y-2">
@@ -133,12 +140,12 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="bg-slate-700 border-slate-600 text-white"
+                      className="bg-slate-700 border-slate-600 text-white focus:border-emerald-400"
                     />
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full" 
+                    className="w-full bg-emerald-600 hover:bg-emerald-700" 
                     disabled={loading}
                   >
                     {loading ? 'Signing In...' : 'Sign In'}
@@ -156,7 +163,7 @@ const Auth = () => {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      className="bg-slate-700 border-slate-600 text-white"
+                      className="bg-slate-700 border-slate-600 text-white focus:border-emerald-400"
                     />
                   </div>
                   <div className="space-y-2">
@@ -167,7 +174,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-slate-700 border-slate-600 text-white"
+                      className="bg-slate-700 border-slate-600 text-white focus:border-emerald-400"
                     />
                   </div>
                   <div className="space-y-2">
@@ -178,12 +185,12 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="bg-slate-700 border-slate-600 text-white"
+                      className="bg-slate-700 border-slate-600 text-white focus:border-emerald-400"
                     />
                   </div>
                   <Button 
                     type="submit" 
-                    className="w-full" 
+                    className="w-full bg-emerald-600 hover:bg-emerald-700" 
                     disabled={loading}
                   >
                     {loading ? 'Creating Account...' : 'Create Account'}
