@@ -134,12 +134,20 @@ class TechnicalAnalysis:
         
         return result
 
-def execute_strategy(data: Dict[str, List[float]], strategy_code: str) -> Dict[str, Any]:
+def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: str) -> Dict[str, Any]:
     """Execute the user's strategy code safely"""
     try:
-        # Create DataFrame from market data
-        df = pd.DataFrame(data)
-        df.columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+        # Convert JavaScript data to proper Python lists
+        data_dict = {
+            'Open': list(market_data_dict['open']),
+            'High': list(market_data_dict['high']),
+            'Low': list(market_data_dict['low']),
+            'Close': list(market_data_dict['close']),
+            'Volume': list(market_data_dict['volume'])
+        }
+        
+        # Create DataFrame from converted data
+        df = pd.DataFrame(data_dict)
         
         # Create a safe execution environment
         safe_globals = {
@@ -160,6 +168,8 @@ def execute_strategy(data: Dict[str, List[float]], strategy_code: str) -> Dict[s
                 'bool': bool,
                 'list': list,
                 'dict': dict,
+                'enumerate': enumerate,
+                'zip': zip,
             }
         }
         
@@ -169,8 +179,6 @@ def execute_strategy(data: Dict[str, List[float]], strategy_code: str) -> Dict[s
         # Try to call strategy_logic function
         if 'strategy_logic' in safe_globals:
             result = safe_globals['strategy_logic'](df)
-        elif 'execute_strategy' in safe_globals:
-            result = safe_globals['execute_strategy'](df)
         else:
             # If no function found, try to extract signals from globals
             result = {}
@@ -182,9 +190,9 @@ def execute_strategy(data: Dict[str, List[float]], strategy_code: str) -> Dict[s
         # Convert pandas Series to lists and handle NaN values
         def convert_to_list(value):
             if hasattr(value, 'tolist'):
-                return [x if not pd.isna(x) else False for x in value.tolist()]
+                return [bool(x) if pd.notna(x) and (x is True or x is False) else (False if pd.isna(x) else bool(x)) for x in value.tolist()]
             elif isinstance(value, list):
-                return [x if x is not None and not pd.isna(x) else False for x in value]
+                return [bool(x) if x is not None and not pd.isna(x) else False for x in value]
             return value
         
         # Process the result
@@ -196,10 +204,13 @@ def execute_strategy(data: Dict[str, List[float]], strategy_code: str) -> Dict[s
                 # Handle indicators
                 if 'indicators' not in processed_result:
                     processed_result['indicators'] = {}
-                processed_result['indicators'][key] = convert_to_list(value)
+                if hasattr(value, 'tolist'):
+                    processed_result['indicators'][key] = [float(x) if pd.notna(x) else float('nan') for x in value.tolist()]
+                else:
+                    processed_result['indicators'][key] = value
         
         # Ensure entry and exit signals exist
-        data_length = len(data['close'])
+        data_length = len(data_dict['Close'])
         if 'entry' not in processed_result:
             processed_result['entry'] = [False] * data_length
         if 'exit' not in processed_result:
@@ -208,10 +219,12 @@ def execute_strategy(data: Dict[str, List[float]], strategy_code: str) -> Dict[s
         return processed_result
         
     except Exception as e:
+        import traceback
+        error_msg = f"Strategy execution error: {str(e)}\\n{traceback.format_exc()}"
         return {
-            'entry': [False] * len(data['close']),
-            'exit': [False] * len(data['close']),
-            'error': str(e)
+            'entry': [False] * len(market_data_dict['close']),
+            'exit': [False] * len(market_data_dict['close']),
+            'error': error_msg
         }
     `);
 
@@ -225,22 +238,23 @@ def execute_strategy(data: Dict[str, List[float]], strategy_code: str) -> Dict[s
       
       console.log('Executing Python strategy code...');
       
-      // Prepare data for Python
-      const pythonData = {
-        open: marketData.open,
-        high: marketData.high,
-        low: marketData.low,
-        close: marketData.close,
-        volume: marketData.volume
+      // Convert market data to plain JavaScript object
+      const plainMarketData = {
+        open: Array.from(marketData.open),
+        high: Array.from(marketData.high),
+        low: Array.from(marketData.low),
+        close: Array.from(marketData.close),
+        volume: Array.from(marketData.volume)
       };
       
-      // Set the data and code in Python
-      pyodide.globals.set('market_data', pythonData);
-      pyodide.globals.set('user_strategy_code', code);
+      // Set the data and code in Python using proper conversion
+      pyodide.globals.set('js_market_data', plainMarketData);
+      pyodide.globals.set('js_strategy_code', code);
       
-      // Execute the strategy
+      // Execute the strategy with proper data conversion
       const result = pyodide.runPython(`
-result = execute_strategy(market_data, user_strategy_code)
+# Convert JS data to Python and execute strategy
+result = execute_strategy(js_market_data.to_py(), js_strategy_code)
 result
       `);
       

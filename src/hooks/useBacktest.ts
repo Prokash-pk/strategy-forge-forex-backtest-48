@@ -10,11 +10,11 @@ export const useBacktest = () => {
   const { toast } = useToast();
 
   const timeframes = [
-    { value: '1m', label: '1 Minute', period: '7 days', dataPoints: 10080 },
-    { value: '5m', label: '5 Minutes', period: '60 days', dataPoints: 17280 },
-    { value: '15m', label: '15 Minutes', period: '60 days', dataPoints: 5760 },
-    { value: '1h', label: '1 Hour', period: '730 days', dataPoints: 17520 },
-    { value: '1d', label: '1 Day', period: '5 years', dataPoints: 1825 }
+    { value: '1m', label: '1 Minute', period: '7 days', dataPoints: 10080, minutesPerBar: 1 },
+    { value: '5m', label: '5 Minutes', period: '60 days', dataPoints: 17280, minutesPerBar: 5 },
+    { value: '15m', label: '15 Minutes', period: '60 days', dataPoints: 5760, minutesPerBar: 15 },
+    { value: '1h', label: '1 Hour', period: '730 days', dataPoints: 17520, minutesPerBar: 60 },
+    { value: '1d', label: '1 Day', period: '5 years', dataPoints: 1825, minutesPerBar: 1440 }
   ];
 
   const runBacktest = async (strategy: any, onBacktestComplete: (results: any) => void) => {
@@ -73,13 +73,13 @@ export const useBacktest = () => {
         // Use Python execution
         console.log('Using Python execution for strategy');
         
-        // Prepare market data for Python
+        // Prepare market data for Python with proper data structure
         const pythonMarketData = {
-          open: marketData.map((d: any) => d.open),
-          high: marketData.map((d: any) => d.high),
-          low: marketData.map((d: any) => d.low),
-          close: marketData.map((d: any) => d.close),
-          volume: marketData.map((d: any) => d.volume)
+          open: marketData.map((d: any) => parseFloat(d.open)),
+          high: marketData.map((d: any) => parseFloat(d.high)),
+          low: marketData.map((d: any) => parseFloat(d.low)),
+          close: marketData.map((d: any) => parseFloat(d.close)),
+          volume: marketData.map((d: any) => parseFloat(d.volume || 0))
         };
         
         // Execute strategy with Python
@@ -94,7 +94,10 @@ export const useBacktest = () => {
           });
         }
         
-        // Run backtest with Python-generated signals
+        // Get timeframe info for accurate duration calculation
+        const timeframeInfo = timeframes.find(tf => tf.value === strategy.timeframe);
+        
+        // Run backtest with Python-generated signals and timeframe info
         const { data: response, error } = await supabase.functions.invoke('run-backtest', {
           body: {
             data: marketData,
@@ -109,7 +112,8 @@ export const useBacktest = () => {
               commission: strategy.commission,
               slippage: strategy.slippage
             },
-            pythonSignals: strategyResult.error ? undefined : strategyResult
+            pythonSignals: strategyResult.error ? undefined : strategyResult,
+            timeframeInfo: timeframeInfo
           }
         });
         
@@ -119,6 +123,8 @@ export const useBacktest = () => {
       } else {
         // Fallback to existing JavaScript pattern matching
         console.log('Using JavaScript pattern matching for strategy');
+        
+        const timeframeInfo = timeframes.find(tf => tf.value === strategy.timeframe);
         
         const { data: response, error } = await supabase.functions.invoke('run-backtest', {
           body: {
@@ -133,7 +139,8 @@ export const useBacktest = () => {
               spread: strategy.spread,
               commission: strategy.commission,
               slippage: strategy.slippage
-            }
+            },
+            timeframeInfo: timeframeInfo
           }
         });
         
