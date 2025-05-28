@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -124,15 +123,15 @@ const StrategyConfiguration: React.FC<StrategyConfigurationProps> = ({ strategy,
       <CardContent>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3 bg-slate-700">
-            <TabsTrigger value="visual" className="data-[state=active]:bg-emerald-600">
+            <TabsTrigger value="visual">
               <Settings className="h-4 w-4 mr-2" />
               Visual
             </TabsTrigger>
-            <TabsTrigger value="english" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="english">
               <Languages className="h-4 w-4 mr-2" />
               English
             </TabsTrigger>
-            <TabsTrigger value="python" className="data-[state=active]:bg-blue-600">
+            <TabsTrigger value="python">
               <Code className="h-4 w-4 mr-2" />
               Python
             </TabsTrigger>
