@@ -38,6 +38,25 @@ serve(async (req) => {
 
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Check for existing manually set Lifetime subscription
+    const { data: existingSubscription } = await supabaseClient
+      .from("subscribers")
+      .select("subscription_tier, subscribed")
+      .eq("email", user.email)
+      .single();
+
+    if (existingSubscription?.subscription_tier === "Lifetime") {
+      logStep("Found manually set Lifetime subscription, preserving it");
+      return new Response(JSON.stringify({
+        subscribed: true,
+        subscription_tier: "Lifetime",
+        subscription_end: null
+      }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { 
       apiVersion: "2023-10-16" 
     });
