@@ -2,6 +2,7 @@
 import React from 'react';
 import { useBacktest } from '@/hooks/useBacktest';
 import { useStrategyBuilder } from '@/hooks/useStrategyBuilder';
+import { useBacktestUsage } from '@/hooks/useBacktestUsage';
 import StrategyBuilderStatus from './strategy/StrategyBuilderStatus';
 import StrategyBuilderLayout from './strategy/StrategyBuilderLayout';
 
@@ -25,12 +26,17 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({
     pythonStatus,
     handleStrategyChange,
     handleStrategySelect,
-    handleBacktestComplete
+    handleBacktestComplete,
+    checkCanRunBacktest
   } = useStrategyBuilder(onStrategyUpdate, onBacktestComplete, onNavigateToResults, initialStrategy);
 
   const { isRunning, currentStep, runBacktest } = useBacktest();
+  const { backtestCount, limit, canRunBacktest } = useBacktestUsage();
 
   const handleRunBacktest = () => {
+    if (!checkCanRunBacktest()) {
+      return;
+    }
     runBacktest(strategy, handleBacktestComplete);
   };
 
@@ -41,7 +47,10 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({
 
   return (
     <div className="space-y-6">
-      <StrategyBuilderStatus pythonStatus={pythonStatus} />
+      <StrategyBuilderStatus 
+        pythonStatus={pythonStatus} 
+        backtestUsage={{ count: backtestCount, limit, canRun: canRunBacktest }}
+      />
       
       <StrategyBuilderLayout
         strategy={strategy}

@@ -118,8 +118,8 @@ const BillingTab = () => {
               {subscriptionTier === 'Free' && (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-300">Saved Strategies</span>
-                    <span className="text-white">1</span>
+                    <span className="text-slate-300">Backtest Runs</span>
+                    <span className="text-white">1 per month</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-300">Historical Data</span>
@@ -135,8 +135,8 @@ const BillingTab = () => {
               {subscriptionTier === 'Starter' && (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-300">Saved Strategies</span>
-                    <span className="text-white">5</span>
+                    <span className="text-slate-300">Backtest Runs</span>
+                    <span className="text-white">10 per month</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-300">Historical Data</span>
@@ -152,8 +152,8 @@ const BillingTab = () => {
               {(subscriptionTier === 'Pro' || subscriptionTier === 'Lifetime') && (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-300">Saved Strategies</span>
-                    <span className="text-white">20</span>
+                    <span className="text-slate-300">Backtest Runs</span>
+                    <span className="text-white">Unlimited</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-300">Historical Data</span>

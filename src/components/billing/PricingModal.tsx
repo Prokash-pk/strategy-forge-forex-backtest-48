@@ -22,7 +22,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onOpenChange }) => {
       period: '/month',
       icon: <Star className="h-6 w-6" />,
       features: [
-        '1 saved strategy',
+        '1 backtest run per month',
         'Limited backtesting (1 week)',
         'No strategy coach',
         'Basic support'
@@ -37,7 +37,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onOpenChange }) => {
       period: '/month',
       icon: <Zap className="h-6 w-6" />,
       features: [
-        '5 saved strategies',
+        '10 backtest runs per month',
         '1-month historical data',
         'Strategy Coach Lite',
         'Email-only support'
@@ -53,7 +53,7 @@ const PricingModal: React.FC<PricingModalProps> = ({ open, onOpenChange }) => {
       period: '/month',
       icon: <Crown className="h-6 w-6" />,
       features: [
-        '20 strategies',
+        'Unlimited backtest runs',
         '1-year historical data',
         'Full Strategy Coach',
         'Performance suggestions',

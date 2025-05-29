@@ -1,7 +1,9 @@
+
 import { useState, useEffect } from 'react';
 import { PythonExecutor } from '@/services/pythonExecutor';
 import { StrategyStorage, StrategyResult } from '@/services/strategyStorage';
 import { useToast } from '@/hooks/use-toast';
+import { useBacktestUsage } from '@/hooks/useBacktestUsage';
 
 export const useStrategyBuilder = (
   onStrategyUpdate: (strategy: any) => void,
@@ -64,6 +66,7 @@ def strategy_logic(data):
 
   const [pythonStatus, setPythonStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
   const { toast } = useToast();
+  const { checkCanRunBacktest, incrementBacktestCount } = useBacktestUsage();
 
   // Update strategy when initialStrategy changes
   useEffect(() => {
@@ -108,6 +111,9 @@ def strategy_logic(data):
 
   const handleBacktestComplete = async (results: any) => {
     try {
+      // Increment backtest usage count
+      incrementBacktestCount();
+
       const strategyResult = {
         strategy_name: strategy.name,
         strategy_code: strategy.code,
@@ -148,6 +154,7 @@ def strategy_logic(data):
     pythonStatus,
     handleStrategyChange,
     handleStrategySelect,
-    handleBacktestComplete
+    handleBacktestComplete,
+    checkCanRunBacktest
   };
 };
