@@ -1,9 +1,13 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Target, Shield, Zap, Plus } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TrendingUp, Target, Shield, Zap, Plus, Users, Settings } from 'lucide-react';
+import PersonalizedRecommendations from './PersonalizedRecommendations';
 
 interface VisualStrategyTabProps {
   strategy: any;
@@ -16,6 +20,13 @@ const VisualStrategyTab: React.FC<VisualStrategyTabProps> = ({
   onStrategyChange,
   onAddToStrategy
 }) => {
+  const [userPreferences, setUserPreferences] = useState({
+    symbol: strategy.symbol || 'EURUSD=X',
+    timeframe: strategy.timeframe || '5m',
+    riskTolerance: 'medium' as 'low' | 'medium' | 'high',
+    targetReturn: 20
+  });
+
   const highReturnRecommendations = [
     {
       id: 'momentum_breakout',
@@ -200,6 +211,10 @@ def strategy_logic(data):
     });
   };
 
+  const handleLoadPersonalizedStrategy = (strategyData: any) => {
+    onStrategyChange(strategyData);
+  };
+
   const getRiskColor = (risk: string) => {
     switch (risk) {
       case 'High': return 'bg-red-500/10 text-red-400 border-red-500/20';
@@ -209,86 +224,181 @@ def strategy_logic(data):
     }
   };
 
+  const handlePreferenceChange = (key: string, value: any) => {
+    setUserPreferences(prev => ({ ...prev, [key]: value }));
+  };
+
   return (
     <div className="space-y-6 mt-6">
-      <div className="text-center mb-6">
-        <h3 className="text-xl font-semibold text-white mb-2">High-Return Strategy Recommendations</h3>
-        <p className="text-slate-400 text-sm">
-          Professional trading strategies with proven high-return potential
-        </p>
-      </div>
+      <Tabs defaultValue="personalized" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 bg-slate-700">
+          <TabsTrigger value="personalized">
+            <Users className="h-4 w-4 mr-2" />
+            For You
+          </TabsTrigger>
+          <TabsTrigger value="templates">
+            <Settings className="h-4 w-4 mr-2" />
+            Templates
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-4">
-        {highReturnRecommendations.map((rec) => (
-          <Card key={rec.id} className="bg-slate-700 border-slate-600 hover:border-emerald-500/50 transition-colors">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
-                    {rec.icon}
-                  </div>
-                  <div>
-                    <CardTitle className="text-white text-lg">{rec.title}</CardTitle>
-                    <p className="text-slate-400 text-sm mt-1">{rec.description}</p>
-                  </div>
-                </div>
-              </div>
+        <TabsContent value="personalized" className="space-y-6">
+          {/* User Preferences */}
+          <Card className="bg-slate-700 border-slate-600">
+            <CardHeader>
+              <CardTitle className="text-white text-lg">Your Trading Preferences</CardTitle>
+              <p className="text-slate-400 text-sm">
+                Tell us your preferences to get personalized strategy recommendations
+              </p>
             </CardHeader>
-            <CardContent className="pt-0">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="text-center">
-                    <div className="text-emerald-400 font-bold text-lg">{rec.expectedReturn}</div>
-                    <div className="text-slate-500 text-xs">Expected Return</div>
-                  </div>
-                  <Badge className={getRiskColor(rec.riskLevel)}>
-                    {rec.riskLevel} Risk
-                  </Badge>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="symbol" className="text-slate-300">Currency Pair</Label>
+                  <Select value={userPreferences.symbol} onValueChange={(value) => handlePreferenceChange('symbol', value)}>
+                    <SelectTrigger className="bg-slate-600 border-slate-500 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-slate-600">
+                      <SelectItem value="EURUSD=X">EUR/USD</SelectItem>
+                      <SelectItem value="GBPUSD=X">GBP/USD</SelectItem>
+                      <SelectItem value="USDJPY=X">USD/JPY</SelectItem>
+                      <SelectItem value="AUDUSD=X">AUD/USD</SelectItem>
+                      <SelectItem value="USDCAD=X">USD/CAD</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Button
-                  onClick={() => handleLoadStrategy(rec)}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Load Strategy
-                </Button>
-              </div>
-              
-              <div className="bg-slate-800 p-3 rounded border border-slate-600">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-slate-300 text-sm font-medium">Strategy Overview</span>
+                <div>
+                  <Label htmlFor="timeframe" className="text-slate-300">Timeframe</Label>
+                  <Select value={userPreferences.timeframe} onValueChange={(value) => handlePreferenceChange('timeframe', value)}>
+                    <SelectTrigger className="bg-slate-600 border-slate-500 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-slate-600">
+                      <SelectItem value="1m">1 Minute</SelectItem>
+                      <SelectItem value="5m">5 Minutes</SelectItem>
+                      <SelectItem value="15m">15 Minutes</SelectItem>
+                      <SelectItem value="1h">1 Hour</SelectItem>
+                      <SelectItem value="1d">1 Day</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="text-slate-400 text-xs space-y-1">
-                  {rec.id === 'momentum_breakout' && (
-                    <>
-                      <div>• Uses RSI (50-80) + EMA crossover for momentum detection</div>
-                      <div>• Volatility breakout filter (ATR {'>'}= 1.5x)</div>
-                      <div>• Volume surge confirmation</div>
-                      <div>• Exit on momentum reversal or overbought (RSI {'>'} 85)</div>
-                    </>
-                  )}
-                  {rec.id === 'mean_reversion_scalp' && (
-                    <>
-                      <div>• Bollinger Band lower touch + RSI oversold ({'<'} 25)</div>
-                      <div>• Quick bounce confirmation required</div>
-                      <div>• Target: return to middle BB (SMA 20)</div>
-                      <div>• Tight stop loss below lower BB</div>
-                    </>
-                  )}
-                  {rec.id === 'trend_following_enhanced' && (
-                    <>
-                      <div>• Triple EMA alignment (8 {'>'} 21 {'>'} 55)</div>
-                      <div>• MACD bullish + ADX strength {'>'} 25</div>
-                      <div>• Entry on pullback to EMA 8</div>
-                      <div>• Exit on trend break or ADX weakness</div>
-                    </>
-                  )}
+                <div>
+                  <Label htmlFor="risk" className="text-slate-300">Risk Tolerance</Label>
+                  <Select value={userPreferences.riskTolerance} onValueChange={(value) => handlePreferenceChange('riskTolerance', value)}>
+                    <SelectTrigger className="bg-slate-600 border-slate-500 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-slate-600">
+                      <SelectItem value="low">Low Risk</SelectItem>
+                      <SelectItem value="medium">Medium Risk</SelectItem>
+                      <SelectItem value="high">High Risk</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="target" className="text-slate-300">Target Return (%)</Label>
+                  <Input
+                    type="number"
+                    value={userPreferences.targetReturn}
+                    onChange={(e) => handlePreferenceChange('targetReturn', Number(e.target.value))}
+                    className="bg-slate-600 border-slate-500 text-white"
+                    min="5"
+                    max="100"
+                  />
                 </div>
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+
+          {/* Personalized Recommendations */}
+          <PersonalizedRecommendations 
+            userPreferences={userPreferences}
+            onLoadStrategy={handleLoadPersonalizedStrategy}
+          />
+        </TabsContent>
+
+        <TabsContent value="templates" className="space-y-6">
+          <div className="text-center mb-6">
+            <h3 className="text-xl font-semibold text-white mb-2">High-Return Strategy Templates</h3>
+            <p className="text-slate-400 text-sm">
+              Professional trading strategies with proven high-return potential
+            </p>
+          </div>
+
+          <div className="grid gap-4">
+            {highReturnRecommendations.map((rec) => (
+              <Card key={rec.id} className="bg-slate-700 border-slate-600 hover:border-emerald-500/50 transition-colors">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-400">
+                        {rec.icon}
+                      </div>
+                      <div>
+                        <CardTitle className="text-white text-lg">{rec.title}</CardTitle>
+                        <p className="text-slate-400 text-sm mt-1">{rec.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="text-center">
+                        <div className="text-emerald-400 font-bold text-lg">{rec.expectedReturn}</div>
+                        <div className="text-slate-500 text-xs">Expected Return</div>
+                      </div>
+                      <Badge className={getRiskColor(rec.riskLevel)}>
+                        {rec.riskLevel} Risk
+                      </Badge>
+                    </div>
+                    <Button
+                      onClick={() => handleLoadStrategy(rec)}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Load Strategy
+                    </Button>
+                  </div>
+                  
+                  <div className="bg-slate-800 p-3 rounded border border-slate-600">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-slate-300 text-sm font-medium">Strategy Overview</span>
+                    </div>
+                    <div className="text-slate-400 text-xs space-y-1">
+                      {rec.id === 'momentum_breakout' && (
+                        <>
+                          <div>• Uses RSI (50-80) + EMA crossover for momentum detection</div>
+                          <div>• Volatility breakout filter (ATR {'>='} 1.5x)</div>
+                          <div>• Volume surge confirmation</div>
+                          <div>• Exit on momentum reversal or overbought (RSI {'>'} 85)</div>
+                        </>
+                      )}
+                      {rec.id === 'mean_reversion_scalp' && (
+                        <>
+                          <div>• Bollinger Band lower touch + RSI oversold ({'<'} 25)</div>
+                          <div>• Quick bounce confirmation required</div>
+                          <div>• Target: return to middle BB (SMA 20)</div>
+                          <div>• Tight stop loss below lower BB</div>
+                        </>
+                      )}
+                      {rec.id === 'trend_following_enhanced' && (
+                        <>
+                          <div>• Triple EMA alignment (8 {'>'} 21 {'>'} 55)</div>
+                          <div>• MACD bullish + ADX strength {'>'} 25</div>
+                          <div>• Entry on pullback to EMA 8</div>
+                          <div>• Exit on trend break or ADX weakness</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <div className="bg-slate-700 rounded-lg p-4 border border-slate-600 mt-6">
         <div className="flex items-start gap-3">
