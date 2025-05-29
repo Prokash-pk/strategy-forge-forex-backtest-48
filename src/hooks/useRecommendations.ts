@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { StrategyAnalyticsService, PersonalizedRecommendation } from '@/services/strategyAnalytics';
+import { StrategyAnalyticsService, PersonalizedRecommendation } from '@/services/analytics';
 import { provenStrategies } from '@/services/provenStrategies';
 
 interface UserPreferences {

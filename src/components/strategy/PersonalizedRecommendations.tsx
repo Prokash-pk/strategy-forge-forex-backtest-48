@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { PersonalizedRecommendation } from '@/services/strategyAnalytics';
+import { PersonalizedRecommendation } from '@/services/analytics';
 import { useRecommendations } from '@/hooks/useRecommendations';
 import RecommendationCard from './RecommendationCard';
 import { LoadingState, EmptyState } from './RecommendationStates';

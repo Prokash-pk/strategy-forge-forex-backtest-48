@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { StrategyAnalyticsService, StrategyAnalytics } from '@/services/strategyAnalytics';
+import { StrategyAnalyticsService, StrategyAnalytics } from '@/services/analytics';
 import { TrendingUp, TrendingDown, AlertCircle, Target, Users, BarChart3 } from 'lucide-react';
 
 const UserTestingAnalytics = () => {

@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, CheckCircle, Crown, Star } from 'lucide-react';
-import { PersonalizedRecommendation } from '@/services/strategyAnalytics';
+import { PersonalizedRecommendation } from '@/services/analytics';
 
 interface RecommendationCardProps {
   recommendation: PersonalizedRecommendation;
