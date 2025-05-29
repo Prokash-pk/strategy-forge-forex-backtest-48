@@ -258,14 +258,14 @@ def strategy_logic(data):
                   {rec.id === 'momentum_breakout' && (
                     <>
                       <div>• Uses RSI (50-80) + EMA crossover for momentum detection</div>
-                      <div>• Volatility breakout filter (ATR > 1.5x)</div>
+                      <div>• Volatility breakout filter (ATR {'>'}= 1.5x)</div>
                       <div>• Volume surge confirmation</div>
-                      <div>• Exit on momentum reversal or overbought (RSI > 85)</div>
+                      <div>• Exit on momentum reversal or overbought (RSI {'>'} 85)</div>
                     </>
                   )}
                   {rec.id === 'mean_reversion_scalp' && (
                     <>
-                      <div>• Bollinger Band lower touch + RSI oversold (&lt; 25)</div>
+                      <div>• Bollinger Band lower touch + RSI oversold ({'<'} 25)</div>
                       <div>• Quick bounce confirmation required</div>
                       <div>• Target: return to middle BB (SMA 20)</div>
                       <div>• Tight stop loss below lower BB</div>
@@ -273,8 +273,8 @@ def strategy_logic(data):
                   )}
                   {rec.id === 'trend_following_enhanced' && (
                     <>
-                      <div>• Triple EMA alignment (8 > 21 > 55)</div>
-                      <div>• MACD bullish + ADX strength > 25</div>
+                      <div>• Triple EMA alignment (8 {'>'} 21 {'>'} 55)</div>
+                      <div>• MACD bullish + ADX strength {'>'} 25</div>
                       <div>• Entry on pullback to EMA 8</div>
                       <div>• Exit on trend break or ADX weakness</div>
                     </>
