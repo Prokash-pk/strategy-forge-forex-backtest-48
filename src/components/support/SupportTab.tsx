@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Send, MessageSquare, Clock, CheckCircle } from 'lucide-react';
+import { Send, MessageSquare, Clock, CheckCircle, ExternalLink } from 'lucide-react';
 
 const SupportTab = () => {
   const [loading, setLoading] = useState(false);
@@ -87,6 +87,51 @@ const SupportTab = () => {
       <div>
         <h2 className="text-2xl font-bold text-white mb-2">Support Center</h2>
         <p className="text-slate-400">Get help with Stratyx or report issues</p>
+      </div>
+
+      {/* Quick Contact Options */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-white font-medium">Join our Discord</h3>
+                <p className="text-sm text-slate-400">Get instant community support</p>
+              </div>
+              <Button
+                asChild
+                size="sm"
+                className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+              >
+                <a href="https://discord.gg/8Pb4B3j2" target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  Discord
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-slate-800 border-slate-700">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-white font-medium">WhatsApp Support</h3>
+                <p className="text-sm text-slate-400">Direct message support</p>
+              </div>
+              <Button
+                asChild
+                size="sm"
+                className="bg-[#25D366] hover:bg-[#20BA5A] text-white"
+              >
+                <a href="https://wa.link/khmwv3" target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  WhatsApp
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
