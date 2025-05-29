@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Target, Users, Star, CheckCircle } from 'lucide-react';
+import { TrendingUp, Target, Users, Star, CheckCircle, Crown } from 'lucide-react';
 import { StrategyAnalyticsService, PersonalizedRecommendation } from '@/services/strategyAnalytics';
 
 interface PersonalizedRecommendationsProps {
@@ -305,9 +305,55 @@ def strategy_logic(data):
       try {
         setLoading(true);
         
-        // Get database recommendations
+        // Get database recommendations (including user's own high-performing strategies)
         const dbRecs = await StrategyAnalyticsService.getPersonalizedRecommendations(userPreferences);
         
+        // Get user's high-performing strategies
+        const userHighPerformers = await StrategyAnalyticsService.getHighReturnStrategies(15, 60);
+        
+        // Convert user strategies to recommendations format
+        const userRecs: PersonalizedRecommendation[] = userHighPerformers.map(strategy => {
+          let score = 0;
+          const matchFactors: string[] = [];
+
+          // Bonus for being user's own strategy
+          score += 35;
+          matchFactors.push('Your own strategy');
+
+          // Symbol matching
+          if (strategy.symbol === userPreferences.symbol) {
+            score += 40;
+            matchFactors.push('Same currency pair');
+          } else {
+            score += 10;
+            matchFactors.push('Different pair');
+          }
+
+          // Timeframe matching
+          if (strategy.timeframe === userPreferences.timeframe) {
+            score += 30;
+            matchFactors.push('Same timeframe');
+          } else {
+            score += 15;
+            matchFactors.push('Adaptable timeframe');
+          }
+
+          // High performance bonus
+          if ((strategy.win_rate || 0) >= 60 && (strategy.total_return || 0) > 15) {
+            score += 20;
+            matchFactors.push('High performance');
+          }
+
+          return {
+            strategy: {
+              ...strategy,
+              id: strategy.id || `user_${strategy.strategy_name}`
+            },
+            score,
+            matchFactors
+          };
+        });
+
         // Add proven strategies with matching logic
         const provenRecs: PersonalizedRecommendation[] = provenStrategies.map(strategy => {
           let score = 0;
@@ -366,9 +412,18 @@ def strategy_logic(data):
           };
         });
 
-        // Combine and sort by score
-        const allRecs = [...dbRecs, ...provenRecs]
-          .sort((a, b) => b.score - a.score)
+        // Combine and sort by score, prioritizing user's strategies
+        const allRecs = [...userRecs, ...dbRecs, ...provenRecs]
+          .sort((a, b) => {
+            // Prioritize user's own high-performing strategies
+            const aIsUser = a.matchFactors.includes('Your own strategy');
+            const bIsUser = b.matchFactors.includes('Your own strategy');
+            
+            if (aIsUser && !bIsUser) return -1;
+            if (!aIsUser && bIsUser) return 1;
+            
+            return b.score - a.score;
+          })
           .slice(0, 8); // Show top 8 recommendations
 
         setRecommendations(allRecs);
@@ -428,7 +483,7 @@ def strategy_logic(data):
           <Users className="h-12 w-12 text-slate-400 mx-auto mb-4" />
           <p className="text-slate-300 mb-2">No matching strategies found</p>
           <p className="text-slate-400 text-sm">
-            Try adjusting your target return or risk tolerance to see more recommendations
+            Create and test strategies with high win rates (60%+) and good returns (15%+) to see them featured here
           </p>
         </CardContent>
       </Card>
@@ -444,73 +499,92 @@ def strategy_logic(data):
         </p>
       </div>
 
-      {recommendations.map((rec, index) => (
-        <Card key={rec.strategy.id} className="bg-slate-700 border-slate-600 hover:border-emerald-500/50 transition-colors">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-yellow-400" />
-                  <span className="text-sm text-slate-400">#{index + 1}</span>
-                </div>
-                <div>
-                  <CardTitle className="text-white text-lg">{rec.strategy.strategy_name}</CardTitle>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-slate-400 text-sm">{rec.strategy.symbol} • {rec.strategy.timeframe}</span>
-                    <div className={`text-sm font-medium ${getScoreColor(rec.score)}`}>
-                      {rec.score.toFixed(0)}% match
+      {recommendations.map((rec, index) => {
+        const isUserStrategy = rec.matchFactors.includes('Your own strategy');
+        
+        return (
+          <Card key={rec.strategy.id} className="bg-slate-700 border-slate-600 hover:border-emerald-500/50 transition-colors">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    {isUserStrategy ? (
+                      <Crown className="h-4 w-4 text-yellow-400" />
+                    ) : (
+                      <Star className="h-4 w-4 text-yellow-400" />
+                    )}
+                    <span className="text-sm text-slate-400">#{index + 1}</span>
+                  </div>
+                  <div>
+                    <CardTitle className="text-white text-lg flex items-center gap-2">
+                      {rec.strategy.strategy_name}
+                      {isUserStrategy && (
+                        <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-xs">
+                          Your Strategy
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-slate-400 text-sm">{rec.strategy.symbol} • {rec.strategy.timeframe}</span>
+                      <div className={`text-sm font-medium ${getScoreColor(rec.score)}`}>
+                        {rec.score.toFixed(0)}% match
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <div className="text-center">
-                <div className={`font-bold text-lg ${(rec.strategy.total_return || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {rec.strategy.total_return?.toFixed(1)}%
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div className="text-center">
+                  <div className={`font-bold text-lg ${(rec.strategy.total_return || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {rec.strategy.total_return?.toFixed(1)}%
+                  </div>
+                  <div className="text-slate-500 text-xs">Total Return</div>
                 </div>
-                <div className="text-slate-500 text-xs">Total Return</div>
+                <div className="text-center">
+                  <div className="font-bold text-lg text-blue-400">{rec.strategy.win_rate?.toFixed(1)}%</div>
+                  <div className="text-slate-500 text-xs">Win Rate</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-bold text-lg text-slate-300">{rec.strategy.total_trades}</div>
+                  <div className="text-slate-500 text-xs">Trades</div>
+                </div>
+                <div className="text-center">
+                  <div className="font-bold text-lg text-orange-400">{Math.abs(rec.strategy.max_drawdown || 0).toFixed(1)}%</div>
+                  <div className="text-slate-500 text-xs">Max DD</div>
+                </div>
               </div>
-              <div className="text-center">
-                <div className="font-bold text-lg text-blue-400">{rec.strategy.win_rate?.toFixed(1)}%</div>
-                <div className="text-slate-500 text-xs">Win Rate</div>
-              </div>
-              <div className="text-center">
-                <div className="font-bold text-lg text-slate-300">{rec.strategy.total_trades}</div>
-                <div className="text-slate-500 text-xs">Trades</div>
-              </div>
-              <div className="text-center">
-                <div className="font-bold text-lg text-orange-400">{Math.abs(rec.strategy.max_drawdown || 0).toFixed(1)}%</div>
-                <div className="text-slate-500 text-xs">Max DD</div>
-              </div>
-            </div>
 
-            <div className="flex flex-wrap gap-2 mb-4">
-              {rec.matchFactors.map((factor, i) => (
-                <Badge key={i} className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  {factor}
-                </Badge>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="text-slate-400 text-sm">
-                Tested {new Date(rec.strategy.created_at || '').toLocaleDateString()}
+              <div className="flex flex-wrap gap-2 mb-4">
+                {rec.matchFactors.map((factor, i) => (
+                  <Badge key={i} className={`${
+                    factor === 'Your own strategy' 
+                      ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'
+                      : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                  }`}>
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    {factor}
+                  </Badge>
+                ))}
               </div>
-              <Button
-                onClick={() => handleLoadStrategy(rec)}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                <TrendingUp className="h-4 w-4 mr-2" />
-                Load Strategy
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+
+              <div className="flex items-center justify-between">
+                <div className="text-slate-400 text-sm">
+                  Tested {new Date(rec.strategy.created_at || '').toLocaleDateString()}
+                </div>
+                <Button
+                  onClick={() => handleLoadStrategy(rec)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Load Strategy
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 };

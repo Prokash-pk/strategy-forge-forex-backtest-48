@@ -128,10 +128,22 @@ def strategy_logic(data):
 
       await StrategyStorage.saveStrategyResult(strategyResult);
       
-      toast({
-        title: "Backtest Complete!",
-        description: `Strategy tested with ${results.totalTrades} trades. Navigating to results...`,
-      });
+      // Check if this is a high-performing strategy worth featuring
+      const isHighPerforming = (results.winRate || 0) >= 60 && 
+                              (results.totalReturn || 0) > 15 && 
+                              (results.totalTrades || 0) >= 10;
+
+      if (isHighPerforming) {
+        toast({
+          title: "High-Performance Strategy Detected! 🎉",
+          description: `Your strategy achieved ${results.winRate?.toFixed(1)}% win rate with ${results.totalReturn?.toFixed(1)}% return. It will be featured in recommendations!`,
+        });
+      } else {
+        toast({
+          title: "Backtest Complete!",
+          description: `Strategy tested with ${results.totalTrades} trades. Navigating to results...`,
+        });
+      }
     } catch (error) {
       console.error('Failed to save strategy results:', error);
       toast({
