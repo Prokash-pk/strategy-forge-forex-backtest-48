@@ -1,12 +1,13 @@
-
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Save, Play, RefreshCw, AlertTriangle } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Save, Play, RefreshCw, AlertTriangle, ChevronDown, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { PROVEN_STRATEGIES } from '@/services/analytics/provenStrategies';
 
 interface PythonStrategyTabProps {
   strategy: {
@@ -43,6 +44,21 @@ const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({
   const handleCodeChange = (newCode: string) => {
     onStrategyChange({code: newCode});
     setCodeChanged(true);
+  };
+
+  const handleQuickLoadStrategy = (provenStrategy: any) => {
+    onStrategyChange({
+      name: provenStrategy.strategy_name,
+      code: provenStrategy.strategy_code,
+      symbol: provenStrategy.symbol,
+      timeframe: provenStrategy.timeframe
+    });
+    setCodeChanged(true);
+    
+    toast({
+      title: "Strategy Loaded",
+      description: `Loaded "${provenStrategy.strategy_name}" with ${provenStrategy.win_rate}% win rate`,
+    });
   };
 
   const handleSaveStrategy = async () => {
@@ -192,21 +208,60 @@ def strategy_logic(data):
           <AlertTriangle className="h-4 w-4 text-orange-400" />
           <AlertDescription className="text-orange-300">
             <strong>No trades generated!</strong> Your strategy might have too restrictive conditions. 
-            Try loading an improved version below or adjust your entry/exit criteria.
+            Try loading a proven strategy below or adjust your entry/exit criteria.
           </AlertDescription>
         </Alert>
       )}
 
       <div className="flex justify-between items-center">
         <Label htmlFor="strategyCode" className="text-slate-300">Python Strategy Code</Label>
-        <Button
-          onClick={handleLoadImprovedStrategy}
-          variant="outline"
-          size="sm"
-          className="border-emerald-600 text-emerald-400 hover:bg-emerald-600/10"
-        >
-          {hasZeroTrades ? 'Fix Zero Trades Issue' : 'Load Improved Version'}
-        </Button>
+        <div className="flex gap-2">
+          {/* Quick Load Proven Strategies Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-emerald-600 text-emerald-400 hover:bg-emerald-600/10"
+              >
+                <Zap className="h-4 w-4 mr-2" />
+                Quick Load
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-80 bg-slate-800 border-slate-600">
+              {PROVEN_STRATEGIES.map((strategy) => (
+                <DropdownMenuItem
+                  key={strategy.id}
+                  onClick={() => handleQuickLoadStrategy(strategy)}
+                  className="cursor-pointer hover:bg-slate-700 p-3"
+                >
+                  <div className="flex flex-col w-full">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-white">{strategy.strategy_name}</span>
+                      <span className="text-emerald-400 text-sm font-bold">{strategy.win_rate}%</span>
+                    </div>
+                    <div className="text-xs text-slate-400 mb-1">
+                      {strategy.symbol} • {strategy.timeframe} • {strategy.total_trades} trades
+                    </div>
+                    <div className="text-xs text-slate-300">
+                      Monthly Return: {strategy.monthly_return}%
+                    </div>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button
+            onClick={handleLoadImprovedStrategy}
+            variant="outline"
+            size="sm"
+            className="border-emerald-600 text-emerald-400 hover:bg-emerald-600/10"
+          >
+            {hasZeroTrades ? 'Fix Zero Trades Issue' : 'Load Improved Version'}
+          </Button>
+        </div>
       </div>
       
       <Textarea
