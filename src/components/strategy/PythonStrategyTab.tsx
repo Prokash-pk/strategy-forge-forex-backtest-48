@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -245,7 +246,7 @@ def strategy_logic(data):
                       {strategy.symbol} • {strategy.timeframe} • {strategy.total_trades} trades
                     </div>
                     <div className="text-xs text-slate-300">
-                      Monthly Return: {strategy.monthly_return}%
+                      Monthly Return: {(strategy.total_return / 12).toFixed(1)}%
                     </div>
                   </div>
                 </DropdownMenuItem>
