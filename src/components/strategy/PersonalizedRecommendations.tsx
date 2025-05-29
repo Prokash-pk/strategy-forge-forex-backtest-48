@@ -22,9 +22,10 @@ const PersonalizedRecommendations: React.FC<PersonalizedRecommendationsProps> = 
   const { recommendations, loading } = useRecommendations(userPreferences);
 
   const handleLoadStrategy = (recommendation: PersonalizedRecommendation) => {
+    // Completely replace the strategy with the selected one
     onLoadStrategy({
       name: recommendation.strategy.strategy_name,
-      code: recommendation.strategy.strategy_code,
+      code: recommendation.strategy.strategy_code, // This will completely replace the Python code
       symbol: recommendation.strategy.symbol,
       timeframe: recommendation.strategy.timeframe
     });
@@ -44,6 +45,9 @@ const PersonalizedRecommendations: React.FC<PersonalizedRecommendationsProps> = 
         <h3 className="text-xl font-semibold text-white mb-2">Personalized Strategy Recommendations</h3>
         <p className="text-slate-400 text-sm">
           Based on your preferences: {userPreferences.symbol} • {userPreferences.timeframe} • {userPreferences.riskTolerance} risk
+        </p>
+        <p className="text-slate-300 text-xs mt-1">
+          Including high-performing strategies from the community with 60%+ win rate and 15%+ returns
         </p>
       </div>
 
