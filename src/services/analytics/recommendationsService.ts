@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { PersonalizedRecommendation, UserPreferences } from './types';
+import { PROVEN_STRATEGIES } from './provenStrategies';
 
 export class RecommendationsService {
   static async getPersonalizedRecommendations(userPreferences: UserPreferences): Promise<PersonalizedRecommendation[]> {
@@ -24,6 +25,66 @@ export class RecommendationsService {
       const strategies = results || [];
       const recommendations: PersonalizedRecommendation[] = [];
 
+      // Add proven strategies first
+      for (const provenStrategy of PROVEN_STRATEGIES) {
+        let score = 0;
+        const matchFactors: string[] = [];
+
+        // High base score for proven strategies
+        score += 50;
+        matchFactors.push('Proven community strategy');
+
+        // Exact symbol match gets highest score
+        if (provenStrategy.symbol === userPreferences.symbol) {
+          score += 35;
+          matchFactors.push('Same currency pair');
+        } else {
+          score += 15; // Partial score for different pairs
+          matchFactors.push('Adaptable to your pair');
+        }
+
+        // Timeframe match
+        if (provenStrategy.timeframe === userPreferences.timeframe) {
+          score += 25;
+          matchFactors.push('Perfect timeframe match');
+        } else {
+          score += 10; // Partial score
+          matchFactors.push('Adaptable timeframe');
+        }
+
+        // Risk tolerance matching
+        const riskLevel = this.calculateRiskLevel(Math.abs(provenStrategy.max_drawdown), provenStrategy.total_return);
+        
+        if (riskLevel === userPreferences.riskTolerance) {
+          score += 20;
+          matchFactors.push('Matches risk tolerance');
+        }
+
+        // Performance bonuses
+        if (provenStrategy.win_rate >= 70) {
+          score += 20;
+          matchFactors.push('Excellent win rate');
+        } else if (provenStrategy.win_rate >= 60) {
+          score += 15;
+          matchFactors.push('Good win rate');
+        }
+
+        if (provenStrategy.total_trades >= 100) {
+          score += 15;
+          matchFactors.push('Extensively tested');
+        } else if (provenStrategy.total_trades >= 50) {
+          score += 10;
+          matchFactors.push('Well tested');
+        }
+
+        recommendations.push({
+          strategy: provenStrategy,
+          score,
+          matchFactors
+        });
+      }
+
+      // Add user strategies from database
       for (const strategy of strategies) {
         let score = 0;
         const matchFactors: string[] = [];

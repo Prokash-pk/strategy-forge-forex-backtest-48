@@ -1,4 +1,3 @@
-
 import { CoreAnalyticsService } from './coreAnalytics';
 import { StrategyFilteringService } from './strategyFiltering';
 import { RecommendationsService } from './recommendationsService';
@@ -19,3 +18,5 @@ export class StrategyAnalyticsService {
   // Recommendations methods
   static getPersonalizedRecommendations = RecommendationsService.getPersonalizedRecommendations;
 }
+
+export { PROVEN_STRATEGIES } from './provenStrategies';

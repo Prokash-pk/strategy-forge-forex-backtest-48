@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -21,17 +22,21 @@ const Index = () => {
   
   const { subscriptionTier, subscribed } = useSubscription();
 
-  const handleStrategyUpdate = (updatedStrategy: any) => {
+  const handleStrategyUpdate = useCallback((updatedStrategy: any) => {
     setStrategy(updatedStrategy);
-  };
+  }, []);
 
-  const handleBacktestComplete = (results: any) => {
+  const handleBacktestComplete = useCallback((results: any) => {
     setBacktestResults(results);
-  };
+  }, []);
 
-  const handleNavigateToResults = () => {
+  const handleNavigateToResults = useCallback(() => {
     setActiveTab('results');
-  };
+  }, []);
+
+  const handleTabChange = useCallback((value: string) => {
+    setActiveTab(value);
+  }, []);
 
   const showUpgradePrompt = subscriptionTier === 'Free' || subscriptionTier === 'Starter';
 
@@ -79,7 +84,7 @@ const Index = () => {
           <UserMenu />
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-6 bg-slate-800">
             <TabsTrigger value="strategy">Strategy Builder</TabsTrigger>
             <TabsTrigger value="results">Backtest Results</TabsTrigger>
@@ -95,7 +100,7 @@ const Index = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="strategy">
+          <TabsContent value="strategy" className="focus:outline-none">
             <StrategyBuilder
               onStrategyUpdate={handleStrategyUpdate}
               onBacktestComplete={handleBacktestComplete}
@@ -105,23 +110,23 @@ const Index = () => {
             />
           </TabsContent>
 
-          <TabsContent value="results">
+          <TabsContent value="results" className="focus:outline-none">
             <BacktestResults results={backtestResults} />
           </TabsContent>
 
-          <TabsContent value="data">
+          <TabsContent value="data" className="focus:outline-none">
             <DataManager />
           </TabsContent>
 
-          <TabsContent value="analytics">
+          <TabsContent value="analytics" className="focus:outline-none">
             <UserTestingAnalytics />
           </TabsContent>
 
-          <TabsContent value="billing">
+          <TabsContent value="billing" className="focus:outline-none">
             <BillingTab />
           </TabsContent>
 
-          <TabsContent value="support">
+          <TabsContent value="support" className="focus:outline-none">
             <SupportTab />
           </TabsContent>
         </Tabs>
