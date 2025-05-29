@@ -193,6 +193,13 @@ def strategy_logic(data):
   ];
 
   const handleLoadStrategy = (recommendation: any) => {
+    // Instead of just appending, replace the entire strategy code
+    onStrategyChange({ 
+      code: recommendation.code,
+      name: recommendation.title
+    });
+    
+    // Also call onAddToStrategy for backward compatibility
     onAddToStrategy(recommendation.code);
   };
 

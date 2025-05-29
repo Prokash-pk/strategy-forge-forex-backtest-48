@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import UserMenu from '@/components/UserMenu';
 import PricingModal from '@/components/billing/PricingModal';
 import BillingTab from '@/components/billing/BillingTab';
 import SupportTab from '@/components/support/SupportTab';
+import UserTestingAnalytics from '@/components/analytics/UserTestingAnalytics';
 import { useSubscription } from '@/hooks/useSubscription';
 
 const Index = () => {
@@ -80,10 +80,11 @@ const Index = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 bg-slate-800">
+          <TabsList className="grid w-full grid-cols-6 bg-slate-800">
             <TabsTrigger value="strategy">Strategy Builder</TabsTrigger>
             <TabsTrigger value="results">Backtest Results</TabsTrigger>
             <TabsTrigger value="data">Data Manager</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="billing">
               <CreditCard className="h-4 w-4 mr-1" />
               Billing
@@ -110,6 +111,10 @@ const Index = () => {
 
           <TabsContent value="data">
             <DataManager />
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <UserTestingAnalytics />
           </TabsContent>
 
           <TabsContent value="billing">
