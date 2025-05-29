@@ -1,8 +1,13 @@
 
 import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Play, Code, Settings, Eye, Languages } from 'lucide-react';
 import StrategyConfiguration from './StrategyConfiguration';
+import PythonStrategyTab from './PythonStrategyTab';
+import VisualStrategyTab from './VisualStrategyTab';
 import StrategyHistory from './StrategyHistory';
+import BacktestProgress from './BacktestProgress';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
@@ -12,7 +17,7 @@ interface StrategyBuilderLayoutProps {
   currentStep: string;
   onStrategySelect: (strategy: any) => void;
   backtestResults?: any;
-  onAddToStrategy?: (codeSnippet: string) => void;
+  onAddToStrategy: (codeSnippet: string) => void;
 }
 
 const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
@@ -26,27 +31,69 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   onAddToStrategy
 }) => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        <StrategyConfiguration
-          strategy={strategy}
-          onStrategyChange={onStrategyChange}
-          onRunBacktest={onRunBacktest}
-          isRunning={isRunning}
-        />
-        
-        <StrategyHistory onStrategySelect={onStrategySelect} />
-      </div>
-      
-      <div className="lg:col-span-1">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
         <Card className="bg-slate-800 border-slate-700">
-          <CardContent className="p-8 text-center">
-            <div className="text-slate-400">
-              <p className="text-lg font-medium mb-2">Strategy Analysis</p>
-              <p className="text-sm">Run a backtest to view detailed results and performance metrics</p>
-            </div>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Play className="h-5 w-5" />
+              Strategy Builder
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="python" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 bg-slate-700">
+                <TabsTrigger value="python">
+                  <Code className="h-4 w-4 mr-2" />
+                  Python
+                </TabsTrigger>
+                <TabsTrigger value="visual">
+                  <Eye className="h-4 w-4 mr-2" />
+                  Visual
+                </TabsTrigger>
+                <TabsTrigger value="config">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Config
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="python">
+                <PythonStrategyTab
+                  strategy={strategy}
+                  onStrategyChange={onStrategyChange}
+                  onRunBacktest={onRunBacktest}
+                  isRunning={isRunning}
+                  backtestResults={backtestResults}
+                />
+              </TabsContent>
+
+              <TabsContent value="visual">
+                <VisualStrategyTab
+                  strategy={strategy}
+                  onStrategyChange={onStrategyChange}
+                  onAddToStrategy={onAddToStrategy}
+                />
+              </TabsContent>
+
+              <TabsContent value="config">
+                <StrategyConfiguration
+                  strategy={strategy}
+                  onStrategyChange={onStrategyChange}
+                  onRunBacktest={onRunBacktest}
+                  isRunning={isRunning}
+                />
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
+
+        {isRunning && (
+          <BacktestProgress currentStep={currentStep} />
+        )}
+      </div>
+
+      <div>
+        <StrategyHistory onStrategySelect={onStrategySelect} />
       </div>
     </div>
   );

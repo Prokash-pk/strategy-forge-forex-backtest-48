@@ -3,9 +3,10 @@ import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Save, Play, RefreshCw } from 'lucide-react';
+import { Save, Play, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface PythonStrategyTabProps {
   strategy: {
@@ -17,17 +18,22 @@ interface PythonStrategyTabProps {
   onStrategyChange: (updates: any) => void;
   onRunBacktest?: () => void;
   isRunning?: boolean;
+  backtestResults?: any;
 }
 
 const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({ 
   strategy, 
   onStrategyChange, 
   onRunBacktest,
-  isRunning = false 
+  isRunning = false,
+  backtestResults 
 }) => {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = React.useState(false);
   const [codeChanged, setCodeChanged] = React.useState(false);
+
+  // Check if last backtest resulted in 0 trades
+  const hasZeroTrades = backtestResults && backtestResults.totalTrades === 0;
 
   // Watch for external code changes (from Quick Add)
   React.useEffect(() => {
@@ -180,6 +186,17 @@ def strategy_logic(data):
 
   return (
     <div className="space-y-4 mt-6">
+      {/* Zero Trades Alert */}
+      {hasZeroTrades && (
+        <Alert className="border-orange-600 bg-orange-600/10">
+          <AlertTriangle className="h-4 w-4 text-orange-400" />
+          <AlertDescription className="text-orange-300">
+            <strong>No trades generated!</strong> Your strategy might have too restrictive conditions. 
+            Try loading an improved version below or adjust your entry/exit criteria.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex justify-between items-center">
         <Label htmlFor="strategyCode" className="text-slate-300">Python Strategy Code</Label>
         <Button
@@ -188,7 +205,7 @@ def strategy_logic(data):
           size="sm"
           className="border-emerald-600 text-emerald-400 hover:bg-emerald-600/10"
         >
-          Load Improved Version
+          {hasZeroTrades ? 'Fix Zero Trades Issue' : 'Load Improved Version'}
         </Button>
       </div>
       
