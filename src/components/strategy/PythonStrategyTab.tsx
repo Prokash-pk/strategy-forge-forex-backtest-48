@@ -1,14 +1,12 @@
 
 import React from 'react';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Save, Play, RefreshCw, AlertTriangle, ChevronDown, Zap } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { PROVEN_STRATEGIES } from '@/services/analytics/provenStrategies';
+import StrategyZeroTradesAlert from './StrategyZeroTradesAlert';
+import StrategyQuickLoad from './StrategyQuickLoad';
+import StrategyCodeEditor from './StrategyCodeEditor';
+import StrategyActionButtons from './StrategyActionButtons';
 
 interface PythonStrategyTabProps {
   strategy: {
@@ -47,80 +45,9 @@ const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({
     setCodeChanged(true);
   };
 
-  const handleQuickLoadStrategy = (provenStrategy: any) => {
-    onStrategyChange({
-      name: provenStrategy.strategy_name,
-      code: provenStrategy.strategy_code,
-      symbol: provenStrategy.symbol,
-      timeframe: provenStrategy.timeframe
-    });
+  const handleStrategyLoad = (loadedStrategy: any) => {
+    onStrategyChange(loadedStrategy);
     setCodeChanged(true);
-    
-    toast({
-      title: "Strategy Loaded",
-      description: `Loaded "${provenStrategy.strategy_name}" with ${provenStrategy.win_rate}% win rate`,
-    });
-  };
-
-  const handleSaveStrategy = async () => {
-    if (!strategy.name.trim()) {
-      toast({
-        title: "Name Required",
-        description: "Please enter a strategy name",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!strategy.code.trim()) {
-      toast({
-        title: "Code Required", 
-        description: "Please enter strategy code",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      const { data, error } = await supabase
-        .from('strategy_results')
-        .insert([{
-          strategy_name: strategy.name,
-          strategy_code: strategy.code,
-          symbol: strategy.symbol,
-          timeframe: strategy.timeframe,
-          win_rate: 0,
-          total_return: 0,
-          total_trades: 0,
-          profit_factor: 0,
-          max_drawdown: 0
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      toast({
-        title: "Strategy Saved",
-        description: `"${strategy.name}" has been saved successfully`,
-      });
-
-      setCodeChanged(false);
-
-    } catch (error) {
-      console.error('Save strategy error:', error);
-      toast({
-        title: "Save Failed",
-        description: error instanceof Error ? error.message : "Failed to save strategy",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
   };
 
   const handleLoadImprovedStrategy = () => {
@@ -201,124 +128,94 @@ def strategy_logic(data):
     });
   };
 
+  const handleSaveStrategy = async () => {
+    if (!strategy.name.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter a strategy name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!strategy.code.trim()) {
+      toast({
+        title: "Code Required", 
+        description: "Please enter strategy code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('strategy_results')
+        .insert([{
+          strategy_name: strategy.name,
+          strategy_code: strategy.code,
+          symbol: strategy.symbol,
+          timeframe: strategy.timeframe,
+          win_rate: 0,
+          total_return: 0,
+          total_trades: 0,
+          profit_factor: 0,
+          max_drawdown: 0
+        }])
+        .select()
+        .single();
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Strategy Saved",
+        description: `"${strategy.name}" has been saved successfully`,
+      });
+
+      setCodeChanged(false);
+
+    } catch (error) {
+      console.error('Save strategy error:', error);
+      toast({
+        title: "Save Failed",
+        description: error instanceof Error ? error.message : "Failed to save strategy",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-4 mt-6">
-      {/* Zero Trades Alert */}
-      {hasZeroTrades && (
-        <Alert className="border-orange-600 bg-orange-600/10">
-          <AlertTriangle className="h-4 w-4 text-orange-400" />
-          <AlertDescription className="text-orange-300">
-            <strong>No trades generated!</strong> Your strategy might have too restrictive conditions. 
-            Try loading a proven strategy below or adjust your entry/exit criteria.
-          </AlertDescription>
-        </Alert>
-      )}
+      <StrategyZeroTradesAlert show={hasZeroTrades} />
 
       <div className="flex justify-between items-center">
         <Label htmlFor="strategyCode" className="text-slate-300">Python Strategy Code</Label>
-        <div className="flex gap-2">
-          {/* Quick Load Proven Strategies Dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-emerald-600 text-emerald-400 hover:bg-emerald-600/10"
-              >
-                <Zap className="h-4 w-4 mr-2" />
-                Quick Load
-                <ChevronDown className="h-4 w-4 ml-2" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-80 bg-slate-800 border-slate-600">
-              {PROVEN_STRATEGIES.map((strategy) => (
-                <DropdownMenuItem
-                  key={strategy.id}
-                  onClick={() => handleQuickLoadStrategy(strategy)}
-                  className="cursor-pointer hover:bg-slate-700 p-3"
-                >
-                  <div className="flex flex-col w-full">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-medium text-white">{strategy.strategy_name}</span>
-                      <span className="text-emerald-400 text-sm font-bold">{strategy.win_rate}%</span>
-                    </div>
-                    <div className="text-xs text-slate-400 mb-1">
-                      {strategy.symbol} • {strategy.timeframe} • {strategy.total_trades} trades
-                    </div>
-                    <div className="text-xs text-slate-300">
-                      Monthly Return: {(strategy.total_return / 12).toFixed(1)}%
-                    </div>
-                  </div>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button
-            onClick={handleLoadImprovedStrategy}
-            variant="outline"
-            size="sm"
-            className="border-emerald-600 text-emerald-400 hover:bg-emerald-600/10"
-          >
-            {hasZeroTrades ? 'Fix Zero Trades Issue' : 'Load Improved Version'}
-          </Button>
-        </div>
+        <StrategyQuickLoad
+          onStrategyLoad={handleStrategyLoad}
+          onImprovedLoad={handleLoadImprovedStrategy}
+          hasZeroTrades={hasZeroTrades}
+        />
       </div>
       
-      <Textarea
-        id="strategyCode"
-        value={strategy.code}
-        onChange={(e) => handleCodeChange(e.target.value)}
-        className="bg-slate-700 border-slate-600 text-white font-mono text-sm min-h-[300px] mt-2"
-        placeholder="def strategy_logic(data):&#10;    # Your strategy logic here&#10;    return {'entry': [], 'exit': []}"
+      <StrategyCodeEditor
+        code={strategy.code}
+        onCodeChange={handleCodeChange}
+        codeChanged={codeChanged}
       />
-      {codeChanged && (
-        <p className="text-orange-400 text-xs mt-1 flex items-center gap-1">
-          <RefreshCw className="h-3 w-3" />
-          Code modified - run backtest to see changes
-        </p>
-      )}
 
-      <div className="space-y-3">
-        {onRunBacktest && (
-          <Button
-            onClick={onRunBacktest}
-            disabled={isRunning || !strategy.code.trim()}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            {isRunning ? (
-              <>
-                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                Running Backtest...
-              </>
-            ) : (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                {codeChanged ? 'Run Backtest (Code Changed)' : 'Run Backtest'}
-              </>
-            )}
-          </Button>
-        )}
-
-        <Button
-          onClick={handleSaveStrategy}
-          disabled={isSaving}
-          variant="outline"
-          className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
-        >
-          {isSaving ? (
-            <>
-              <div className="animate-spin h-4 w-4 border-2 border-slate-400 border-t-transparent rounded-full mr-2"></div>
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Strategy
-            </>
-          )}
-        </Button>
-      </div>
+      <StrategyActionButtons
+        onRunBacktest={onRunBacktest}
+        onSaveStrategy={handleSaveStrategy}
+        isRunning={isRunning}
+        isSaving={isSaving}
+        codeChanged={codeChanged}
+        hasCode={!!strategy.code.trim()}
+      />
     </div>
   );
 };
