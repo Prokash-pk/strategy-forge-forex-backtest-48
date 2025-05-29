@@ -24,6 +24,8 @@ interface BacktestRequest {
     spread: number;
     commission: number;
     slippage: number;
+    maxPositionSize: number;
+    riskModel: string;
   };
   pythonSignals?: {
     entry: boolean[];
@@ -31,6 +33,11 @@ interface BacktestRequest {
     indicators?: Record<string, number[]>;
     error?: string;
   };
+  timeframeInfo?: {
+    minutes: number;
+    description: string;
+  };
+  enhancedMode?: boolean;
 }
 
 interface Trade {
@@ -386,9 +393,10 @@ serve(async (req) => {
   }
 
   try {
-    const { data, strategy, pythonSignals }: BacktestRequest = await req.json();
+    const { data, strategy, pythonSignals, timeframeInfo, enhancedMode }: BacktestRequest = await req.json();
     
     console.log(`Running backtest for ${strategy.name} with ${data.length} data points`);
+    console.log(`Stop Loss: ${strategy.stopLoss} pips, Take Profit: ${strategy.takeProfit} pips`);
     console.log('Strategy code:', strategy.code);
     
     if (pythonSignals) {
@@ -414,6 +422,15 @@ serve(async (req) => {
     let position: { type: 'BUY' | 'SELL'; entry: number; entryDate: Date; id: number } | null = null;
     let tradeId = 1;
 
+    // Convert pips to price difference (1 pip = 0.0001 for major pairs)
+    const pipValue = 0.0001;
+    const stopLossDistance = strategy.stopLoss * pipValue;
+    const takeProfitDistance = strategy.takeProfit * pipValue;
+    const spreadDistance = strategy.spread * pipValue;
+    const slippageDistance = strategy.slippage * pipValue;
+
+    console.log(`Stop Loss Distance: ${stopLossDistance}, Take Profit Distance: ${takeProfitDistance}`);
+
     // Generate equity curve
     const equityCurve = [];
 
@@ -423,8 +440,8 @@ serve(async (req) => {
       const currentDate = new Date(currentBar.date);
 
       // Apply spread to entry price
-      const entryPrice = currentPrice + (strategy.spread / 10000);
-      const exitPrice = currentPrice - (strategy.spread / 10000);
+      const entryPrice = currentPrice + spreadDistance;
+      const exitPrice = currentPrice - spreadDistance;
 
       // Entry signal from strategy
       if (!position && signals.entry[i]) {
@@ -435,12 +452,15 @@ serve(async (req) => {
           id: tradeId
         };
         console.log(`Opening BUY position at ${entryPrice} on ${currentDate.toISOString()}`);
+        console.log(`Stop Loss will trigger at: ${entryPrice - stopLossDistance}`);
+        console.log(`Take Profit will trigger at: ${entryPrice + takeProfitDistance}`);
       }
 
       // Exit conditions
       if (position) {
         let shouldExit = false;
         let exitReason = '';
+        let finalExitPrice = exitPrice;
 
         // Exit signal from strategy
         if (signals.exit[i]) {
@@ -448,21 +468,27 @@ serve(async (req) => {
           exitReason = 'Strategy exit signal';
         }
 
-        // Stop loss
-        if (position.type === 'BUY' && currentPrice <= position.entry - (strategy.stopLoss / 10000)) {
+        // Stop loss - FIXED CALCULATION
+        if (position.type === 'BUY' && currentPrice <= (position.entry - stopLossDistance)) {
           shouldExit = true;
           exitReason = 'Stop loss';
+          finalExitPrice = position.entry - stopLossDistance - slippageDistance; // Account for slippage
+          console.log(`Stop loss triggered: Current price ${currentPrice} <= Stop level ${position.entry - stopLossDistance}`);
         }
 
-        // Take profit
-        if (position.type === 'BUY' && currentPrice >= position.entry + (strategy.takeProfit / 10000)) {
+        // Take profit - FIXED CALCULATION  
+        if (position.type === 'BUY' && currentPrice >= (position.entry + takeProfitDistance)) {
           shouldExit = true;
           exitReason = 'Take profit';
+          finalExitPrice = position.entry + takeProfitDistance - slippageDistance; // Account for slippage
+          console.log(`Take profit triggered: Current price ${currentPrice} >= TP level ${position.entry + takeProfitDistance}`);
         }
 
         if (shouldExit) {
-          const finalExitPrice = exitPrice - (strategy.slippage / 10000);
-          const pnl = (finalExitPrice - position.entry) * 100000 - strategy.commission; // Standard lot calculation
+          // Calculate PnL properly for forex (standard lot = 100,000 units)
+          const standardLot = 100000;
+          const priceMovement = finalExitPrice - position.entry;
+          const pnl = (priceMovement * standardLot) - strategy.commission;
           const duration = Math.round((currentDate.getTime() - position.entryDate.getTime()) / (1000 * 60)); // Duration in minutes
 
           trades.push({
@@ -476,7 +502,7 @@ serve(async (req) => {
           });
 
           balance += pnl;
-          console.log(`Closing position ${position.id}: PnL ${pnl.toFixed(2)}, reason: ${exitReason}`);
+          console.log(`Closing position ${position.id}: Entry ${position.entry}, Exit ${finalExitPrice}, PnL ${pnl.toFixed(2)}, reason: ${exitReason}`);
           position = null;
           tradeId++;
         }
@@ -496,7 +522,7 @@ serve(async (req) => {
     const totalReturn = ((balance - strategy.initialBalance) / strategy.initialBalance) * 100;
     
     const avgWin = winningTrades.length > 0 ? winningTrades.reduce((sum, t) => sum + t.pnl, 0) / winningTrades.length : 0;
-    const avgLoss = losingTrades.length > 0 ? losingTrades.reduce((sum, t) => sum + Math.abs(t.pnl), 0) / losingTrades.length : 0;
+    const avgLoss = losingTrades.length > 0 ? Math.abs(losingTrades.reduce((sum, t) => sum + t.pnl, 0)) / losingTrades.length : 0;
     
     const profitFactor = losingTrades.length > 0 && avgLoss > 0 ? 
       (winningTrades.length * avgWin) / (losingTrades.length * avgLoss) : 
@@ -532,10 +558,17 @@ serve(async (req) => {
       avgLoss: Math.round(avgLoss * 100) / 100,
       equityCurve,
       trades,
-      executionMethod: pythonSignals && !pythonSignals.error ? 'Python' : 'JavaScript'
+      executionMethod: pythonSignals && !pythonSignals.error ? 'Python' : 'JavaScript',
+      stopLossSettings: {
+        pips: strategy.stopLoss,
+        priceDistance: stopLossDistance,
+        takeProfitPips: strategy.takeProfit,
+        takeProfitDistance: takeProfitDistance
+      }
     };
 
     console.log(`Backtest completed: ${trades.length} trades, ${totalReturn.toFixed(2)}% return`);
+    console.log(`Stop Loss applied correctly: ${strategy.stopLoss} pips = ${stopLossDistance} price distance`);
     console.log(`Strategy used: ${strategy.name} (${results.executionMethod})`);
 
     return new Response(
