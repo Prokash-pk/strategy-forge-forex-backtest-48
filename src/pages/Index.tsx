@@ -1,15 +1,25 @@
 
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Crown, CreditCard, MessageSquare } from 'lucide-react';
 import StrategyBuilder from '@/components/StrategyBuilder';
 import BacktestResults from '@/components/BacktestResults';
 import DataManager from '@/components/DataManager';
 import UserMenu from '@/components/UserMenu';
+import PricingModal from '@/components/billing/PricingModal';
+import BillingTab from '@/components/billing/BillingTab';
+import SupportTab from '@/components/support/SupportTab';
+import { useSubscription } from '@/hooks/useSubscription';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('strategy');
   const [strategy, setStrategy] = useState(null);
   const [backtestResults, setBacktestResults] = useState(null);
+  const [pricingModalOpen, setPricingModalOpen] = useState(false);
+  
+  const { subscriptionTier, subscribed } = useSubscription();
 
   const handleStrategyUpdate = (updatedStrategy: any) => {
     setStrategy(updatedStrategy);
@@ -23,6 +33,8 @@ const Index = () => {
     setActiveTab('results');
   };
 
+  const showUpgradePrompt = subscriptionTier === 'Free' || subscriptionTier === 'Starter';
+
   return (
     <div className="min-h-screen bg-slate-900 text-white">
       <div className="container mx-auto px-4 py-8">
@@ -34,9 +46,31 @@ const Index = () => {
               className="h-12 w-12"
             />
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">
-                Stratyx
-              </h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">
+                  Stratyx
+                </h1>
+                <Badge 
+                  className={`${
+                    subscriptionTier === 'Free' ? 'bg-slate-600' :
+                    subscriptionTier === 'Starter' ? 'bg-blue-600' :
+                    subscriptionTier === 'Pro' ? 'bg-purple-600' :
+                    'bg-yellow-600'
+                  }`}
+                >
+                  {subscriptionTier}
+                </Badge>
+                {showUpgradePrompt && (
+                  <Button
+                    onClick={() => setPricingModalOpen(true)}
+                    size="sm"
+                    className="bg-emerald-600 hover:bg-emerald-700"
+                  >
+                    <Crown className="h-4 w-4 mr-1" />
+                    Upgrade
+                  </Button>
+                )}
+              </div>
               <p className="text-slate-400 mt-2">
                 Professional forex strategy backtesting and analysis platform
               </p>
@@ -46,10 +80,18 @@ const Index = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 bg-slate-800">
+          <TabsList className="grid w-full grid-cols-5 bg-slate-800">
             <TabsTrigger value="strategy">Strategy Builder</TabsTrigger>
             <TabsTrigger value="results">Backtest Results</TabsTrigger>
             <TabsTrigger value="data">Data Manager</TabsTrigger>
+            <TabsTrigger value="billing">
+              <CreditCard className="h-4 w-4 mr-1" />
+              Billing
+            </TabsTrigger>
+            <TabsTrigger value="support">
+              <MessageSquare className="h-4 w-4 mr-1" />
+              Support
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="strategy">
@@ -69,8 +111,18 @@ const Index = () => {
           <TabsContent value="data">
             <DataManager />
           </TabsContent>
+
+          <TabsContent value="billing">
+            <BillingTab />
+          </TabsContent>
+
+          <TabsContent value="support">
+            <SupportTab />
+          </TabsContent>
         </Tabs>
       </div>
+
+      <PricingModal open={pricingModalOpen} onOpenChange={setPricingModalOpen} />
     </div>
   );
 };
