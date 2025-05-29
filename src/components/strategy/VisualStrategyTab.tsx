@@ -193,14 +193,11 @@ def strategy_logic(data):
   ];
 
   const handleLoadStrategy = (recommendation: any) => {
-    // Instead of just appending, replace the entire strategy code
+    // Replace the entire strategy code and name
     onStrategyChange({ 
       code: recommendation.code,
       name: recommendation.title
     });
-    
-    // Also call onAddToStrategy for backward compatibility
-    onAddToStrategy(recommendation.code);
   };
 
   const getRiskColor = (risk: string) => {
@@ -253,7 +250,7 @@ def strategy_logic(data):
                   className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2"
                 >
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Strategy
+                  Load Strategy
                 </Button>
               </div>
               
@@ -300,7 +297,7 @@ def strategy_logic(data):
             <p className="text-slate-300 text-sm font-medium mb-1">Risk Warning</p>
             <p className="text-slate-400 text-xs">
               High-return strategies typically involve higher risk. Always backtest thoroughly and consider your risk tolerance. 
-              Past performance does not guarantee future results. Start with smaller position sizes when implementing new strategies.
+              Past performance does not guarantee future results. The expected returns are estimates and actual results may vary significantly.
             </p>
           </div>
         </div>
