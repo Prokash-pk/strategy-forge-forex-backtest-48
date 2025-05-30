@@ -40,6 +40,22 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({
     runBacktest(strategy, handleBacktestComplete);
   };
 
+  const handleTestReverseStrategy = () => {
+    if (!checkCanRunBacktest()) {
+      return;
+    }
+    
+    // Create a reversed version of the strategy
+    const reversedStrategy = {
+      ...strategy,
+      reverseSignals: !strategy.reverseSignals, // Toggle reverse signals
+      name: strategy.reverseSignals ? strategy.name.replace(' (Reversed)', '') : `${strategy.name} (Reversed)`
+    };
+    
+    console.log('Testing reverse strategy with reverseSignals:', reversedStrategy.reverseSignals);
+    runBacktest(reversedStrategy, handleBacktestComplete);
+  };
+
   const handleAddToStrategy = (codeSnippet: string) => {
     const updatedCode = strategy.code + '\n\n' + codeSnippet;
     handleStrategyChange({ code: updatedCode });
@@ -61,6 +77,8 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({
         onStrategySelect={handleStrategySelect}
         backtestResults={backtestResults}
         onAddToStrategy={handleAddToStrategy}
+        onTestReverseStrategy={handleTestReverseStrategy}
+        isReverseTestRunning={isRunning}
       />
     </div>
   );

@@ -3,7 +3,8 @@ import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3, CheckCircle, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { BarChart3, CheckCircle, AlertCircle, RotateCcw } from 'lucide-react';
 import PerformanceMetrics from './backtest/PerformanceMetrics';
 import StrategyInfo from './backtest/StrategyInfo';
 import EquityCurveChart from './backtest/EquityCurveChart';
@@ -14,9 +15,16 @@ import StatisticsCards from './backtest/StatisticsCards';
 interface BacktestResultsProps {
   results: any;
   onAddToStrategy?: (codeSnippet: string) => void;
+  onTestReverseStrategy?: () => void;
+  isReverseTestRunning?: boolean;
 }
 
-const BacktestResults: React.FC<BacktestResultsProps> = ({ results, onAddToStrategy }) => {
+const BacktestResults: React.FC<BacktestResultsProps> = ({ 
+  results, 
+  onAddToStrategy, 
+  onTestReverseStrategy,
+  isReverseTestRunning = false 
+}) => {
   console.log('BacktestResults received results:', results);
 
   if (!results) {
@@ -46,8 +54,29 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results, onAddToStrat
                 <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400">
                   {results.executionMethod}
                 </Badge>
+                {results.reverse_signals_applied && (
+                  <Badge variant="secondary" className="bg-amber-500/10 text-amber-400">
+                    Reversed Signals
+                  </Badge>
+                )}
               </div>
+              
+              {/* Test Reverse Strategy Button */}
+              {onTestReverseStrategy && (
+                <Button
+                  onClick={onTestReverseStrategy}
+                  disabled={isReverseTestRunning}
+                  variant="outline"
+                  size="sm"
+                  className="border-slate-600 text-slate-300 hover:text-white hover:border-slate-500"
+                >
+                  <RotateCcw className={`h-4 w-4 mr-2 ${isReverseTestRunning ? 'animate-spin' : ''}`} />
+                  {isReverseTestRunning ? 'Testing Reverse...' : 'Test Reverse Strategy'}
+                </Button>
+              )}
             </div>
+            
+            {/* Enhanced Features Grid */}
             <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
               <div className="flex items-center gap-2">
                 {results.enhancedFeatures.dynamicSpreads ? 

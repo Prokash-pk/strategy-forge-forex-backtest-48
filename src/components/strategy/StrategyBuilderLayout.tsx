@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,6 +7,7 @@ import PythonStrategyTab from './PythonStrategyTab';
 import VisualStrategyTab from './VisualStrategyTab';
 import StrategyHistory from './StrategyHistory';
 import BacktestProgress from './BacktestProgress';
+import BacktestResults from './BacktestResults';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
@@ -17,7 +17,9 @@ interface StrategyBuilderLayoutProps {
   currentStep: string;
   onStrategySelect: (strategy: any) => void;
   backtestResults?: any;
-  onAddToStrategy: (codeSnippet: string) => void;
+  onAddToStrategy?: (codeSnippet: string) => void;
+  onTestReverseStrategy?: () => void;
+  isReverseTestRunning?: boolean;
 }
 
 const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
@@ -28,10 +30,13 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   currentStep,
   onStrategySelect,
   backtestResults,
-  onAddToStrategy
+  onAddToStrategy,
+  onTestReverseStrategy,
+  isReverseTestRunning
 }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Left Column - Strategy Builder */}
       <div className="space-y-6">
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader>
@@ -92,7 +97,15 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
         )}
       </div>
 
-      <div>
+      {/* Right Column - Results and History */}
+      <div className="space-y-6">
+        <BacktestResults 
+          results={backtestResults} 
+          onAddToStrategy={onAddToStrategy}
+          onTestReverseStrategy={onTestReverseStrategy}
+          isReverseTestRunning={isReverseTestRunning}
+        />
+        
         <StrategyHistory onStrategySelect={onStrategySelect} />
       </div>
     </div>
