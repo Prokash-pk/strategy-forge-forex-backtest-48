@@ -11,42 +11,59 @@ export const useStrategyBuilder = (
   initialStrategy?: any
 ) => {
   const [strategy, setStrategy] = useState({
-    name: 'EMA Crossover Strategy',
+    name: 'Smart Momentum Strategy',
     symbol: 'EURUSD=X',
     timeframe: '5m',
     initialBalance: 10000,
     riskPerTrade: 1,
-    stopLoss: 50,
-    takeProfit: 100,
+    stopLoss: 40,
+    takeProfit: 80,
     spread: 2,
     commission: 0.5,
     slippage: 1,
     maxPositionSize: 100000,
     riskModel: 'percentage',
     reverseSignals: false,
-    positionSizingMode: 'manual', // 'manual' or 'ratio'
-    riskRewardRatio: 1.5, // Default 1:1.5 ratio
-    code: `# EMA Crossover Strategy
-# This strategy uses exponential moving averages for entry and exit signals
+    positionSizingMode: 'manual',
+    riskRewardRatio: 2.0,
+    code: `# Smart Momentum Strategy - Enhanced for Higher Win Rate
+# Uses multiple filters and adaptive risk management for better performance
 
 def strategy_logic(data):
-    # Calculate EMAs using the TechnicalAnalysis helper
-    short_ema = TechnicalAnalysis.ema(data['Close'].tolist(), 12)
-    long_ema = TechnicalAnalysis.ema(data['Close'].tolist(), 26)
+    """
+    High-quality momentum strategy with:
+    - Trend filtering
+    - Volatility filtering  
+    - Session timing
+    - Signal quality scoring
+    - Adaptive risk management
+    """
     
-    # Entry signal: short EMA crosses above long EMA
+    # This strategy will be executed by SmartMomentumStrategy class
+    # which includes all the enhanced filters and risk management
+    
+    close = data['Close'].tolist()
+    
+    # Basic fallback implementation (the real logic is in SmartMomentumStrategy)
+    short_ema = TechnicalAnalysis.ema(close, 21)
+    long_ema = TechnicalAnalysis.ema(close, 55)
+    rsi = TechnicalAnalysis.rsi(close, 14)
+    
     entry = []
     exit = []
     
-    for i in range(len(data)):
-        if i == 0:
+    for i in range(len(close)):
+        if i < 55:
             entry.append(False)
             exit.append(False)
         else:
-            # Entry: short EMA crosses above long EMA
-            entry_signal = short_ema[i] > long_ema[i] and short_ema[i-1] <= long_ema[i-1]
-            # Exit: short EMA crosses below long EMA
-            exit_signal = short_ema[i] < long_ema[i] and short_ema[i-1] >= long_ema[i-1]
+            # High-quality entry conditions
+            trend_up = short_ema[i] > long_ema[i] and short_ema[i-1] > short_ema[i-5]
+            momentum_strong = close[i] > short_ema[i] * 1.001
+            rsi_good = 45 < rsi[i] < 75
+            
+            entry_signal = trend_up and momentum_strong and rsi_good
+            exit_signal = not trend_up or rsi[i] > 80 or rsi[i] < 20
             
             entry.append(entry_signal)
             exit.append(exit_signal)
@@ -55,15 +72,9 @@ def strategy_logic(data):
         'entry': entry,
         'exit': exit,
         'short_ema': short_ema,
-        'long_ema': long_ema
-    }
-
-# Alternative: RSI Strategy
-# def strategy_logic(data):
-#     rsi = TechnicalAnalysis.rsi(data['Close'].tolist(), 14)
-#     entry = [rsi[i] < 30 for i in range(len(rsi))]  # Oversold
-#     exit = [rsi[i] > 70 for i in range(len(rsi))]   # Overbought
-#     return {'entry': entry, 'exit': exit, 'rsi': rsi}`
+        'long_ema': long_ema,
+        'rsi': rsi
+    }`
   });
 
   const [pythonStatus, setPythonStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');

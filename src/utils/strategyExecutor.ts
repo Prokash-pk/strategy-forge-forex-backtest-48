@@ -7,6 +7,8 @@ import { MACDStrategy } from './strategies/macdStrategy';
 import { BollingerStrategy } from './strategies/bollingerStrategy';
 import { AdvancedStrategies } from './strategies/advancedStrategies';
 import { CustomStrategy } from './strategies/customStrategy';
+import { SmartMomentumStrategy } from './strategies/smartMomentumStrategy';
+import { EnhancedMomentumStrategy } from './strategies/enhancedMomentumStrategy';
 import { StrategySignals, MarketData } from './types/strategyTypes';
 
 // Re-export TechnicalAnalysis for backward compatibility
@@ -26,7 +28,11 @@ export class StrategyExecutor {
       };
 
       // Route to appropriate strategy based on code content
-      if (code.toLowerCase().includes('williams') || code.toLowerCase().includes('%r')) {
+      if (code.toLowerCase().includes('smart momentum') || code.toLowerCase().includes('enhanced momentum')) {
+        return SmartMomentumStrategy.execute(data);
+      } else if (code.toLowerCase().includes('momentum') && code.toLowerCase().includes('quality')) {
+        return EnhancedMomentumStrategy.execute(data);
+      } else if (code.toLowerCase().includes('williams') || code.toLowerCase().includes('%r')) {
         return AdvancedStrategies.executeWilliamsR(data);
       } else if (code.toLowerCase().includes('stochastic')) {
         return AdvancedStrategies.executeStochastic(data);
