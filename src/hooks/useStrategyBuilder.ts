@@ -26,54 +26,93 @@ export const useStrategyBuilder = (
     reverseSignals: false,
     positionSizingMode: 'manual',
     riskRewardRatio: 2.0,
-    code: `# Smart Momentum Strategy - Enhanced for Higher Win Rate
-# Uses multiple filters and adaptive risk management for better performance
+    code: `# Smart Momentum Strategy - Enhanced with AI Filters
+# Properly integrated trend and volatility filters for better performance
 
 def strategy_logic(data):
     """
-    High-quality momentum strategy with:
-    - Trend filtering
-    - Volatility filtering  
-    - Session timing
-    - Signal quality scoring
-    - Adaptive risk management
+    High-quality momentum strategy with properly integrated:
+    - Multiple timeframe trend filtering
+    - Volatility filtering
+    - Enhanced entry/exit conditions
     """
     
-    # This strategy will be executed by SmartMomentumStrategy class
-    # which includes all the enhanced filters and risk management
-    
     close = data['Close'].tolist()
+    high = data['High'].tolist()
+    low = data['Low'].tolist()
     
-    # Basic fallback implementation (the real logic is in SmartMomentumStrategy)
+    # Calculate all technical indicators
     short_ema = TechnicalAnalysis.ema(close, 21)
     long_ema = TechnicalAnalysis.ema(close, 55)
+    daily_ema = TechnicalAnalysis.ema(close, 200)  # Higher timeframe trend
     rsi = TechnicalAnalysis.rsi(close, 14)
+    
+    # Volatility filter using ATR
+    atr = TechnicalAnalysis.atr(high, low, close, 14)
+    avg_atr = TechnicalAnalysis.sma(atr, 20)
     
     entry = []
     exit = []
     
     for i in range(len(close)):
-        if i < 55:
+        if i < 200:  # Need enough data for all indicators
             entry.append(False)
             exit.append(False)
         else:
-            # High-quality entry conditions
+            # Higher timeframe trend filter
+            weekly_trend_up = close[i] > daily_ema[i]
+            weekly_trend_down = close[i] < daily_ema[i]
+            
+            # Volatility filter - only trade during high volatility
+            high_volatility = atr[i] > avg_atr[i] * 1.2 if not math.isnan(atr[i]) and not math.isnan(avg_atr[i]) else False
+            
+            # Enhanced momentum conditions
             trend_up = short_ema[i] > long_ema[i] and short_ema[i-1] > short_ema[i-5]
-            momentum_strong = close[i] > short_ema[i] * 1.001
-            rsi_good = 45 < rsi[i] < 75
+            trend_down = short_ema[i] < long_ema[i] and short_ema[i-1] < short_ema[i-5]
+            momentum_strong_up = close[i] > short_ema[i] * 1.001
+            momentum_strong_down = close[i] < short_ema[i] * 0.999
+            rsi_good_long = 45 < rsi[i] < 75
+            rsi_good_short = 25 < rsi[i] < 55
             
-            entry_signal = trend_up and momentum_strong and rsi_good
-            exit_signal = not trend_up or rsi[i] > 80 or rsi[i] < 20
+            # LONG entry with ALL filters applied
+            long_entry = (trend_up and 
+                         momentum_strong_up and 
+                         rsi_good_long and
+                         weekly_trend_up and  # Higher timeframe confirmation
+                         high_volatility)     # Volatility filter
             
-            entry.append(entry_signal)
-            exit.append(exit_signal)
+            # SHORT entry with ALL filters applied
+            short_entry = (trend_down and 
+                          momentum_strong_down and 
+                          rsi_good_short and
+                          weekly_trend_down and  # Higher timeframe confirmation
+                          high_volatility)       # Volatility filter
+            
+            # Exit conditions - more conservative
+            exit_long = (not trend_up or 
+                        rsi[i] > 80 or 
+                        rsi[i] < 20 or
+                        not weekly_trend_up or
+                        not high_volatility)
+            
+            exit_short = (not trend_down or 
+                         rsi[i] > 80 or 
+                         rsi[i] < 20 or
+                         not weekly_trend_down or
+                         not high_volatility)
+            
+            entry.append(long_entry or short_entry)
+            exit.append(exit_long or exit_short)
     
     return {
         'entry': entry,
         'exit': exit,
         'short_ema': short_ema,
         'long_ema': long_ema,
-        'rsi': rsi
+        'daily_ema': daily_ema,
+        'rsi': rsi,
+        'atr': atr,
+        'avg_atr': avg_atr
     }`
   });
 
