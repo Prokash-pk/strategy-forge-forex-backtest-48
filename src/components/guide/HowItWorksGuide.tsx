@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Link } from 'react-router-dom';
 import { 
   Play, 
   Code, 
@@ -15,7 +16,9 @@ import {
   Eye,
   Zap,
   Target,
-  DollarSign
+  DollarSign,
+  ArrowLeft,
+  Home
 } from 'lucide-react';
 
 interface GuideStep {
@@ -126,6 +129,29 @@ const HowItWorksGuide = () => {
 
   return (
     <div className="space-y-8">
+      {/* Navigation Header */}
+      <div className="flex items-center justify-between">
+        <Button
+          asChild
+          variant="outline"
+          className="border-slate-600 text-slate-300 hover:bg-slate-700"
+        >
+          <Link to="/">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Link>
+        </Button>
+        <Button
+          asChild
+          className="bg-emerald-600 hover:bg-emerald-700"
+        >
+          <Link to="/">
+            <Home className="h-4 w-4 mr-2" />
+            Go to Trading Platform
+          </Link>
+        </Button>
+      </div>
+
       {/* Header */}
       <div className="text-center">
         <h1 className="text-3xl font-bold text-white mb-4">How Stratyx Works</h1>
@@ -254,13 +280,17 @@ const HowItWorksGuide = () => {
             Jump right in with a proven strategy template and start backtesting in minutes.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button className="bg-emerald-600 hover:bg-emerald-700">
-              <Code className="h-4 w-4 mr-2" />
-              Start with Python Strategy
+            <Button asChild className="bg-emerald-600 hover:bg-emerald-700">
+              <Link to="/?tab=strategy">
+                <Code className="h-4 w-4 mr-2" />
+                Start with Python Strategy
+              </Link>
             </Button>
-            <Button variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
-              <Eye className="h-4 w-4 mr-2" />
-              Try Visual Builder
+            <Button asChild variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
+              <Link to="/?tab=strategy">
+                <Eye className="h-4 w-4 mr-2" />
+                Try Visual Builder
+              </Link>
             </Button>
           </div>
         </CardContent>
