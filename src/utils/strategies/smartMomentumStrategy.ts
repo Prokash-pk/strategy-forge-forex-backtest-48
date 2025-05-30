@@ -2,16 +2,21 @@
 import { EnhancedTechnicalAnalysis } from '../technical/EnhancedTechnicalAnalysis';
 import { TechnicalAnalysis } from '../technical/TechnicalAnalysis';
 import { AdaptiveRiskManager } from './adaptiveRiskManager';
+import { StrategySignals, MarketData } from '../types/strategyTypes';
 
 export class SmartMomentumStrategy {
-  static execute(data: any) {
+  static execute(data: MarketData): StrategySignals {
     console.log('Executing Smart Momentum Strategy with enhanced filters...');
     
     const { open, high, low, close, volume } = data;
     
     if (close.length < 100) {
       console.log('Insufficient data for Smart Momentum Strategy');
-      return { entry: new Array(close.length).fill(false), exit: new Array(close.length).fill(false) };
+      return { 
+        entry: new Array(close.length).fill(false), 
+        exit: new Array(close.length).fill(false),
+        indicators: {}
+      };
     }
     
     // Technical indicators
@@ -32,6 +37,9 @@ export class SmartMomentumStrategy {
     const stopLossPips: number[] = [];
     const takeProfitPips: number[] = [];
     const signalQuality: number[] = [];
+    
+    // Convert trends to numeric for compatibility
+    const trendNumeric = trends.map(t => t === 'uptrend' ? 1 : t === 'downtrend' ? -1 : 0);
     
     let tradeCount = 0;
     
@@ -138,7 +146,7 @@ export class SmartMomentumStrategy {
         ema21,
         ema55,
         atr,
-        trends,
+        trends: trendNumeric, // Convert to numeric array
         signalQuality,
         stopLossPips,
         takeProfitPips

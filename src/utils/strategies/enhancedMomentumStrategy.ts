@@ -1,9 +1,10 @@
 
 import { EnhancedTechnicalAnalysis } from '../technical/EnhancedTechnicalAnalysis';
 import { TechnicalAnalysis } from '../technical/TechnicalAnalysis';
+import { StrategySignals, MarketData } from '../types/strategyTypes';
 
 export class EnhancedMomentumStrategy {
-  static execute(data: any) {
+  static execute(data: MarketData): StrategySignals {
     const { open, high, low, close, volume } = data;
     
     // Calculate technical indicators
@@ -24,6 +25,9 @@ export class EnhancedMomentumStrategy {
     const entry: boolean[] = [];
     const exit: boolean[] = [];
     const signalQuality: number[] = [];
+    
+    // Convert trends to numeric for compatibility
+    const trendNumeric = trends.map(t => t === 'uptrend' ? 1 : t === 'downtrend' ? -1 : 0);
     
     for (let i = 0; i < close.length; i++) {
       if (i < 55) { // Need enough data for all indicators
@@ -109,7 +113,7 @@ export class EnhancedMomentumStrategy {
         ema21,
         ema55,
         atr,
-        trends,
+        trends: trendNumeric, // Convert to numeric array
         signalQuality
       }
     };

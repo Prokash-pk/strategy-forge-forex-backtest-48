@@ -2,7 +2,7 @@
 export interface StrategySignals {
   entry: boolean[];
   exit: boolean[];
-  indicators?: Record<string, number[]>;
+  indicators?: Record<string, any>; // Changed from Record<string, number[]> to Record<string, any> for flexibility
 }
 
 export interface MarketData {
