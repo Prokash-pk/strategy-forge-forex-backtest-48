@@ -26,6 +26,8 @@ interface BacktestRequest {
     slippage: number;
     maxPositionSize: number;
     riskModel: string;
+    positionSizingMode?: string;
+    riskRewardRatio?: number;
   };
   pythonSignals?: {
     entry: boolean[];
@@ -48,6 +50,7 @@ interface Trade {
   exit: number;
   pnl: number;
   duration: number;
+  positionSize: number;
 }
 
 // Technical Analysis Functions
@@ -396,8 +399,9 @@ serve(async (req) => {
     const { data, strategy, pythonSignals, timeframeInfo, enhancedMode }: BacktestRequest = await req.json();
     
     console.log(`Running backtest for ${strategy.name} with ${data.length} data points`);
+    console.log(`Position Sizing Mode: ${strategy.positionSizingMode || 'manual'}`);
+    console.log(`Risk per Trade: ${strategy.riskPerTrade}%`);
     console.log(`Stop Loss: ${strategy.stopLoss} pips, Take Profit: ${strategy.takeProfit} pips`);
-    console.log('Strategy code:', strategy.code);
     
     if (pythonSignals) {
       console.log('Python signals provided:', pythonSignals.error ? `Error: ${pythonSignals.error}` : 'Valid signals');
@@ -416,10 +420,30 @@ serve(async (req) => {
     const signals = StrategyExecutor.executeStrategy(strategy.code, marketData, pythonSignals);
     console.log('Strategy signals generated:', signals.entry.filter(Boolean).length, 'entry signals');
 
-    // Simulate strategy execution using the generated signals
+    // Calculate position sizing based on risk management
+    const calculatePositionSize = (currentPrice: number) => {
+      // Calculate risk amount in dollars
+      const riskAmount = (strategy.initialBalance * strategy.riskPerTrade) / 100;
+      
+      // Calculate stop loss distance in price units
+      const pipValue = 0.0001; // 1 pip for major pairs
+      const stopLossDistance = strategy.stopLoss * pipValue;
+      
+      // Calculate position size to risk exactly the specified amount
+      const calculatedPositionSize = riskAmount / stopLossDistance;
+      
+      // Ensure position size doesn't exceed maximum
+      const finalPositionSize = Math.min(calculatedPositionSize, strategy.maxPositionSize);
+      
+      console.log(`Risk Amount: $${riskAmount}, Stop Distance: ${stopLossDistance}, Calculated Size: ${calculatedPositionSize.toFixed(0)} units, Final Size: ${finalPositionSize.toFixed(0)} units`);
+      
+      return finalPositionSize;
+    };
+
+    // Simulate strategy execution using the generated signals with proper position sizing
     const trades: Trade[] = [];
     let balance = strategy.initialBalance;
-    let position: { type: 'BUY' | 'SELL'; entry: number; entryDate: Date; id: number } | null = null;
+    let position: { type: 'BUY' | 'SELL'; entry: number; entryDate: Date; id: number; positionSize: number } | null = null;
     let tradeId = 1;
 
     // Convert pips to price difference (1 pip = 0.0001 for major pairs)
@@ -456,13 +480,17 @@ serve(async (req) => {
 
       // Entry signal from strategy
       if (!position && signals.entry[i]) {
+        // Calculate position size based on current price and risk management
+        const positionSize = calculatePositionSize(currentPrice);
+        
         position = {
           type: 'BUY',
           entry: entryPrice,
           entryDate: currentDate,
-          id: tradeId
+          id: tradeId,
+          positionSize: positionSize
         };
-        console.log(`Opening BUY position at ${entryPrice} on ${currentDate.toISOString()}`);
+        console.log(`Opening BUY position: ${positionSize.toFixed(0)} units at ${entryPrice} on ${currentDate.toISOString()}`);
         console.log(`Stop Loss will trigger at: ${entryPrice - stopLossDistance}`);
         console.log(`Take Profit will trigger at: ${entryPrice + takeProfitDistance}`);
       }
@@ -496,10 +524,9 @@ serve(async (req) => {
         }
 
         if (shouldExit) {
-          // Calculate PnL properly for forex (standard lot = 100,000 units)
-          const standardLot = 100000;
+          // Calculate PnL using the actual position size
           const priceMovement = finalExitPrice - position.entry;
-          const pnl = (priceMovement * standardLot) - strategy.commission;
+          const pnl = (priceMovement * position.positionSize) - strategy.commission;
           const duration = Math.round((currentDate.getTime() - position.entryDate.getTime()) / (1000 * 60));
 
           trades.push({
@@ -509,11 +536,12 @@ serve(async (req) => {
             entry: position.entry,
             exit: finalExitPrice,
             pnl: pnl,
-            duration: duration
+            duration: duration,
+            positionSize: position.positionSize
           });
 
           balance += pnl;
-          console.log(`Closing position ${position.id}: Entry ${position.entry}, Exit ${finalExitPrice}, PnL ${pnl.toFixed(2)}, reason: ${exitReason}`);
+          console.log(`Closing position ${position.id}: Size ${position.positionSize.toFixed(0)} units, Entry ${position.entry}, Exit ${finalExitPrice}, PnL ${pnl.toFixed(2)}, reason: ${exitReason}`);
           position = null;
           tradeId++;
         }
@@ -570,6 +598,12 @@ serve(async (req) => {
       equityCurve,
       trades,
       executionMethod: pythonSignals && !pythonSignals.error ? 'Python' : 'JavaScript',
+      positionSizingSettings: {
+        mode: strategy.positionSizingMode || 'manual',
+        riskPerTrade: strategy.riskPerTrade,
+        riskRewardRatio: strategy.riskRewardRatio,
+        calculatedRiskAmount: (strategy.initialBalance * strategy.riskPerTrade) / 100
+      },
       stopLossSettings: {
         pips: strategy.stopLoss,
         priceDistance: stopLossDistance,
@@ -579,7 +613,8 @@ serve(async (req) => {
     };
 
     console.log(`Backtest completed: ${trades.length} trades, ${totalReturn.toFixed(2)}% return`);
-    console.log(`Stop Loss applied correctly: ${strategy.stopLoss} pips = ${stopLossDistance} price distance`);
+    console.log(`Risk-based position sizing applied: ${strategy.riskPerTrade}% risk per trade`);
+    console.log(`Average position size: ${trades.length > 0 ? (trades.reduce((sum, t) => sum + t.positionSize, 0) / trades.length).toFixed(0) : 0} units`);
     console.log(`Strategy used: ${strategy.name} (${results.executionMethod})`);
 
     return new Response(

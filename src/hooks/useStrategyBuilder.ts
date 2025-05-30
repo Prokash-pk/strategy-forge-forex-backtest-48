@@ -23,7 +23,9 @@ export const useStrategyBuilder = (
     slippage: 1,
     maxPositionSize: 100000,
     riskModel: 'fixed',
-    reverseSignals: false, // New option for signal reversal
+    reverseSignals: false,
+    positionSizingMode: 'manual', // 'manual' or 'ratio'
+    riskRewardRatio: 1.5, // Default 1:1.5 ratio
     code: `# EMA Crossover Strategy
 # This strategy uses exponential moving averages for entry and exit signals
 

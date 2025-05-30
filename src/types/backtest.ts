@@ -1,3 +1,4 @@
+
 export interface BacktestStrategy {
   name: string;
   symbol: string;
@@ -12,7 +13,9 @@ export interface BacktestStrategy {
   slippage: number;
   maxPositionSize: number;
   riskModel: string;
-  reverseSignals?: boolean; // Add the optional reverseSignals property
+  reverseSignals?: boolean;
+  positionSizingMode?: string; // 'manual' or 'ratio'
+  riskRewardRatio?: number; // For ratio mode
 }
 
 export interface BacktestResults {
@@ -33,6 +36,7 @@ export interface BacktestResults {
     marketImpact: boolean;
   };
   metadata?: any;
+  reverse_signals_applied?: boolean;
 }
 
 export interface TimeframeInfo {
