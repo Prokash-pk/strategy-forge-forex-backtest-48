@@ -36,7 +36,7 @@ const UserMenu = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" className="text-white hover:bg-slate-700">
+        <Button variant="secondary" size="sm" className="text-white">
           <User className="h-4 w-4 mr-2" />
           {user.email}
         </Button>
