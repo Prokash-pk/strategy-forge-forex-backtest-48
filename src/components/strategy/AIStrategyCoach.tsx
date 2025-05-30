@@ -1,11 +1,14 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Brain, Wand2, TrendingUp, Shield, Target, Clock, Plus, Copy } from 'lucide-react';
+import { Brain, Wand2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AIStrategyCoach as AIStrategyService, AIStrategyAnalysis } from '@/services/aiStrategyCoach';
 import { StrategyCodeInsertion } from '@/services/strategyCodeInsertion';
+import AnalysisSummary from './ai-coach/AnalysisSummary';
+import RecommendationCard from './ai-coach/RecommendationCard';
+import InitialAnalysisView from './ai-coach/InitialAnalysisView';
 
 interface AIStrategyCoachProps {
   strategy: any;
@@ -105,7 +108,6 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
         description: `"${recommendation.title}" has been added to your strategy`,
       });
 
-      // Navigate to configuration after a short delay
       setTimeout(() => {
         if (onNavigateToConfiguration) {
           onNavigateToConfiguration();
@@ -144,7 +146,6 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
 
     setIsEnhancing(true);
     try {
-      // Apply top 3 highest priority recommendations
       const topRecommendations = analysis.recommendations
         .filter(rec => rec.codeSnippet)
         .sort((a, b) => {
@@ -162,7 +163,6 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
         return;
       }
 
-      // Apply all enhancements
       const snippets = topRecommendations.map(rec => ({
         code: rec.codeSnippet!,
         title: rec.title
@@ -173,7 +173,6 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
         snippets
       );
 
-      // Update strategy with enhanced code
       const enhancedStrategy = {
         ...strategy,
         code: enhancedCode,
@@ -187,10 +186,8 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
         description: `Applied ${topRecommendations.length} AI recommendations. Redirecting to configuration...`,
       });
 
-      // Clear analysis to encourage re-testing
       setAnalysis(null);
 
-      // Navigate back to configuration tab after a short delay
       setTimeout(() => {
         if (onNavigateToConfiguration) {
           onNavigateToConfiguration();
@@ -209,25 +206,6 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
     }
   };
 
-  const getRiskLevelColor = (risk: string) => {
-    switch (risk) {
-      case 'high': return 'bg-red-500/10 text-red-400';
-      case 'medium': return 'bg-yellow-500/10 text-yellow-400';
-      case 'low': return 'bg-green-500/10 text-green-400';
-      default: return 'bg-slate-500/10 text-slate-400';
-    }
-  };
-
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'risk_management': return Shield;
-      case 'entry_timing': return Clock;
-      case 'exit_strategy': return Target;
-      case 'position_sizing': return TrendingUp;
-      default: return Brain;
-    }
-  };
-
   return (
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
@@ -239,87 +217,15 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
       
       <CardContent className="space-y-6">
         {!analysis ? (
-          <div className="text-center space-y-4">
-            <div className="bg-slate-700/50 p-6 rounded-lg">
-              <Brain className="h-12 w-12 text-purple-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-white mb-2">AI Strategy Analysis</h3>
-              <p className="text-slate-300 mb-4">
-                Let our AI analyze your strategy performance and automatically suggest improvements
-              </p>
-              
-              {backtestResults && (
-                <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
-                  <div className="bg-slate-800 p-3 rounded">
-                    <div className="text-slate-400">Win Rate</div>
-                    <div className="text-white font-medium">{backtestResults.winRate?.toFixed(1)}%</div>
-                  </div>
-                  <div className="bg-slate-800 p-3 rounded">
-                    <div className="text-slate-400">Total Return</div>
-                    <div className="text-white font-medium">{backtestResults.totalReturn?.toFixed(1)}%</div>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <Button
-              onClick={handleAnalyzeStrategy}
-              disabled={isAnalyzing || !backtestResults}
-              className="w-full bg-purple-600 hover:bg-purple-700 text-white"
-            >
-              {isAnalyzing ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                  Analyzing Strategy...
-                </>
-              ) : (
-                <>
-                  <Brain className="h-4 w-4 mr-2" />
-                  Analyze My Strategy
-                </>
-              )}
-            </Button>
-          </div>
+          <InitialAnalysisView
+            backtestResults={backtestResults}
+            isAnalyzing={isAnalyzing}
+            onAnalyzeStrategy={handleAnalyzeStrategy}
+          />
         ) : (
           <div className="space-y-6">
-            {/* Analysis Summary */}
-            <div className="bg-slate-700/50 p-4 rounded-lg">
-              <h3 className="text-lg font-medium text-white mb-3">Analysis Summary</h3>
-              <p className="text-slate-300 mb-4">{analysis.overallAssessment}</p>
-              
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="space-y-2">
-                  <div className="text-sm text-slate-400">Risk Level</div>
-                  <Badge className={getRiskLevelColor(analysis.riskLevel)}>
-                    {analysis.riskLevel.toUpperCase()}
-                  </Badge>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-sm text-slate-400">Complexity Score</div>
-                  <div className="text-white font-medium">{analysis.complexityScore}/100</div>
-                </div>
-              </div>
+            <AnalysisSummary analysis={analysis} />
 
-              <div className="space-y-3">
-                <div>
-                  <div className="text-sm font-medium text-emerald-400 mb-1">Strengths Identified:</div>
-                  <ul className="text-sm text-slate-300 space-y-1">
-                    {analysis.strengthsIdentified.map((strength, i) => (
-                      <li key={i}>• {strength}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-red-400 mb-1">Issues Found:</div>
-                  <ul className="text-sm text-slate-300 space-y-1">
-                    {analysis.weaknessesIdentified.map((weakness, i) => (
-                      <li key={i}>• {weakness}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Recommendations */}
             {analysis.recommendations.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -344,96 +250,16 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
                 </div>
 
                 <div className="space-y-3">
-                  {analysis.recommendations.slice(0, 5).map((rec, index) => {
-                    const IconComponent = getCategoryIcon(rec.category);
-                    const isApplied = appliedRecommendations.has(rec.id);
-                    const isApplying = applyingRecommendation === rec.id;
-                    
-                    return (
-                      <div key={rec.id} className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <IconComponent className="h-4 w-4 text-blue-400" />
-                            <h4 className="font-medium text-white">{rec.title}</h4>
-                          </div>
-                          <div className="flex gap-2">
-                            <Badge 
-                              variant="secondary" 
-                              className={`${
-                                rec.priority === 'high' 
-                                  ? 'bg-red-500/10 text-red-400' 
-                                  : 'bg-yellow-500/10 text-yellow-400'
-                              }`}
-                            >
-                              {rec.priority}
-                            </Badge>
-                            <Badge variant="outline" className="text-slate-300">
-                              +{rec.estimatedImprovement}%
-                            </Badge>
-                            {isApplied && (
-                              <Badge className="bg-green-500/10 text-green-400">
-                                Applied
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-sm text-slate-300 mb-2">{rec.description}</p>
-                        <p className="text-xs text-slate-400 mb-3">{rec.reasoning}</p>
-                        
-                        {rec.codeSnippet && (
-                          <div className="mt-3 bg-slate-800 p-3 rounded text-xs text-slate-300 font-mono border border-slate-600 mb-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="text-slate-400">Enhancement Preview:</div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => copyToClipboard(rec.codeSnippet!, rec.title)}
-                                className="h-6 px-2 border-slate-500 text-slate-400 hover:bg-slate-700"
-                              >
-                                <Copy className="h-3 w-3 mr-1" />
-                                Copy
-                              </Button>
-                            </div>
-                            <div className="text-slate-300 whitespace-pre-wrap max-h-24 overflow-y-auto">
-                              {rec.codeSnippet}
-                            </div>
-                          </div>
-                        )}
-
-                        {rec.codeSnippet && (
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => handleQuickAdd(rec)}
-                              disabled={isApplied || isApplying}
-                              className={`${
-                                isApplied 
-                                  ? 'bg-green-600 cursor-not-allowed' 
-                                  : 'bg-blue-600 hover:bg-blue-700'
-                              } text-white`}
-                              size="sm"
-                            >
-                              {isApplying ? (
-                                <>
-                                  <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-2"></div>
-                                  Applying...
-                                </>
-                              ) : isApplied ? (
-                                <>
-                                  <Target className="h-3 w-3 mr-2" />
-                                  Applied
-                                </>
-                              ) : (
-                                <>
-                                  <Plus className="h-3 w-3 mr-2" />
-                                  Quick Add
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {analysis.recommendations.slice(0, 5).map((rec) => (
+                    <RecommendationCard
+                      key={rec.id}
+                      recommendation={rec}
+                      isApplied={appliedRecommendations.has(rec.id)}
+                      isApplying={applyingRecommendation === rec.id}
+                      onQuickAdd={handleQuickAdd}
+                      onCopyToClipboard={copyToClipboard}
+                    />
+                  ))}
                 </div>
               </div>
             )}
