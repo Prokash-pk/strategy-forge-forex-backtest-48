@@ -74,11 +74,13 @@ export class BacktestExecutionService {
       volume: marketData.map((d: any) => parseFloat(d.volume || 0))
     };
     
-    // Execute strategy with Python, including reverse signals option
+    // Execute strategy with Python - pass reverse signals as part of the market data object
     const strategyResult = await PythonExecutor.executeStrategy(
       strategy.code, 
-      pythonMarketData, 
-      { reverse_signals: strategy.reverseSignals || false }
+      {
+        ...pythonMarketData,
+        reverse_signals: strategy.reverseSignals || false
+      }
     );
     
     if (strategyResult.error) {
@@ -135,7 +137,8 @@ export class BacktestExecutionService {
           commission: strategy.commission,
           slippage: strategy.slippage,
           maxPositionSize: strategy.maxPositionSize,
-          riskModel: strategy.riskModel
+          riskModel: strategy.riskModel,
+          reverseSignals: strategy.reverseSignals || false // Add reverse signals here too
         },
         timeframeInfo: timeframeInfo,
         enhancedMode: false

@@ -1,4 +1,3 @@
-
 export interface BacktestStrategy {
   name: string;
   symbol: string;
@@ -13,6 +12,7 @@ export interface BacktestStrategy {
   slippage: number;
   maxPositionSize: number;
   riskModel: string;
+  reverseSignals?: boolean; // Add the optional reverseSignals property
 }
 
 export interface BacktestResults {
