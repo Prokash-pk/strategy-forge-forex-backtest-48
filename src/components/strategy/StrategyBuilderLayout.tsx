@@ -47,10 +47,14 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="python" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 bg-slate-700">
+              <TabsList className="grid w-full grid-cols-4 bg-slate-700">
                 <TabsTrigger value="python">
                   <Code className="h-4 w-4 mr-2" />
                   Python
+                </TabsTrigger>
+                <TabsTrigger value="high-performance">
+                  <Languages className="h-4 w-4 mr-2" />
+                  200%+ AI
                 </TabsTrigger>
                 <TabsTrigger value="visual">
                   <Eye className="h-4 w-4 mr-2" />
@@ -69,6 +73,12 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
                   onRunBacktest={onRunBacktest}
                   isRunning={isRunning}
                   backtestResults={backtestResults}
+                />
+              </TabsContent>
+
+              <TabsContent value="high-performance">
+                <HighPerformanceStrategiesTab
+                  onStrategyChange={onStrategyChange}
                 />
               </TabsContent>
 
