@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { PythonExecutor } from '@/services/pythonExecutor';
 import { StrategyStorage } from '@/services/strategyStorage';
@@ -58,12 +57,14 @@ export class BacktestExecutionService {
         realisticSlippage: isPythonAvailable,
         advancedPositionSizing: true,
         marketImpact: isPythonAvailable
-      }
+      },
+      reverse_signals_applied: strategy.reverseSignals || false
     };
   }
 
   private static async executePythonStrategy(strategy: BacktestStrategy, marketData: any[], onStepUpdate: (step: string) => void) {
     console.log('Using enhanced Python execution for strategy');
+    console.log('Reverse signals enabled:', strategy.reverseSignals);
     
     // Prepare market data for Python with proper data structure
     const pythonMarketData = {
@@ -71,16 +72,14 @@ export class BacktestExecutionService {
       high: marketData.map((d: any) => parseFloat(d.high)),
       low: marketData.map((d: any) => parseFloat(d.low)),
       close: marketData.map((d: any) => parseFloat(d.close)),
-      volume: marketData.map((d: any) => parseFloat(d.volume || 0))
+      volume: marketData.map((d: any) => parseFloat(d.volume || 0)),
+      reverse_signals: strategy.reverseSignals || false
     };
     
-    // Execute strategy with Python - pass reverse signals as part of the market data object
+    // Execute strategy with Python - pass reverse signals as part of the strategy code parameters
     const strategyResult = await PythonExecutor.executeStrategy(
       strategy.code, 
-      {
-        ...pythonMarketData,
-        reverse_signals: strategy.reverseSignals || false
-      }
+      pythonMarketData
     );
     
     if (strategyResult.error) {
@@ -106,11 +105,11 @@ export class BacktestExecutionService {
           slippage: strategy.slippage,
           maxPositionSize: strategy.maxPositionSize,
           riskModel: strategy.riskModel,
-          reverseSignals: strategy.reverseSignals || false // Pass reverse signals option
+          reverseSignals: strategy.reverseSignals || false
         },
         pythonSignals: strategyResult.error ? undefined : strategyResult,
         timeframeInfo: timeframeInfo,
-        enhancedMode: true // Enable enhanced backtest features
+        enhancedMode: true
       }
     });
     
@@ -138,7 +137,7 @@ export class BacktestExecutionService {
           slippage: strategy.slippage,
           maxPositionSize: strategy.maxPositionSize,
           riskModel: strategy.riskModel,
-          reverseSignals: strategy.reverseSignals || false // Add reverse signals here too
+          reverseSignals: strategy.reverseSignals || false
         },
         timeframeInfo: timeframeInfo,
         enhancedMode: false

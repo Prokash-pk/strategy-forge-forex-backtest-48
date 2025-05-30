@@ -1,3 +1,4 @@
+
 import { TECHNICAL_ANALYSIS_PYTHON_CODE } from './technicalAnalysis';
 
 export const STRATEGY_EXECUTOR_PYTHON_CODE = `
@@ -8,6 +9,7 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
     try:
         # Convert JavaScript data to proper Python lists with validation
         data_dict = {}
+        reverse_signals = False
         
         # Convert JS data to Python, handling pyodide.ffi.JsProxy objects properly
         js_keys = ['open', 'high', 'low', 'close', 'volume']
@@ -41,6 +43,17 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
                     converted_data.append(float('nan'))
             
             data_dict[key.capitalize()] = converted_data
+        
+        # Extract reverse_signals flag from market data
+        try:
+            reverse_signals = market_data_dict.get('reverse_signals', False)
+            if hasattr(reverse_signals, 'to_py'):
+                reverse_signals = reverse_signals.to_py()
+            reverse_signals = bool(reverse_signals)
+        except:
+            reverse_signals = False
+        
+        print(f"Python executor: reverse_signals = {reverse_signals}")
         
         # Ensure all data arrays have the same length
         if data_dict.get('Close'):
@@ -91,9 +104,15 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
         # Execute the strategy code
         exec(strategy_code, safe_globals)
         
-        # Try to call strategy_logic function
+        # Try to call strategy_logic function with reverse_signals parameter
         if 'strategy_logic' in safe_globals:
-            result = safe_globals['strategy_logic'](df)
+            # Check if strategy_logic accepts reverse_signals parameter
+            import inspect
+            sig = inspect.signature(safe_globals['strategy_logic'])
+            if 'reverse_signals' in sig.parameters:
+                result = safe_globals['strategy_logic'](df, reverse_signals=reverse_signals)
+            else:
+                result = safe_globals['strategy_logic'](df)
         else:
             # If no function found, try to extract signals from globals
             result = {}
@@ -101,6 +120,18 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
                 result['entry'] = safe_globals['entry']
             if 'exit' in safe_globals:
                 result['exit'] = safe_globals['exit']
+        
+        # Apply reverse signals if not handled by strategy and reverse_signals is True
+        if reverse_signals and 'reverse_signals_applied' not in result:
+            print("Applying signal reversal in Python executor")
+            if 'entry' in result and 'exit' in result:
+                # Swap entry and exit signals
+                original_entry = result['entry'].copy() if hasattr(result['entry'], 'copy') else list(result['entry'])
+                original_exit = result['exit'].copy() if hasattr(result['exit'], 'copy') else list(result['exit'])
+                result['entry'] = original_exit
+                result['exit'] = original_entry
+                result['reverse_signals_applied'] = True
+                print(f"Reversed signals: {sum(result['entry'])} entry signals after reversal")
         
         # Convert results to JavaScript-compatible format
         def convert_to_list(value):
@@ -141,6 +172,8 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
         for key, value in result.items():
             if key in ['entry', 'exit']:
                 processed_result[key] = convert_to_list(value)
+            elif key in ['reverse_signals_applied']:
+                processed_result[key] = bool(value)
             else:
                 # Handle indicators
                 if 'indicators' not in processed_result:
