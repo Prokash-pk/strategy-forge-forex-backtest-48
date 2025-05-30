@@ -1,11 +1,10 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Brain, Wand2, TrendingUp, Shield, Target, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { AIStrategyCoach, AIStrategyAnalysis } from '@/services/aiStrategyCoach';
+import { AIStrategyCoach as AIStrategyService, AIStrategyAnalysis } from '@/services/aiStrategyCoach';
 import { StrategyCodeInsertion } from '@/services/strategyCodeInsertion';
 
 interface AIStrategyCoachProps {
@@ -37,7 +36,7 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
     setIsAnalyzing(true);
     try {
       console.log('Starting AI strategy analysis...');
-      const analysisResult = await AIStrategyCoach.analyzeStrategyWithAI(
+      const analysisResult = await AIStrategyService.analyzeStrategyWithAI(
         strategy.code,
         backtestResults
       );
