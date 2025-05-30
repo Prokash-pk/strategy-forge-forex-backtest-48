@@ -12,6 +12,7 @@ export interface MarketData {
   low: number[];
   close: number[];
   volume: number[];
+  reverse_signals?: boolean; // Add optional reverse signals property
 }
 
 declare global {
