@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +23,8 @@ interface StrategyConfigurationTabProps {
     slippage: number;
     maxPositionSize: number;
     riskModel: string;
+    positionSizingMode: string;
+    riskRewardRatio: number;
   };
   onStrategyChange: (updates: any) => void;
   onRunBacktest?: () => void;
