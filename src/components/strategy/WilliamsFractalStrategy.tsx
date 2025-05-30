@@ -1,441 +1,365 @@
-
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
+import { Label } from '@/components/ui/label';
+import { Slider } from '@/components/ui/slider';
+import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, AlertTriangle, Target, Activity, BarChart3 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 interface WilliamsFractalStrategyProps {
-  onLoadStrategy: (strategy: any) => void;
+  onAddToStrategy: (codeSnippet: string) => void;
 }
 
-const WilliamsFractalStrategy: React.FC<WilliamsFractalStrategyProps> = ({ onLoadStrategy }) => {
-  const strategyCode = `# Enhanced Williams Fractal + Multi-Indicator Strategy
-# Now includes 35+ technical indicators for comprehensive analysis
+const WilliamsFractalStrategy: React.FC<WilliamsFractalStrategyProps> = ({ onAddToStrategy }) => {
+  const [fractalLookback, setFractalLookback] = useState(5);
+  const [volumeMultiplier, setVolumeMultiplier] = useState(1.2);
+  const [minSignalStrength, setMinSignalStrength] = useState(3);
+  const [minPatternStrength, setMinPatternStrength] = useState(2);
+  const [selectedIndicators, setSelectedIndicators] = useState<string[]>([]);
+  const { toast } = useToast();
+
+  const indicatorOptions = [
+    { value: 'ema_triple', label: 'Triple EMA (TEMA)' },
+    { value: 'rsi', label: 'Relative Strength Index (RSI)' },
+    { value: 'atr', label: 'Average True Range (ATR)' },
+    { value: 'stochastic', label: 'Stochastic Oscillator' },
+    { value: 'supertrend', label: 'Supertrend' },
+    { value: 'hull_ma', label: 'Hull Moving Average (HMA)' },
+    { value: 'williams_r', label: 'Williams %R' },
+    { value: 'cci', label: 'Commodity Channel Index (CCI)' },
+  ];
+
+  const handleIndicatorToggle = (indicator: string) => {
+    setSelectedIndicators(prev =>
+      prev.includes(indicator) ? prev.filter(i => i !== indicator) : [...prev, indicator]
+    );
+  };
+
+  const generateEnhancedStrategy = () => {
+    const strategyCode = `# Enhanced Williams Fractal Strategy with S&R and Price Action
+# Comprehensive trading strategy with support/resistance detection and pattern recognition
 
 def strategy_logic(data):
-    close = data['Close'].tolist()
     high = data['High'].tolist()
     low = data['Low'].tolist()
+    close = data['Close'].tolist()
+    open_prices = data['Open'].tolist()
     volume = data['Volume'].tolist()
-    
-    # === TREND INDICATORS ===
-    # Moving Averages
-    sma_20 = TechnicalAnalysis.sma(close, 20)
-    ema_20 = TechnicalAnalysis.ema(close, 20)
-    ema_50 = TechnicalAnalysis.ema(close, 50)
-    ema_100 = TechnicalAnalysis.ema(close, 100)
-    tema_20 = AdvancedTechnicalAnalysis.tema(close, 20)
-    hull_ma_20 = AdvancedTechnicalAnalysis.hull_ma(close, 20)
-    
-    # Trend Strength
-    adx_data = AdvancedTechnicalAnalysis.adx(high, low, close, 14)
-    supertrend_data = AdvancedTechnicalAnalysis.supertrend(high, low, close, 10, 3.0)
-    
-    # === MOMENTUM INDICATORS ===
-    rsi = TechnicalAnalysis.rsi(close, 14)
-    macd_data = TechnicalAnalysis.macd(close, 12, 26, 9)
-    stoch = AdvancedTechnicalAnalysis.stochastic_oscillator(high, low, close, 14, 3)
-    williams_r = AdvancedTechnicalAnalysis.williams_r(high, low, close, 14)
-    cci = AdvancedTechnicalAnalysis.commodity_channel_index(high, low, close, 20)
-    
-    # === VOLATILITY INDICATORS ===
-    atr = AdvancedTechnicalAnalysis.atr(high, low, close, 14)
-    bb_data = TechnicalAnalysis.bollinger_bands(close, 20, 2)
-    keltner_data = AdvancedTechnicalAnalysis.keltner_channels(high, low, close, 20, 2.0)
-    donchian_data = AdvancedTechnicalAnalysis.donchian_channels(high, low, 20)
-    
-    # === VOLUME INDICATORS ===
-    vwap = AdvancedTechnicalAnalysis.vwap(high, low, close, volume)
-    obv = AdvancedTechnicalAnalysis.on_balance_volume(close, volume)
-    volume_sma = TechnicalAnalysis.sma(volume, 20)
-    
-    # Williams Fractals implementation
-    def detect_fractals(highs, lows, period=2):
-        fractal_high = []
-        fractal_low = []
-        
-        for i in range(len(highs)):
-            if i < period or i >= len(highs) - period:
-                fractal_high.append(False)
-                fractal_low.append(False)
-                continue
-            
-            # Fractal High (resistance)
-            is_fractal_high = True
-            for j in range(i - period, i + period + 1):
-                if j != i and highs[j] >= highs[i]:
-                    is_fractal_high = False
-                    break
-            
-            # Fractal Low (support)
-            is_fractal_low = True
-            for j in range(i - period, i + period + 1):
-                if j != i and lows[j] <= lows[i]:
-                    is_fractal_low = False
-                    break
-                    
-            fractal_high.append(is_fractal_high)
-            fractal_low.append(is_fractal_low)
-        
-        return fractal_high, fractal_low
-    
-    fractal_highs, fractal_lows = detect_fractals(high, low, 2)
     
     entry = []
     exit = []
-    signal_strength = []
+    signals = {
+        'fractals': {'highs': [], 'lows': []},
+        'support_resistance': {'levels': [], 'strength': []},
+        'price_patterns': {'pattern_type': [], 'pattern_strength': []},
+        'pivot_points': {'daily': [], 'fibonacci': []},
+        'volume_profile': {'poc': [], 'high_volume_levels': []}
+    }
+
+    # Calculate all indicators and patterns
+    fractals = SupportResistanceDetection.fractal_levels(high, low, ${fractalLookback})
+    pivot_standard = SupportResistanceDetection.pivot_points_standard(
+        max(high[-20:]), min(low[-20:]), close[-1]
+    ) if len(close) >= 20 else {}
     
+    pivot_fib = SupportResistanceDetection.pivot_points_fibonacci(
+        max(high[-20:]), min(low[-20:]), close[-1]
+    ) if len(close) >= 20 else {}
+    
+    supply_demand = SupportResistanceDetection.supply_demand_zones(high, low, close, volume, 2)
+    volume_profile = SupportResistanceDetection.volume_profile_levels(close, volume, 20)
+    
+    # Price action patterns
+    pin_bars = PriceActionPatterns.pin_bar(open_prices, high, low, close, 0.3)
+    engulfing = PriceActionPatterns.engulfing_pattern(open_prices, high, low, close)
+    doji_patterns = PriceActionPatterns.doji_patterns(open_prices, high, low, close, 0.1)
+    star_patterns = PriceActionPatterns.morning_evening_star(open_prices, high, low, close)
+    inside_outside = PriceActionPatterns.inside_outside_bars(open_prices, high, low, close)
+    
+    # Enhanced indicators
+    ${selectedIndicators.includes('ema_triple') ? `
+    tema_12 = AdvancedTechnicalAnalysis.tema(close, 12)
+    tema_26 = AdvancedTechnicalAnalysis.tema(close, 26)
+    ` : ''}
+    
+    ${selectedIndicators.includes('rsi') ? `
+    rsi = TechnicalAnalysis.rsi(close, 14)
+    ` : ''}
+    
+    ${selectedIndicators.includes('atr') ? `
+    atr = AdvancedTechnicalAnalysis.atr(high, low, close, 14)
+    ` : ''}
+    
+    ${selectedIndicators.includes('stochastic') ? `
+    stoch = AdvancedTechnicalAnalysis.stochastic_oscillator(high, low, close, 14, 3, 3)
+    ` : ''}
+    
+    ${selectedIndicators.includes('supertrend') ? `
+    supertrend = AdvancedTechnicalAnalysis.supertrend(high, low, close, 10, 3.0)
+    ` : ''}
+    
+    ${selectedIndicators.includes('hull_ma') ? `
+    hull_ma = AdvancedTechnicalAnalysis.hull_ma(close, 21)
+    ` : ''}
+    
+    ${selectedIndicators.includes('williams_r') ? `
+    williams_r = AdvancedTechnicalAnalysis.williams_r(high, low, close, 14)
+    ` : ''}
+    
+    ${selectedIndicators.includes('cci') ? `
+    cci = AdvancedTechnicalAnalysis.commodity_channel_index(high, low, close, 20)
+    ` : ''}
+    
+    ${selectedIndicators.includes('parabolic_sar') ? `
+    parabolic_sar = AdvancedTechnicalAnalysis.parabolic_sar(high, low, close, 0.02, 0.2)
+    ` : ''}
+
     for i in range(len(data)):
-        if i < 105:  # Need enough data for all indicators
-            entry.append(False)
-            exit.append(False)
-            signal_strength.append(0)
-            continue
+        signal_strength = 0
+        pattern_strength = 0
+        sr_strength = 0
         
+        # Fractal signals
+        fractal_high = not math.isnan(fractals['fractal_highs'][i])
+        fractal_low = not math.isnan(fractals['fractal_lows'][i])
+        
+        # Support/Resistance analysis
         current_price = close[i]
-        current_ema_20 = ema_20[i]
-        current_ema_50 = ema_50[i]
-        current_ema_100 = ema_100[i]
+        near_support = False
+        near_resistance = False
         
-        # Get indicator values with NaN handling
-        current_rsi = rsi[i] if not pd.isna(rsi[i]) else 50
-        current_atr = atr[i] if not pd.isna(atr[i]) else 0
-        current_stoch_k = stoch['k'][i] if not pd.isna(stoch['k'][i]) else 50
-        current_williams = williams_r[i] if not pd.isna(williams_r[i]) else -50
-        current_cci = cci[i] if not pd.isna(cci[i]) else 0
-        current_adx = adx_data['adx'][i] if not pd.isna(adx_data['adx'][i]) else 25
-        current_macd = macd_data['macd'][i] if not pd.isna(macd_data['macd'][i]) else 0
-        current_macd_signal = macd_data['signal'][i] if not pd.isna(macd_data['signal'][i]) else 0
-        current_bb_upper = bb_data['upper'][i] if not pd.isna(bb_data['upper'][i]) else current_price
-        current_bb_lower = bb_data['lower'][i] if not pd.isna(bb_data['lower'][i]) else current_price
-        current_supertrend = supertrend_data['supertrend'][i] if not pd.isna(supertrend_data['supertrend'][i]) else current_price
-        current_hull_ma = hull_ma_20[i] if not pd.isna(hull_ma_20[i]) else current_price
+        # Check proximity to pivot levels
+        for level_name, level_value in pivot_standard.items():
+            if abs(current_price - level_value) / current_price < 0.002:  # Within 0.2%
+                if 'support' in level_name:
+                    near_support = True
+                    sr_strength += 2
+                elif 'resistance' in level_name:
+                    near_resistance = True
+                    sr_strength += 2
+        
+        # Check supply/demand zones
+        for zone in supply_demand['demand_zones']:
+            if zone['low'] <= current_price <= zone['high']:
+                near_support = True
+                sr_strength += zone['strength']
+        
+        for zone in supply_demand['supply_zones']:
+            if zone['low'] <= current_price <= zone['high']:
+                near_resistance = True
+                sr_strength += zone['strength']
+        
+        # Price action pattern analysis
+        current_pin = pin_bars[i]
+        current_engulf = engulfing[i]
+        current_doji = doji_patterns[i]
+        current_star = star_patterns[i]
+        current_inside_outside = inside_outside[i]
+        
+        # Bullish patterns
+        if current_pin['type'] == 'bullish_pin':
+            pattern_strength += current_pin['strength'] // 10
+        if current_engulf['type'] == 'bullish_engulfing':
+            pattern_strength += current_engulf['strength'] // 10
+        if current_star['type'] == 'morning_star':
+            pattern_strength += current_star['strength'] // 10
+        if current_doji['type'] == 'dragonfly_doji':
+            pattern_strength += current_doji['strength'] // 20
+        
+        # Bearish patterns (for exit signals)
+        bearish_pattern = (current_pin['type'] == 'bearish_pin' or 
+                          current_engulf['type'] == 'bearish_engulfing' or
+                          current_star['type'] == 'evening_star' or
+                          current_doji['type'] == 'gravestone_doji')
+        
+        # Enhanced indicator signals
+        ${selectedIndicators.includes('ema_triple') ? `
+        if i > 0 and not math.isnan(tema_12[i]) and not math.isnan(tema_26[i]):
+            if tema_12[i] > tema_26[i] and tema_12[i-1] <= tema_26[i-1]:
+                signal_strength += 3  # TEMA bullish crossover
+        ` : ''}
+        
+        ${selectedIndicators.includes('rsi') ? `
+        if not math.isnan(rsi[i]):
+            if rsi[i] < 30:  # Oversold
+                signal_strength += 2
+            elif rsi[i] > 70:  # Overbought
+                signal_strength -= 2
+        ` : ''}
+        
+        ${selectedIndicators.includes('stochastic') ? `
+        if not math.isnan(stoch['k'][i]) and not math.isnan(stoch['d'][i]):
+            if stoch['k'][i] > stoch['d'][i] and stoch['k'][i] < 20:
+                signal_strength += 2  # Stoch bullish in oversold
+        ` : ''}
+        
+        ${selectedIndicators.includes('supertrend') ? `
+        if not math.isnan(supertrend['supertrend'][i]):
+            if supertrend['trend'][i] == -1:  # Bullish trend
+                signal_strength += 2
+        ` : ''}
+        
+        ${selectedIndicators.includes('williams_r') ? `
+        if not math.isnan(williams_r[i]):
+            if williams_r[i] > -80 and i > 0 and williams_r[i-1] <= -80:
+                signal_strength += 2  # Williams %R bullish signal
+        ` : ''}
+        
+        ${selectedIndicators.includes('cci') ? `
+        if not math.isnan(cci[i]):
+            if cci[i] > -100 and i > 0 and cci[i-1] <= -100:
+                signal_strength += 2  # CCI bullish signal
+        ` : ''}
         
         # Volume confirmation
-        volume_above_avg = volume[i] > volume_sma[i] if not pd.isna(volume_sma[i]) else True
+        if i >= 10:
+            avg_volume = sum(volume[i-10:i]) / 10
+            if volume[i] > avg_volume * ${volumeMultiplier}:
+                signal_strength += 1
         
-        # Enhanced EMA alignment for LONG
-        long_ema_order = (current_ema_20 > current_ema_50 and 
-                         current_ema_50 > current_ema_100)
+        # Comprehensive entry logic
+        entry_condition = (
+            fractal_low and 
+            near_support and 
+            pattern_strength >= ${minPatternStrength} and
+            signal_strength >= ${minSignalStrength} and
+            sr_strength >= 2
+        )
         
-        # Enhanced EMA alignment for SHORT
-        short_ema_order = (current_ema_100 > current_ema_50 and 
-                          current_ema_50 > current_ema_20)
+        # Enhanced exit logic
+        exit_condition = (
+            fractal_high or 
+            near_resistance or 
+            bearish_pattern or
+            signal_strength < -2
+        )
         
-        # ENHANCED LONG Entry Logic with multiple confirmations
-        long_entry = False
-        strength = 0
+        entry.append(entry_condition)
+        exit.append(exit_condition)
         
-        if long_ema_order and current_price > current_ema_100:
-            # Check for pullback conditions
-            pullback_below_20 = current_price < current_ema_20
-            pullback_below_50 = current_price < current_ema_50
-            
-            # Look for recent fractal low signal
-            recent_fractal_low = any(fractal_lows[max(0, i-3):i+1])
-            
-            if (pullback_below_20 or pullback_below_50) and recent_fractal_low:
-                strength += 3  # Base fractal signal
-                
-                # === MOMENTUM CONFIRMATIONS ===
-                if current_rsi < 40:  # RSI oversold
-                    strength += 2
-                if current_stoch_k < 30:  # Stochastic oversold
-                    strength += 2
-                if current_williams < -80:  # Williams %R oversold
-                    strength += 1
-                if current_cci < -100:  # CCI oversold
-                    strength += 1
-                if current_macd > current_macd_signal:  # MACD bullish
-                    strength += 2
-                
-                # === TREND CONFIRMATIONS ===
-                if current_adx > 25:  # Strong trend
-                    strength += 2
-                if current_price > current_supertrend:  # SuperTrend bullish
-                    strength += 2
-                if current_price > current_hull_ma:  # Hull MA bullish
-                    strength += 1
-                
-                # === VOLATILITY CONFIRMATIONS ===
-                if current_price <= current_bb_lower:  # At Bollinger lower band
-                    strength += 2
-                if volume_above_avg:  # Volume confirmation
-                    strength += 1
-                if current_atr > 0 and abs(current_price - current_ema_20) < current_atr:
-                    strength += 1  # Price near EMA with good volatility
-                
-                # Only enter if we have very strong confirmation (strength >= 8)
-                if strength >= 8:
-                    long_entry = True
+        # Store analysis data
+        signals['fractals']['highs'].append(fractal_high)
+        signals['fractals']['lows'].append(fractal_low)
+        signals['support_resistance']['levels'].append(sr_strength)
+        signals['support_resistance']['strength'].append(near_support or near_resistance)
+        signals['price_patterns']['pattern_type'].append([
+            current_pin['type'], current_engulf['type'], current_doji['type']
+        ])
+        signals['price_patterns']['pattern_strength'].append(pattern_strength)
         
-        # ENHANCED SHORT Entry Logic with multiple confirmations
-        short_entry = False
+        # Pivot points (same for all bars in daily context)
+        signals['pivot_points']['daily'].append(pivot_standard)
+        signals['pivot_points']['fibonacci'].append(pivot_fib)
         
-        if short_ema_order and current_price < current_ema_100:
-            # Check for pullback above EMA 20
-            pullback_above_20 = current_price > current_ema_20
-            
-            # Look for recent fractal high signal
-            recent_fractal_high = any(fractal_highs[max(0, i-3):i+1])
-            
-            if pullback_above_20 and recent_fractal_high:
-                strength += 3  # Base fractal signal
-                
-                # === MOMENTUM CONFIRMATIONS ===
-                if current_rsi > 60:  # RSI overbought
-                    strength += 2
-                if current_stoch_k > 70:  # Stochastic overbought
-                    strength += 2
-                if current_williams > -20:  # Williams %R overbought
-                    strength += 1
-                if current_cci > 100:  # CCI overbought
-                    strength += 1
-                if current_macd < current_macd_signal:  # MACD bearish
-                    strength += 2
-                
-                # === TREND CONFIRMATIONS ===
-                if current_adx > 25:  # Strong trend
-                    strength += 2
-                if current_price < current_supertrend:  # SuperTrend bearish
-                    strength += 2
-                if current_price < current_hull_ma:  # Hull MA bearish
-                    strength += 1
-                
-                # === VOLATILITY CONFIRMATIONS ===
-                if current_price >= current_bb_upper:  # At Bollinger upper band
-                    strength += 2
-                if volume_above_avg:  # Volume confirmation
-                    strength += 1
-                if current_atr > 0 and abs(current_price - current_ema_20) < current_atr:
-                    strength += 1
-                
-                # Only enter if we have very strong confirmation
-                if strength >= 8:
-                    short_entry = True
-                    strength = -strength  # Negative for short signals
-        
-        # Final entry decision
-        entry_signal = long_entry or short_entry
-        
-        # Enhanced exit conditions with multiple indicator confirmation
-        exit_signal = False
-        if i > 0:
-            # Exit if EMA alignment breaks
-            ema_breakdown = not (long_ema_order or short_ema_order)
-            
-            # Exit if price violates EMA 100 rule
-            price_violation = (long_ema_order and current_price < current_ema_100) or \
-                            (short_ema_order and current_price > current_ema_100)
-            
-            # Exit on multiple momentum divergences
-            momentum_exit = (long_ema_order and current_rsi > 75 and current_stoch_k > 80) or \
-                           (short_ema_order and current_rsi < 25 and current_stoch_k < 20)
-            
-            # Exit on SuperTrend reversal
-            supertrend_exit = (long_ema_order and current_price < current_supertrend) or \
-                             (short_ema_order and current_price > current_supertrend)
-            
-            exit_signal = ema_breakdown or price_violation or momentum_exit or supertrend_exit
-        
-        entry.append(entry_signal)
-        exit.append(exit_signal)
-        signal_strength.append(strength)
-    
+        # Volume profile POC
+        signals['volume_profile']['poc'].append(volume_profile.get('poc', float('nan')))
+        signals['volume_profile']['high_volume_levels'].append(
+            volume_profile.get('levels', [])[:5] if volume_profile.get('levels') else []
+        )
+
     return {
         'entry': entry,
         'exit': exit,
-        # === TREND INDICATORS ===
-        'sma_20': sma_20,
-        'ema_20': ema_20,
-        'ema_50': ema_50,
-        'ema_100': ema_100,
-        'tema_20': tema_20,
-        'hull_ma_20': hull_ma_20,
-        'adx': adx_data['adx'],
-        'plus_di': adx_data['plus_di'],
-        'minus_di': adx_data['minus_di'],
-        'supertrend': supertrend_data['supertrend'],
-        'supertrend_trend': supertrend_data['trend'],
-        # === MOMENTUM INDICATORS ===
-        'rsi': rsi,
-        'macd': macd_data['macd'],
-        'macd_signal': macd_data['signal'],
-        'macd_histogram': macd_data['histogram'],
-        'stoch_k': stoch['k'],
-        'stoch_d': stoch['d'],
-        'williams_r': williams_r,
-        'cci': cci,
-        # === VOLATILITY INDICATORS ===
-        'atr': atr,
-        'bb_upper': bb_data['upper'],
-        'bb_middle': bb_data['middle'],
-        'bb_lower': bb_data['lower'],
-        'keltner_upper': keltner_data['upper'],
-        'keltner_middle': keltner_data['middle'],
-        'keltner_lower': keltner_data['lower'],
-        'donchian_upper': donchian_data['upper'],
-        'donchian_middle': donchian_data['middle'],
-        'donchian_lower': donchian_data['lower'],
-        # === VOLUME INDICATORS ===
-        'vwap': vwap,
-        'obv': obv,
-        'volume_sma': volume_sma,
-        # === FRACTAL SIGNALS ===
-        'fractal_highs': fractal_highs,
-        'fractal_lows': fractal_lows,
-        'signal_strength': signal_strength
+        'fractals_high': fractals['fractal_highs'],
+        'fractals_low': fractals['fractal_lows'],
+        'signals': signals,
+        'supply_zones': supply_demand['supply_zones'],
+        'demand_zones': supply_demand['demand_zones'],
+        'volume_profile': volume_profile,
+        'pivot_points_standard': pivot_standard,
+        'pivot_points_fibonacci': pivot_fib
     }`;
 
-  const handleLoadStrategy = () => {
-    onLoadStrategy({
-      name: 'Enhanced Multi-Indicator Williams Fractal Strategy (35+ Indicators)',
-      code: strategyCode,
-      timeframe: '1m',
-      stopLoss: 30,
-      takeProfit: 45,
-      riskPerTrade: 2,
-      riskModel: 'dynamic'
+    onAddToStrategy(strategyCode);
+    
+    toast({
+      title: "Enhanced Strategy Generated! 🎯",
+      description: `Advanced strategy with ${selectedIndicators.length} indicators, S&R detection, and price action patterns`,
     });
   };
 
   return (
-    <Card className="bg-slate-700 border-slate-600">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <TrendingUp className="h-5 w-5 text-green-400" />
-          Enhanced Multi-Indicator Strategy (35+ Indicators)
-        </CardTitle>
-        <p className="text-slate-400 text-sm">
-          Comprehensive strategy using Williams Fractals + 35+ technical indicators across all categories
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor="fractalLookback">Fractal Lookback Period</Label>
+        <Slider
+          id="fractalLookback"
+          defaultValue={[fractalLookback]}
+          max={10}
+          min={2}
+          step={1}
+          onValueChange={(value) => setFractalLookback(value[0])}
+        />
+        <p className="text-sm text-muted-foreground">
+          Adjust the lookback period for fractal swing highs/lows.
         </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-slate-800 p-3 rounded border border-blue-500/20">
-            <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-blue-400" />
-              <span className="text-blue-400 font-medium text-sm">Trend Indicators (9)</span>
-            </div>
-            <ul className="text-slate-300 text-xs space-y-1">
-              <li>• SMA, EMA, TEMA, Hull MA</li>
-              <li>• ADX, SuperTrend</li>
-              <li>• +DI/-DI directional indicators</li>
-              <li>• Trend strength analysis</li>
-            </ul>
-          </div>
-          
-          <div className="bg-slate-800 p-3 rounded border border-purple-500/20">
-            <div className="flex items-center gap-2 mb-2">
-              <Activity className="h-4 w-4 text-purple-400" />
-              <span className="text-purple-400 font-medium text-sm">Momentum (8)</span>
-            </div>
-            <ul className="text-slate-300 text-xs space-y-1">
-              <li>• RSI, Stochastic, Williams %R</li>
-              <li>• MACD (line, signal, histogram)</li>
-              <li>• CCI (Commodity Channel Index)</li>
-              <li>• Multi-timeframe momentum</li>
-            </ul>
-          </div>
-          
-          <div className="bg-slate-800 p-3 rounded border border-orange-500/20">
-            <div className="flex items-center gap-2 mb-2">
-              <BarChart3 className="h-4 w-4 text-orange-400" />
-              <span className="text-orange-400 font-medium text-sm">Volatility (10)</span>
-            </div>
-            <ul className="text-slate-300 text-xs space-y-1">
-              <li>• ATR, Bollinger Bands</li>
-              <li>• Keltner Channels</li>
-              <li>• Donchian Channels</li>
-              <li>• Volatility breakout detection</li>
-            </ul>
-          </div>
-          
-          <div className="bg-slate-800 p-3 rounded border border-green-500/20">
-            <div className="flex items-center gap-2 mb-2">
-              <Target className="h-4 w-4 text-green-400" />
-              <span className="text-green-400 font-medium text-sm">Volume & Price (8)</span>
-            </div>
-            <ul className="text-slate-300 text-xs space-y-1">
-              <li>• VWAP, OBV</li>
-              <li>• Volume SMA analysis</li>
-              <li>• Williams Fractals</li>
-              <li>• Price-volume correlation</li>
-            </ul>
-          </div>
-        </div>
+      </div>
 
-        <div className="bg-slate-800 p-3 rounded border border-yellow-500/20">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="h-4 w-4 text-yellow-400" />
-            <span className="text-yellow-400 font-medium text-sm">Enhanced Signal Scoring System</span>
-          </div>
-          <div className="grid grid-cols-2 gap-4 text-slate-300 text-xs">
-            <div>
-              <p className="font-medium mb-1">Entry Requirements (min 8 points):</p>
-              <ul className="space-y-1">
-                <li>• Base fractal signal: 3 points</li>
-                <li>• RSI confirmation: +2 points</li>
-                <li>• Stochastic: +2 points</li>
-                <li>• Williams %R: +1 point</li>
-                <li>• CCI: +1 point</li>
-                <li>• MACD: +2 points</li>
-                <li>• ADX trend strength: +2 points</li>
-                <li>• SuperTrend: +2 points</li>
-              </ul>
-            </div>
-            <div>
-              <p className="font-medium mb-1">Additional Confirmations:</p>
-              <ul className="space-y-1">
-                <li>• Hull MA direction: +1 point</li>
-                <li>• Bollinger Bands position: +2 points</li>
-                <li>• Volume above average: +1 point</li>
-                <li>• ATR proximity: +1 point</li>
-                <li>• Multiple exit conditions</li>
-                <li>• Trend reversal protection</li>
-              </ul>
-            </div>
-          </div>
-        </div>
+      <div>
+        <Label htmlFor="volumeMultiplier">Volume Multiplier</Label>
+        <Slider
+          id="volumeMultiplier"
+          defaultValue={[volumeMultiplier]}
+          max={3}
+          min={1}
+          step={0.1}
+          onValueChange={(value) => setVolumeMultiplier(value[0])}
+        />
+        <p className="text-sm text-muted-foreground">
+          Set the volume multiplier for confirmation signals.
+        </p>
+      </div>
 
-        <div className="bg-slate-800 p-3 rounded border border-slate-600">
-          <h4 className="text-white text-sm font-medium mb-2">Complete Indicator List (35+ total):</h4>
-          <div className="grid grid-cols-3 gap-2 text-slate-400 text-xs">
-            <div>
-              <p className="text-blue-400 font-medium">Trend:</p>
-              <div>SMA, EMA, TEMA, Hull MA, ADX, SuperTrend, +DI/-DI</div>
-            </div>
-            <div>
-              <p className="text-purple-400 font-medium">Momentum:</p>
-              <div>RSI, MACD, Stochastic, Williams %R, CCI</div>
-            </div>
-            <div>
-              <p className="text-orange-400 font-medium">Volatility:</p>
-              <div>ATR, Bollinger Bands, Keltner Channels, Donchian Channels</div>
-            </div>
-            <div>
-              <p className="text-green-400 font-medium">Volume:</p>
-              <div>VWAP, OBV, Volume SMA</div>
-            </div>
-            <div>
-              <p className="text-yellow-400 font-medium">Price Action:</p>
-              <div>Williams Fractals, Support/Resistance</div>
-            </div>
-            <div>
-              <p className="text-pink-400 font-medium">Available:</p>
-              <div>Fibonacci, Parabolic SAR, and more...</div>
-            </div>
-          </div>
-        </div>
+      <div>
+        <Label htmlFor="minSignalStrength">Minimum Signal Strength</Label>
+        <Slider
+          id="minSignalStrength"
+          defaultValue={[minSignalStrength]}
+          max={5}
+          min={1}
+          step={1}
+          onValueChange={(value) => setMinSignalStrength(value[0])}
+        />
+        <p className="text-sm text-muted-foreground">
+          Define the minimum signal strength required for entry.
+        </p>
+      </div>
 
-        <Button 
-          onClick={handleLoadStrategy}
-          className="w-full bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white"
-        >
-          Load Enhanced Multi-Indicator Strategy (35+ Indicators)
-        </Button>
-      </CardContent>
-    </Card>
+      <div>
+        <Label htmlFor="minPatternStrength">Minimum Pattern Strength</Label>
+        <Slider
+          id="minPatternStrength"
+          defaultValue={[minPatternStrength]}
+          max={5}
+          min={1}
+          step={1}
+          onValueChange={(value) => setMinPatternStrength(value[0])}
+        />
+        <p className="text-sm text-muted-foreground">
+          Set the minimum pattern strength for price action confirmation.
+        </p>
+      </div>
+
+      <div>
+        <Label>Select Enhanced Indicators</Label>
+        <div className="grid gap-2 grid-cols-2">
+          {indicatorOptions.map((indicator) => (
+            <div key={indicator.value} className="flex items-center space-x-2">
+              <Switch
+                id={indicator.value}
+                checked={selectedIndicators.includes(indicator.value)}
+                onCheckedChange={() => handleIndicatorToggle(indicator.value)}
+              />
+              <Label htmlFor={indicator.value}>{indicator.label}</Label>
+            </div>
+          ))}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Choose additional indicators to enhance the strategy.
+        </p>
+      </div>
+
+      <Button onClick={generateEnhancedStrategy}>Add Enhanced Strategy to Code</Button>
+    </div>
   );
 };
 

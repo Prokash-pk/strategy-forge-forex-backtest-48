@@ -1,9 +1,17 @@
+import { SUPPORT_RESISTANCE_PYTHON_CODE } from './supportResistanceDetection';
+import { PRICE_ACTION_PATTERNS_PYTHON_CODE } from './priceActionPatterns';
 
 export const ADVANCED_TECHNICAL_ANALYSIS_PYTHON_CODE = `
 import pandas as pd
 import numpy as np
 import math
 from typing import Dict, List, Any
+
+# Include Support & Resistance Detection
+${SUPPORT_RESISTANCE_PYTHON_CODE}
+
+# Include Price Action Pattern Recognition
+${PRICE_ACTION_PATTERNS_PYTHON_CODE}
 
 class AdvancedTechnicalAnalysis:
     @staticmethod

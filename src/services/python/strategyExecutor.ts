@@ -1,11 +1,10 @@
-
 import { TECHNICAL_ANALYSIS_PYTHON_CODE } from './technicalAnalysis';
 
 export const STRATEGY_EXECUTOR_PYTHON_CODE = `
 ${TECHNICAL_ANALYSIS_PYTHON_CODE}
 
 def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: str) -> Dict[str, Any]:
-    """Execute the user's strategy code safely"""
+    """Execute the user's strategy code safely with enhanced S&R and pattern recognition"""
     try:
         # Convert JavaScript data to proper Python lists with validation
         data_dict = {}
@@ -56,12 +55,15 @@ def execute_strategy(market_data_dict: Dict[str, List[float]], strategy_code: st
         # Create DataFrame from validated data
         df = pd.DataFrame(data_dict)
         
-        # Create a safe execution environment with enhanced TechnicalAnalysis
+        # Create a safe execution environment with enhanced classes
         safe_globals = {
             'pd': pd,
             'np': np,
             'data': df,
             'TechnicalAnalysis': TechnicalAnalysis,
+            'AdvancedTechnicalAnalysis': AdvancedTechnicalAnalysis,
+            'SupportResistanceDetection': SupportResistanceDetection,
+            'PriceActionPatterns': PriceActionPatterns,
             'math': math,
             '__builtins__': {
                 'len': len,
