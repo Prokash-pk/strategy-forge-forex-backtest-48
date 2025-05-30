@@ -1,14 +1,15 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Play, Code, Settings, Eye, Languages } from 'lucide-react';
+import { Play, Code, Settings, Eye, Lightbulb } from 'lucide-react';
 import StrategyConfiguration from './StrategyConfiguration';
 import PythonStrategyTab from './PythonStrategyTab';
 import VisualStrategyTab from './VisualStrategyTab';
 import StrategyHistory from './StrategyHistory';
 import BacktestProgress from './BacktestProgress';
 import BacktestResults from '../BacktestResults';
-import HighPerformanceStrategiesTab from './HighPerformanceStrategiesTab';
+import StrategyRecommendationsTab from './StrategyRecommendationsTab';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
@@ -53,9 +54,9 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
                   <Code className="h-4 w-4 mr-2" />
                   Python
                 </TabsTrigger>
-                <TabsTrigger value="high-performance">
-                  <Languages className="h-4 w-4 mr-2" />
-                  200%+ AI
+                <TabsTrigger value="recommendations">
+                  <Lightbulb className="h-4 w-4 mr-2" />
+                  Improve
                 </TabsTrigger>
                 <TabsTrigger value="visual">
                   <Eye className="h-4 w-4 mr-2" />
@@ -77,8 +78,10 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
                 />
               </TabsContent>
 
-              <TabsContent value="high-performance">
-                <HighPerformanceStrategiesTab
+              <TabsContent value="recommendations">
+                <StrategyRecommendationsTab
+                  strategy={strategy}
+                  backtestResults={backtestResults}
                   onStrategyChange={onStrategyChange}
                 />
               </TabsContent>
