@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -133,8 +132,7 @@ const HowItWorksGuide = () => {
       <div className="flex items-center justify-between">
         <Button
           asChild
-          variant="outline"
-          className="border-slate-600 text-slate-300 hover:bg-slate-700"
+          variant="secondary"
         >
           <Link to="/">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -286,7 +284,7 @@ const HowItWorksGuide = () => {
                 Start with Python Strategy
               </Link>
             </Button>
-            <Button asChild variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
+            <Button asChild variant="secondary">
               <Link to="/?tab=strategy">
                 <Eye className="h-4 w-4 mr-2" />
                 Try Visual Builder
