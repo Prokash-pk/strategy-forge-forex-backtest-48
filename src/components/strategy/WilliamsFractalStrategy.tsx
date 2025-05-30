@@ -167,7 +167,7 @@ def strategy_logic(data):
               <span className="text-green-400 font-medium text-sm">LONG Setup</span>
             </div>
             <ul className="text-slate-300 text-xs space-y-1">
-              <li>• EMA 20 > EMA 50 > EMA 100</li>
+              <li>• EMA 20 {' > '} EMA 50 {' > '} EMA 100</li>
               <li>• Price pullback below EMA 20/50</li>
               <li>• Williams Fractal low signal</li>
               <li>• Stop: Below EMA 50/100</li>
@@ -180,7 +180,7 @@ def strategy_logic(data):
               <span className="text-red-400 font-medium text-sm">SHORT Setup</span>
             </div>
             <ul className="text-slate-300 text-xs space-y-1">
-              <li>• EMA 100 > EMA 50 > EMA 20</li>
+              <li>• EMA 100 {' > '} EMA 50 {' > '} EMA 20</li>
               <li>• Price pullback above EMA 20</li>
               <li>• Williams Fractal high signal</li>
               <li>• Stop: Above EMA 50</li>
