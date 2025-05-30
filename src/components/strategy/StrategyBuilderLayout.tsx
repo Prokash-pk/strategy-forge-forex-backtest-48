@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,9 +31,15 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   onTestReverseStrategy,
   isReverseTestRunning
 }) => {
+  const [activeTab, setActiveTab] = React.useState('configuration');
+
+  const handleNavigateToConfiguration = () => {
+    setActiveTab('configuration');
+  };
+
   return (
     <div className="space-y-6">
-      <Tabs defaultValue="configuration" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 bg-slate-700">
           <TabsTrigger value="configuration" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
@@ -68,6 +73,7 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
             strategy={strategy}
             backtestResults={backtestResults}
             onStrategyUpdate={onStrategyChange}
+            onNavigateToConfiguration={handleNavigateToConfiguration}
           />
         </TabsContent>
 

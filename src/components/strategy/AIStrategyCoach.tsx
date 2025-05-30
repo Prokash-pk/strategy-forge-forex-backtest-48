@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,12 +12,14 @@ interface AIStrategyCoachProps {
   strategy: any;
   backtestResults?: any;
   onStrategyUpdate: (updates: any) => void;
+  onNavigateToConfiguration?: () => void;
 }
 
 const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
   strategy,
   backtestResults,
-  onStrategyUpdate
+  onStrategyUpdate,
+  onNavigateToConfiguration
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AIStrategyAnalysis | null>(null);
@@ -111,11 +114,18 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
 
       toast({
         title: "Strategy Enhanced! ✨",
-        description: `Applied ${topRecommendations.length} AI recommendations to improve performance`,
+        description: `Applied ${topRecommendations.length} AI recommendations. Redirecting to configuration...`,
       });
 
       // Clear analysis to encourage re-testing
       setAnalysis(null);
+
+      // Navigate back to configuration tab after a short delay
+      setTimeout(() => {
+        if (onNavigateToConfiguration) {
+          onNavigateToConfiguration();
+        }
+      }, 1500);
 
     } catch (error) {
       console.error('Enhancement failed:', error);
