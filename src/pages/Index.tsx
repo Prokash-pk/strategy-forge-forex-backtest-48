@@ -3,7 +3,8 @@ import React, { useState, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Crown, CreditCard, MessageSquare } from 'lucide-react';
+import { Crown, CreditCard, MessageSquare, BookOpen } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import StrategyBuilder from '@/components/StrategyBuilder';
 import BacktestResults from '@/components/BacktestResults';
 import DataManager from '@/components/DataManager';
@@ -75,6 +76,17 @@ const Index = () => {
                     Upgrade
                   </Button>
                 )}
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                >
+                  <Link to="/guide">
+                    <BookOpen className="h-4 w-4 mr-1" />
+                    Guide
+                  </Link>
+                </Button>
               </div>
               <p className="text-slate-400 mt-2">
                 Professional forex strategy backtesting and analysis platform

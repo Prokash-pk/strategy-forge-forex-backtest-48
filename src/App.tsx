@@ -10,6 +10,7 @@ import { SubscriptionProvider } from "@/hooks/useSubscription";
 import AuthGuard from "@/components/AuthGuard";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import Guide from "./pages/Guide";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,11 @@ const App = () => {
               <div className="min-h-screen w-full">
                 <Routes>
                   <Route path="/auth" element={<Auth />} />
+                  <Route path="/guide" element={
+                    <AuthGuard>
+                      <Guide />
+                    </AuthGuard>
+                  } />
                   <Route path="/" element={
                     <AuthGuard>
                       <Index />
