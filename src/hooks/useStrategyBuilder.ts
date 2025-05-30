@@ -22,7 +22,7 @@ export const useStrategyBuilder = (
     commission: 0.5,
     slippage: 1,
     maxPositionSize: 100000,
-    riskModel: 'fixed',
+    riskModel: 'percentage',
     reverseSignals: false,
     positionSizingMode: 'manual', // 'manual' or 'ratio'
     riskRewardRatio: 1.5, // Default 1:1.5 ratio
