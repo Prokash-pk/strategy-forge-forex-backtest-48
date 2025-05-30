@@ -7,7 +7,7 @@ import PythonStrategyTab from './PythonStrategyTab';
 import VisualStrategyTab from './VisualStrategyTab';
 import StrategyHistory from './StrategyHistory';
 import BacktestProgress from './BacktestProgress';
-import BacktestResults from './BacktestResults';
+import BacktestResults from '../BacktestResults';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
