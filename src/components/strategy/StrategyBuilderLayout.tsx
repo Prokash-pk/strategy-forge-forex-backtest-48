@@ -1,27 +1,23 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Play, Code, Settings, Eye, Lightbulb } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Settings, TrendingUp, Bot, Lightbulb, Brain } from 'lucide-react';
 import StrategyConfiguration from './StrategyConfiguration';
-import PythonStrategyTab from './PythonStrategyTab';
-import VisualStrategyTab from './VisualStrategyTab';
-import StrategyHistory from './StrategyHistory';
-import BacktestProgress from './BacktestProgress';
-import BacktestResults from '../BacktestResults';
 import StrategyRecommendationsTab from './StrategyRecommendationsTab';
+import AIStrategyCoach from './AIStrategyCoach';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
   onStrategyChange: (updates: any) => void;
   onRunBacktest: () => void;
   isRunning: boolean;
-  currentStep: string;
+  currentStep?: string;
   onStrategySelect: (strategy: any) => void;
   backtestResults?: any;
-  onAddToStrategy?: (codeSnippet: string) => void;
-  onTestReverseStrategy?: () => void;
-  isReverseTestRunning?: boolean;
+  onAddToStrategy: (code: string) => void;
+  onTestReverseStrategy: () => void;
+  isReverseTestRunning: boolean;
 }
 
 const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
@@ -37,91 +33,83 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   isReverseTestRunning
 }) => {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left Column - Strategy Builder */}
-      <div className="space-y-6">
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Play className="h-5 w-5" />
-              Strategy Builder
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="python" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 bg-slate-700">
-                <TabsTrigger value="python">
-                  <Code className="h-4 w-4 mr-2" />
-                  Python
-                </TabsTrigger>
-                <TabsTrigger value="recommendations">
-                  <Lightbulb className="h-4 w-4 mr-2" />
-                  Improve
-                </TabsTrigger>
-                <TabsTrigger value="visual">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Visual
-                </TabsTrigger>
-                <TabsTrigger value="config">
-                  <Settings className="h-4 w-4 mr-2" />
-                  Config
-                </TabsTrigger>
-              </TabsList>
+    <div className="space-y-6">
+      <Tabs defaultValue="configuration" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 bg-slate-700">
+          <TabsTrigger value="configuration" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            Configuration
+          </TabsTrigger>
+          <TabsTrigger value="ai-coach" className="flex items-center gap-2">
+            <Brain className="h-4 w-4" />
+            AI Coach
+          </TabsTrigger>
+          <TabsTrigger value="recommendations" className="flex items-center gap-2">
+            <Lightbulb className="h-4 w-4" />
+            Recommendations
+          </TabsTrigger>
+          <TabsTrigger value="performance" className="flex items-center gap-2">
+            <TrendingUp className="h-4 w-4" />
+            Performance
+          </TabsTrigger>
+        </TabsList>
 
-              <TabsContent value="python">
-                <PythonStrategyTab
-                  strategy={strategy}
-                  onStrategyChange={onStrategyChange}
-                  onRunBacktest={onRunBacktest}
-                  isRunning={isRunning}
-                  backtestResults={backtestResults}
-                />
-              </TabsContent>
+        <TabsContent value="configuration" className="space-y-4">
+          <StrategyConfiguration
+            strategy={strategy}
+            onStrategyChange={onStrategyChange}
+            onRunBacktest={onRunBacktest}
+            isRunning={isRunning}
+          />
+        </TabsContent>
 
-              <TabsContent value="recommendations">
-                <StrategyRecommendationsTab
-                  strategy={strategy}
-                  backtestResults={backtestResults}
-                  onStrategyChange={onStrategyChange}
-                />
-              </TabsContent>
+        <TabsContent value="ai-coach" className="space-y-4">
+          <AIStrategyCoach
+            strategy={strategy}
+            backtestResults={backtestResults}
+            onStrategyUpdate={onStrategyChange}
+          />
+        </TabsContent>
 
-              <TabsContent value="visual">
-                <VisualStrategyTab
-                  strategy={strategy}
-                  onStrategyChange={onStrategyChange}
-                  onAddToStrategy={onAddToStrategy}
-                />
-              </TabsContent>
+        <TabsContent value="recommendations" className="space-y-4">
+          <StrategyRecommendationsTab
+            strategy={strategy}
+            backtestResults={backtestResults}
+            onStrategyChange={onStrategyChange}
+          />
+        </TabsContent>
 
-              <TabsContent value="config">
-                <StrategyConfiguration
-                  strategy={strategy}
-                  onStrategyChange={onStrategyChange}
-                  onRunBacktest={onRunBacktest}
-                  isRunning={isRunning}
-                />
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-
-        {isRunning && (
-          <BacktestProgress currentStep={currentStep} />
-        )}
-      </div>
-
-      {/* Right Column - Results and History */}
-      <div className="space-y-6">
-        <BacktestResults 
-          results={backtestResults} 
-          onAddToStrategy={onAddToStrategy}
-          onTestReverseStrategy={onTestReverseStrategy}
-          isReverseTestRunning={isReverseTestRunning}
-        />
-        
-        <StrategyHistory onStrategySelect={onStrategySelect} />
-      </div>
+        <TabsContent value="performance" className="space-y-4">
+          <Card className="bg-slate-800 border-slate-700">
+            <CardContent className="p-6">
+              <div className="text-center space-y-4">
+                <Bot className="h-12 w-12 text-blue-400 mx-auto" />
+                <h3 className="text-lg font-medium text-white">Performance Analysis</h3>
+                <p className="text-slate-300">
+                  Advanced performance analytics coming soon. Use AI Coach for immediate strategy improvements.
+                </p>
+                
+                {backtestResults && (
+                  <div className="grid grid-cols-2 gap-4 mt-6">
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <div className="text-slate-400 text-sm">Current Win Rate</div>
+                      <div className="text-2xl font-bold text-white">
+                        {backtestResults.winRate?.toFixed(1)}%
+                      </div>
+                    </div>
+                    <div className="bg-slate-700/50 p-4 rounded-lg">
+                      <div className="text-slate-400 text-sm">Total Return</div>
+                      <div className="text-2xl font-bold text-white">
+                        {backtestResults.totalReturn?.toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
