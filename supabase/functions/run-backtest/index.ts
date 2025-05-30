@@ -434,10 +434,21 @@ serve(async (req) => {
     // Generate equity curve
     const equityCurve = [];
 
+    // Get current time to prevent future trades
+    const currentTime = new Date();
+
     for (let i = 1; i < data.length; i++) {
       const currentBar = data[i];
       const currentPrice = currentBar.close;
-      const currentDate = new Date(currentBar.date);
+      
+      // Parse date and ensure it's not in the future
+      let currentDate = new Date(currentBar.date);
+      
+      // If date is in the future, cap it to current time
+      if (currentDate > currentTime) {
+        console.log(`Capping future date ${currentDate.toISOString()} to current time`);
+        currentDate = new Date(currentTime.getTime() - (data.length - i) * (timeframeInfo?.minutes || 5) * 60000);
+      }
 
       // Apply spread to entry price
       const entryPrice = currentPrice + spreadDistance;
@@ -472,7 +483,7 @@ serve(async (req) => {
         if (position.type === 'BUY' && currentPrice <= (position.entry - stopLossDistance)) {
           shouldExit = true;
           exitReason = 'Stop loss';
-          finalExitPrice = position.entry - stopLossDistance - slippageDistance; // Account for slippage
+          finalExitPrice = position.entry - stopLossDistance - slippageDistance;
           console.log(`Stop loss triggered: Current price ${currentPrice} <= Stop level ${position.entry - stopLossDistance}`);
         }
 
@@ -480,7 +491,7 @@ serve(async (req) => {
         if (position.type === 'BUY' && currentPrice >= (position.entry + takeProfitDistance)) {
           shouldExit = true;
           exitReason = 'Take profit';
-          finalExitPrice = position.entry + takeProfitDistance - slippageDistance; // Account for slippage
+          finalExitPrice = position.entry + takeProfitDistance - slippageDistance;
           console.log(`Take profit triggered: Current price ${currentPrice} >= TP level ${position.entry + takeProfitDistance}`);
         }
 
@@ -489,11 +500,11 @@ serve(async (req) => {
           const standardLot = 100000;
           const priceMovement = finalExitPrice - position.entry;
           const pnl = (priceMovement * standardLot) - strategy.commission;
-          const duration = Math.round((currentDate.getTime() - position.entryDate.getTime()) / (1000 * 60)); // Duration in minutes
+          const duration = Math.round((currentDate.getTime() - position.entryDate.getTime()) / (1000 * 60));
 
           trades.push({
             id: position.id,
-            date: position.entryDate,
+            date: position.entryDate, // Use entry date, not exit date
             type: position.type,
             entry: position.entry,
             exit: finalExitPrice,
@@ -508,9 +519,9 @@ serve(async (req) => {
         }
       }
 
-      // Add to equity curve
+      // Add to equity curve with proper date
       equityCurve.push({
-        date: currentBar.date,
+        date: currentDate.toISOString(),
         balance: balance
       });
     }
