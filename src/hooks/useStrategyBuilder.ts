@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { PythonExecutor } from '@/services/pythonExecutor';
 import { StrategyStorage, StrategyResult } from '@/services/strategyStorage';
@@ -24,6 +23,7 @@ export const useStrategyBuilder = (
     slippage: 1,
     maxPositionSize: 100000,
     riskModel: 'fixed',
+    reverseSignals: false, // New option for signal reversal
     code: `# EMA Crossover Strategy
 # This strategy uses exponential moving averages for entry and exit signals
 

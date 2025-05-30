@@ -74,8 +74,12 @@ export class BacktestExecutionService {
       volume: marketData.map((d: any) => parseFloat(d.volume || 0))
     };
     
-    // Execute strategy with Python
-    const strategyResult = await PythonExecutor.executeStrategy(strategy.code, pythonMarketData);
+    // Execute strategy with Python, including reverse signals option
+    const strategyResult = await PythonExecutor.executeStrategy(
+      strategy.code, 
+      pythonMarketData, 
+      { reverse_signals: strategy.reverseSignals || false }
+    );
     
     if (strategyResult.error) {
       console.warn('Python execution error, falling back to pattern matching:', strategyResult.error);
@@ -99,7 +103,8 @@ export class BacktestExecutionService {
           commission: strategy.commission,
           slippage: strategy.slippage,
           maxPositionSize: strategy.maxPositionSize,
-          riskModel: strategy.riskModel
+          riskModel: strategy.riskModel,
+          reverseSignals: strategy.reverseSignals || false // Pass reverse signals option
         },
         pythonSignals: strategyResult.error ? undefined : strategyResult,
         timeframeInfo: timeframeInfo,

@@ -1,8 +1,9 @@
 
 # Williams Fractal + Triple EMA Scalper Strategy
 # Exact implementation as specified - optimized for 1-minute timeframe
+# Now supports signal reversal for testing opposite strategy performance
 
-def strategy_logic(data):
+def strategy_logic(data, reverse_signals=False):
     close = data['Close'].tolist()
     high = data['High'].tolist()
     low = data['Low'].tolist()
@@ -123,6 +124,29 @@ def strategy_logic(data):
                 risk_distance = abs(current_price - stop_loss)
                 take_profit = current_price - (1.5 * risk_distance)
         
+        # Apply signal reversal if requested
+        if reverse_signals:
+            # Swap LONG and SHORT signals
+            if long_entry:
+                long_entry = False
+                short_entry = True
+                current_trade_type = 'SHORT'
+                # Recalculate stop/profit for reversed SHORT signal
+                stop_loss = current_ema_50 + 0.0001  # Above EMA 50 for SHORT
+                risk_distance = abs(current_price - stop_loss)
+                take_profit = current_price - (1.5 * risk_distance)
+            elif short_entry:
+                short_entry = False
+                long_entry = True
+                current_trade_type = 'LONG'
+                # Recalculate stop/profit for reversed LONG signal
+                if current_price < current_ema_50:
+                    stop_loss = current_ema_100 - 0.0001  # Below EMA 100 for LONG
+                else:
+                    stop_loss = current_ema_50 - 0.0001  # Below EMA 50 for LONG
+                risk_distance = abs(current_price - stop_loss)
+                take_profit = current_price + (1.5 * risk_distance)
+        
         # Final entry signal
         entry_signal = long_entry or short_entry
         
@@ -163,5 +187,6 @@ def strategy_logic(data):
         'fractal_lows': fractal_lows,    # Green arrows
         'trade_type': trade_type,
         'stop_loss_levels': stop_loss_levels,
-        'take_profit_levels': take_profit_levels
+        'take_profit_levels': take_profit_levels,
+        'reverse_signals_applied': reverse_signals
     }
