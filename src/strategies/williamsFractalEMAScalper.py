@@ -47,12 +47,16 @@ def strategy_logic(data):
     entry = []
     exit = []
     trade_type = []  # Track LONG/SHORT signals
+    stop_loss_levels = []
+    take_profit_levels = []
     
     for i in range(len(data)):
         if i < 105:  # Need enough data for EMA 100 + fractal lookback
             entry.append(False)
             exit.append(False)
             trade_type.append('NONE')
+            stop_loss_levels.append(0)
+            take_profit_levels.append(0)
             continue
         
         current_price = close[i]
@@ -72,6 +76,8 @@ def strategy_logic(data):
         long_entry = False
         short_entry = False
         current_trade_type = 'NONE'
+        stop_loss = 0
+        take_profit = 0
         
         # LONG ENTRY LOGIC
         if long_ema_order and current_price > current_ema_100:  # DO NOT enter if price closes below EMA 100
@@ -85,6 +91,18 @@ def strategy_logic(data):
             if (pullback_below_20 or pullback_below_50) and recent_fractal_low:
                 long_entry = True
                 current_trade_type = 'LONG'
+                
+                # Stop Loss logic as specified:
+                if pullback_below_50:
+                    # If price pulled back below EMA 50: Stop Loss below EMA 100
+                    stop_loss = current_ema_100 - 0.0001  # Slightly below
+                else:  # pullback_below_20
+                    # If price pulled back below EMA 20: Stop Loss below EMA 50
+                    stop_loss = current_ema_50 - 0.0001  # Slightly below
+                
+                # Take Profit: 1.5× risk (Risk-Reward Ratio 1:1.5)
+                risk_distance = abs(current_price - stop_loss)
+                take_profit = current_price + (1.5 * risk_distance)
         
         # SHORT ENTRY LOGIC  
         elif short_ema_order and current_price < current_ema_100:  # DO NOT enter if price closes above EMA 100
@@ -97,6 +115,13 @@ def strategy_logic(data):
             if pullback_above_20 and recent_fractal_high:
                 short_entry = True
                 current_trade_type = 'SHORT'
+                
+                # Stop Loss: Above EMA 50
+                stop_loss = current_ema_50 + 0.0001  # Slightly above
+                
+                # Take Profit: 1.5× risk
+                risk_distance = abs(current_price - stop_loss)
+                take_profit = current_price - (1.5 * risk_distance)
         
         # Final entry signal
         entry_signal = long_entry or short_entry
@@ -125,6 +150,8 @@ def strategy_logic(data):
         entry.append(entry_signal)
         exit.append(exit_signal)
         trade_type.append(current_trade_type)
+        stop_loss_levels.append(stop_loss)
+        take_profit_levels.append(take_profit)
     
     return {
         'entry': entry,
@@ -134,5 +161,7 @@ def strategy_logic(data):
         'ema_100': ema_100,
         'fractal_highs': fractal_highs,  # Red arrows
         'fractal_lows': fractal_lows,    # Green arrows
-        'trade_type': trade_type
+        'trade_type': trade_type,
+        'stop_loss_levels': stop_loss_levels,
+        'take_profit_levels': take_profit_levels
     }
