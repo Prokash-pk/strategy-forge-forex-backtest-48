@@ -8,6 +8,7 @@ import VisualStrategyTab from './VisualStrategyTab';
 import StrategyHistory from './StrategyHistory';
 import BacktestProgress from './BacktestProgress';
 import BacktestResults from '../BacktestResults';
+import HighPerformanceStrategiesTab from './HighPerformanceStrategiesTab';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
