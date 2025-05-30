@@ -1,9 +1,8 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Brain, Wand2, TrendingUp, Shield, Target, Clock } from 'lucide-react';
+import { Brain, Wand2, TrendingUp, Shield, Target, Clock, Plus, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AIStrategyCoach as AIStrategyService, AIStrategyAnalysis } from '@/services/aiStrategyCoach';
 import { StrategyCodeInsertion } from '@/services/strategyCodeInsertion';
@@ -24,6 +23,8 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<AIStrategyAnalysis | null>(null);
   const [isEnhancing, setIsEnhancing] = useState(false);
+  const [appliedRecommendations, setAppliedRecommendations] = useState<Set<string>>(new Set());
+  const [applyingRecommendation, setApplyingRecommendation] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleAnalyzeStrategy = async () => {
@@ -60,6 +61,75 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const handleQuickAdd = async (recommendation: any) => {
+    if (!recommendation.codeSnippet) {
+      toast({
+        title: "No Code Available",
+        description: "This recommendation doesn't have executable code",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (appliedRecommendations.has(recommendation.id)) {
+      toast({
+        title: "Already Applied",
+        description: "This recommendation has already been added to your strategy",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setApplyingRecommendation(recommendation.id);
+    try {
+      console.log('Applying individual recommendation:', recommendation.title);
+      
+      const enhancedCode = StrategyCodeInsertion.insertCodeSnippet(
+        strategy.code,
+        recommendation.codeSnippet,
+        recommendation.title
+      );
+
+      const enhancedStrategy = {
+        ...strategy,
+        code: enhancedCode
+      };
+
+      onStrategyUpdate(enhancedStrategy);
+      setAppliedRecommendations(prev => new Set([...prev, recommendation.id]));
+
+      toast({
+        title: "Recommendation Applied! ✨",
+        description: `"${recommendation.title}" has been added to your strategy`,
+      });
+
+      // Navigate to configuration after a short delay
+      setTimeout(() => {
+        if (onNavigateToConfiguration) {
+          onNavigateToConfiguration();
+        }
+      }, 1000);
+
+    } catch (error) {
+      console.error('Failed to apply recommendation:', error);
+      toast({
+        title: "Application Failed",
+        description: "Could not apply this recommendation. Please try manually.",
+        variant: "destructive"
+      });
+    } finally {
+      setApplyingRecommendation(null);
+    }
+  };
+
+  const copyToClipboard = (text: string, title: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: "Copied!",
+      description: `"${title}" code copied to clipboard`,
+    });
   };
 
   const handleAutoEnhance = async () => {
@@ -276,6 +346,9 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
                 <div className="space-y-3">
                   {analysis.recommendations.slice(0, 5).map((rec, index) => {
                     const IconComponent = getCategoryIcon(rec.category);
+                    const isApplied = appliedRecommendations.has(rec.id);
+                    const isApplying = applyingRecommendation === rec.id;
+                    
                     return (
                       <div key={rec.id} className="bg-slate-700/30 p-4 rounded-lg border border-slate-600">
                         <div className="flex items-start justify-between mb-2">
@@ -297,15 +370,65 @@ const AIStrategyCoach: React.FC<AIStrategyCoachProps> = ({
                             <Badge variant="outline" className="text-slate-300">
                               +{rec.estimatedImprovement}%
                             </Badge>
+                            {isApplied && (
+                              <Badge className="bg-green-500/10 text-green-400">
+                                Applied
+                              </Badge>
+                            )}
                           </div>
                         </div>
                         <p className="text-sm text-slate-300 mb-2">{rec.description}</p>
-                        <p className="text-xs text-slate-400">{rec.reasoning}</p>
+                        <p className="text-xs text-slate-400 mb-3">{rec.reasoning}</p>
                         
                         {rec.codeSnippet && (
-                          <div className="mt-3 bg-slate-800 p-2 rounded text-xs text-slate-300 font-mono">
-                            <div className="text-slate-400 mb-1">Enhancement Preview:</div>
-                            <div className="truncate">{rec.codeSnippet.split('\n')[0]}...</div>
+                          <div className="mt-3 bg-slate-800 p-3 rounded text-xs text-slate-300 font-mono border border-slate-600 mb-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-slate-400">Enhancement Preview:</div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => copyToClipboard(rec.codeSnippet!, rec.title)}
+                                className="h-6 px-2 border-slate-500 text-slate-400 hover:bg-slate-700"
+                              >
+                                <Copy className="h-3 w-3 mr-1" />
+                                Copy
+                              </Button>
+                            </div>
+                            <div className="text-slate-300 whitespace-pre-wrap max-h-24 overflow-y-auto">
+                              {rec.codeSnippet}
+                            </div>
+                          </div>
+                        )}
+
+                        {rec.codeSnippet && (
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => handleQuickAdd(rec)}
+                              disabled={isApplied || isApplying}
+                              className={`${
+                                isApplied 
+                                  ? 'bg-green-600 cursor-not-allowed' 
+                                  : 'bg-blue-600 hover:bg-blue-700'
+                              } text-white`}
+                              size="sm"
+                            >
+                              {isApplying ? (
+                                <>
+                                  <div className="animate-spin h-3 w-3 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                                  Applying...
+                                </>
+                              ) : isApplied ? (
+                                <>
+                                  <Target className="h-3 w-3 mr-2" />
+                                  Applied
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="h-3 w-3 mr-2" />
+                                  Quick Add
+                                </>
+                              )}
+                            </Button>
                           </div>
                         )}
                       </div>
