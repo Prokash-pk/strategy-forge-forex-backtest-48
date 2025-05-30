@@ -3,12 +3,14 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 
 interface BasicSettingsProps {
   strategy: {
     name: string;
     symbol: string;
     timeframe: string;
+    reverseSignals?: boolean;
   };
   onStrategyChange: (updates: any) => void;
 }
@@ -36,7 +38,7 @@ const BasicSettings: React.FC<BasicSettingsProps> = ({ strategy, onStrategyChang
   return (
     <div>
       <h3 className="text-lg font-semibold text-white mb-4">Basic Settings</h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div>
           <Label htmlFor="strategyName" className="text-slate-300">Strategy Name</Label>
           <Input
@@ -78,6 +80,32 @@ const BasicSettings: React.FC<BasicSettingsProps> = ({ strategy, onStrategyChang
           </Select>
         </div>
       </div>
+
+      {/* Reverse Signals Option */}
+      <div className="flex items-center justify-between p-4 border border-slate-600 rounded-lg bg-slate-800/50">
+        <div className="space-y-1">
+          <Label htmlFor="reverse-signals" className="text-sm font-medium text-white">
+            Reverse Strategy Signals
+          </Label>
+          <p className="text-xs text-slate-400">
+            Flip all BUY signals to SELL and SELL signals to BUY to test opposite strategy performance
+          </p>
+        </div>
+        <Switch
+          id="reverse-signals"
+          checked={strategy.reverseSignals || false}
+          onCheckedChange={(checked) => onStrategyChange({ reverseSignals: checked })}
+        />
+      </div>
+
+      {strategy.reverseSignals && (
+        <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-sm text-amber-800">
+            ⚠️ <strong>Reverse Mode Active:</strong> All strategy signals will be inverted. 
+            This will turn your current strategy into its opposite for testing purposes.
+          </p>
+        </div>
+      )}
     </div>
   );
 };
