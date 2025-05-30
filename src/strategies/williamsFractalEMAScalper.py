@@ -47,16 +47,12 @@ def strategy_logic(data):
     entry = []
     exit = []
     trade_type = []  # Track LONG/SHORT signals
-    stop_loss_level = []
-    risk_reward_ratio = []
     
     for i in range(len(data)):
         if i < 105:  # Need enough data for EMA 100 + fractal lookback
             entry.append(False)
             exit.append(False)
             trade_type.append('NONE')
-            stop_loss_level.append(0)
-            risk_reward_ratio.append(0)
             continue
         
         current_price = close[i]
@@ -75,8 +71,6 @@ def strategy_logic(data):
         # Initialize signals
         long_entry = False
         short_entry = False
-        current_stop_loss = 0
-        current_rr = 0
         current_trade_type = 'NONE'
         
         # LONG ENTRY LOGIC
@@ -86,23 +80,11 @@ def strategy_logic(data):
             pullback_below_50 = current_price < current_ema_50
             
             # Look for Williams Fractal green arrow (support) during or after pullback
-            recent_fractal_low = any(fractal_lows[max(0, i-3):i+1])
+            recent_fractal_low = any(fractal_lows[max(0, i-5):i+1])  # Look back 5 bars for fractal
             
             if (pullback_below_20 or pullback_below_50) and recent_fractal_low:
                 long_entry = True
                 current_trade_type = 'LONG'
-                
-                # Stop Loss logic as specified:
-                if pullback_below_50:
-                    # If price pulled back below EMA 50: Stop Loss below EMA 100
-                    current_stop_loss = current_ema_100
-                else:  # pullback_below_20
-                    # If price pulled back below EMA 20: Stop Loss below EMA 50
-                    current_stop_loss = current_ema_50
-                
-                # Take Profit: 1.5× risk (Risk-Reward Ratio 1:1.5)
-                risk_distance = abs(current_price - current_stop_loss)
-                current_rr = 1.5  # 1:1.5 risk-reward ratio
         
         # SHORT ENTRY LOGIC  
         elif short_ema_order and current_price < current_ema_100:  # DO NOT enter if price closes above EMA 100
@@ -110,18 +92,11 @@ def strategy_logic(data):
             pullback_above_20 = current_price > current_ema_20
             
             # Look for Williams Fractal red arrow (resistance) after pullback
-            recent_fractal_high = any(fractal_highs[max(0, i-3):i+1])
+            recent_fractal_high = any(fractal_highs[max(0, i-5):i+1])  # Look back 5 bars for fractal
             
             if pullback_above_20 and recent_fractal_high:
                 short_entry = True
                 current_trade_type = 'SHORT'
-                
-                # Stop Loss: Above EMA 50
-                current_stop_loss = current_ema_50
-                
-                # Take Profit: 1.5× risk
-                risk_distance = abs(current_price - current_stop_loss)
-                current_rr = 1.5  # 1:1.5 risk-reward ratio
         
         # Final entry signal
         entry_signal = long_entry or short_entry
@@ -150,8 +125,6 @@ def strategy_logic(data):
         entry.append(entry_signal)
         exit.append(exit_signal)
         trade_type.append(current_trade_type)
-        stop_loss_level.append(current_stop_loss)
-        risk_reward_ratio.append(current_rr)
     
     return {
         'entry': entry,
@@ -161,7 +134,5 @@ def strategy_logic(data):
         'ema_100': ema_100,
         'fractal_highs': fractal_highs,  # Red arrows
         'fractal_lows': fractal_lows,    # Green arrows
-        'trade_type': trade_type,
-        'stop_loss_level': stop_loss_level,
-        'risk_reward_ratio': risk_reward_ratio
+        'trade_type': trade_type
     }
