@@ -118,6 +118,7 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
             <StrategyRecommendationsTab
               strategy={strategy}
               backtestResults={backtestResults}
+              onStrategyChange={onStrategyChange}
               onStrategySelect={onStrategySelect}
               onAddToStrategy={onAddToStrategy}
               onTestReverseStrategy={onTestReverseStrategy}
