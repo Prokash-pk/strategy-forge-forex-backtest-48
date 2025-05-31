@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -418,7 +417,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
   };
 
   const isConfigured = config.accountId && config.apiKey;
-  const canStartTesting = isConfigured && connectionStatus === 'success' && selectedStrategy;
+  const canStartTesting = isConfigured && connectionStatus === 'success' && selectedStrategy !== null;
 
   const getConnectionStatusIcon = () => {
     switch (connectionStatus) {
