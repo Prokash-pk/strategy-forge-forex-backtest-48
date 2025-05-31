@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -37,6 +36,11 @@ interface StrategySettings {
   reverse_signals: boolean;
   position_sizing_mode: string;
   risk_reward_ratio: number;
+  win_rate?: number;
+  total_trades?: number;
+  total_return?: number;
+  profit_factor?: number;
+  max_drawdown?: number;
 }
 
 interface OANDAIntegrationProps {
@@ -71,7 +75,20 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
   React.useEffect(() => {
     loadSavedConfigs();
     loadSavedStrategies();
+    loadSelectedStrategy();
   }, []);
+
+  const loadSelectedStrategy = () => {
+    const saved = localStorage.getItem('selected_strategy_settings');
+    if (saved) {
+      try {
+        const strategySettings = JSON.parse(saved);
+        setSelectedStrategy(strategySettings);
+      } catch (error) {
+        console.error('Failed to load selected strategy:', error);
+      }
+    }
+  };
 
   const loadSavedConfigs = async () => {
     try {
@@ -245,12 +262,38 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
   };
 
   const handleLoadStrategy = (strategySettings: StrategySettings) => {
-    setSelectedStrategy(strategySettings);
-    localStorage.setItem('selected_strategy_settings', JSON.stringify(strategySettings));
+    // Ensure all properties are properly loaded
+    const completeStrategy: StrategySettings = {
+      id: strategySettings.id,
+      strategy_name: strategySettings.strategy_name,
+      strategy_code: strategySettings.strategy_code,
+      symbol: strategySettings.symbol,
+      timeframe: strategySettings.timeframe,
+      initial_balance: strategySettings.initial_balance || 10000,
+      risk_per_trade: strategySettings.risk_per_trade || 1,
+      stop_loss: strategySettings.stop_loss || 40,
+      take_profit: strategySettings.take_profit || 80,
+      spread: strategySettings.spread || 1.5,
+      commission: strategySettings.commission || 0,
+      slippage: strategySettings.slippage || 0.5,
+      max_position_size: strategySettings.max_position_size || 100000,
+      risk_model: strategySettings.risk_model || 'fixed',
+      reverse_signals: strategySettings.reverse_signals || false,
+      position_sizing_mode: strategySettings.position_sizing_mode || 'manual',
+      risk_reward_ratio: strategySettings.risk_reward_ratio || 2,
+      win_rate: strategySettings.win_rate,
+      total_trades: strategySettings.total_trades,
+      total_return: strategySettings.total_return,
+      profit_factor: strategySettings.profit_factor,
+      max_drawdown: strategySettings.max_drawdown
+    };
+
+    setSelectedStrategy(completeStrategy);
+    localStorage.setItem('selected_strategy_settings', JSON.stringify(completeStrategy));
     
     toast({
       title: "Strategy Settings Loaded",
-      description: `Loaded strategy: ${strategySettings.strategy_name}`,
+      description: `Loaded strategy: ${completeStrategy.strategy_name} with all settings`,
     });
   };
 
@@ -374,15 +417,76 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
               </p>
               
               {selectedStrategy && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                  <h4 className="text-emerald-400 font-medium">{selectedStrategy.strategy_name}</h4>
-                  <div className="grid grid-cols-2 gap-4 mt-2 text-sm text-slate-300">
-                    <div>Symbol: {selectedStrategy.symbol}</div>
-                    <div>Timeframe: {selectedStrategy.timeframe}</div>
-                    <div>Risk per Trade: {selectedStrategy.risk_per_trade}%</div>
-                    <div>Stop Loss: {selectedStrategy.stop_loss} pips</div>
-                    <div>Take Profit: {selectedStrategy.take_profit} pips</div>
-                    <div>Risk/Reward: {selectedStrategy.risk_reward_ratio}:1</div>
+                <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                  <h4 className="text-emerald-400 font-medium mb-3">{selectedStrategy.strategy_name}</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-slate-300">
+                    <div>
+                      <span className="text-slate-400">Symbol:</span>
+                      <div className="font-medium">{selectedStrategy.symbol}</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Timeframe:</span>
+                      <div className="font-medium">{selectedStrategy.timeframe}</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Initial Balance:</span>
+                      <div className="font-medium">${selectedStrategy.initial_balance?.toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Risk per Trade:</span>
+                      <div className="font-medium">{selectedStrategy.risk_per_trade}%</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Stop Loss:</span>
+                      <div className="font-medium">{selectedStrategy.stop_loss} pips</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Take Profit:</span>
+                      <div className="font-medium">{selectedStrategy.take_profit} pips</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Risk/Reward:</span>
+                      <div className="font-medium">{selectedStrategy.risk_reward_ratio}:1</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400">Max Position:</span>
+                      <div className="font-medium">{selectedStrategy.max_position_size?.toLocaleString()}</div>
+                    </div>
+                    {selectedStrategy.win_rate && (
+                      <div>
+                        <span className="text-slate-400">Win Rate:</span>
+                        <div className="font-medium text-emerald-400">{selectedStrategy.win_rate.toFixed(1)}%</div>
+                      </div>
+                    )}
+                    {selectedStrategy.total_return && (
+                      <div>
+                        <span className="text-slate-400">Total Return:</span>
+                        <div className="font-medium text-emerald-400">{selectedStrategy.total_return.toFixed(1)}%</div>
+                      </div>
+                    )}
+                    {selectedStrategy.profit_factor && (
+                      <div>
+                        <span className="text-slate-400">Profit Factor:</span>
+                        <div className="font-medium">{selectedStrategy.profit_factor.toFixed(2)}</div>
+                      </div>
+                    )}
+                    {selectedStrategy.max_drawdown && (
+                      <div>
+                        <span className="text-slate-400">Max Drawdown:</span>
+                        <div className="font-medium text-red-400">{selectedStrategy.max_drawdown.toFixed(1)}%</div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <Badge variant={selectedStrategy.reverse_signals ? "destructive" : "secondary"} className="text-xs">
+                      {selectedStrategy.reverse_signals ? "Reverse Signals" : "Normal Signals"}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {selectedStrategy.position_sizing_mode}
+                    </Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {selectedStrategy.risk_model}
+                    </Badge>
                   </div>
                 </div>
               )}
@@ -390,13 +494,15 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
               <div className="space-y-3 max-h-48 overflow-y-auto">
                 {savedStrategies.map((strategySettings) => (
                   <div key={strategySettings.id} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
-                    <div>
+                    <div className="flex-1">
                       <h4 className="text-white font-medium">{strategySettings.strategy_name}</h4>
                       <p className="text-slate-400 text-sm">
                         {strategySettings.symbol} • {strategySettings.timeframe} • Risk: {strategySettings.risk_per_trade}%
+                        {strategySettings.win_rate && ` • Win Rate: ${strategySettings.win_rate.toFixed(1)}%`}
                       </p>
                       <p className="text-slate-500 text-xs">
                         SL: {strategySettings.stop_loss} | TP: {strategySettings.take_profit} | R/R: {strategySettings.risk_reward_ratio}:1
+                        {strategySettings.total_return && ` | Return: ${strategySettings.total_return.toFixed(1)}%`}
                       </p>
                     </div>
                     <Button
@@ -417,7 +523,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
           </Card>
         )}
 
-        {/* Configuration Card */}
+        {/* API Configuration Card */}
         <Card className="bg-slate-800 border-slate-700">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-white">
