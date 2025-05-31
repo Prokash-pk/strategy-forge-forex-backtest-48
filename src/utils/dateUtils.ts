@@ -1,5 +1,7 @@
 
-// Helper function to safely format dates in Singapore Time
+// Helper function to safely format dates in user's detected timezone
+import { formatDateTimeInTimezone, detectUserTimezone } from './timezoneUtils';
+
 export const formatDate = (date: any): string => {
   if (!date) return 'N/A';
   
@@ -21,41 +23,30 @@ export const formatDate = (date: any): string => {
     return 'Invalid Date';
   }
   
-  // Format in Singapore Time (SGT)
-  return dateObj.toLocaleDateString('en-SG', {
-    timeZone: 'Asia/Singapore',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  });
+  // Use the auto-detected timezone formatting
+  const userTimezone = detectUserTimezone();
+  
+  try {
+    return dateObj.toLocaleDateString('en-US', {
+      timeZone: userTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  } catch (error) {
+    // Fallback to basic formatting
+    return dateObj.toLocaleDateString();
+  }
 };
 
-// Helper function to format date and time in Singapore Time
+// Helper function to format date and time in user's detected timezone
 export const formatDateTime = (date: any): string => {
   if (!date) return 'N/A';
   
-  let dateObj: Date;
-  
-  if (date instanceof Date) {
-    dateObj = date;
-  } else if (typeof date === 'string') {
-    dateObj = new Date(date);
-  } else {
-    return String(date);
-  }
-  
-  if (isNaN(dateObj.getTime())) {
-    return 'Invalid Date';
-  }
-  
-  // Format in Singapore Time (SGT) with time
-  return dateObj.toLocaleString('en-SG', {
-    timeZone: 'Asia/Singapore',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
+  // Use the timezone utilities for consistent formatting
+  return formatDateTimeInTimezone(date);
 };
+
+// Legacy function - kept for backward compatibility
+export const formatDateInSingaporeTime = formatDate;
+export const formatDateTimeInSingaporeTime = formatDateTime;

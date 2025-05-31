@@ -2,10 +2,11 @@
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Code, Settings, BarChart3, TrendingUp } from 'lucide-react';
+import { Code, Settings, BarChart3, TrendingUp, History } from 'lucide-react';
 import StrategyConfiguration from './StrategyConfiguration';
 import PythonStrategyTab from './PythonStrategyTab';
 import StrategyRecommendationsTab from './StrategyRecommendationsTab';
+import SavedStrategiesTab from './SavedStrategiesTab';
 import OANDAIntegration from './OANDAIntegration';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 
@@ -35,6 +36,7 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   isReverseTestRunning = false
 }) => {
   const [isForwardTestingActive, setIsForwardTestingActive] = React.useState(false);
+  const [activeTab, setActiveTab] = React.useState('configuration');
   const forwardTestingService = ForwardTestingService.getInstance();
 
   React.useEffect(() => {
@@ -62,11 +64,19 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
     }
   };
 
+  const handleStrategyLoad = (loadedStrategy: any) => {
+    onStrategySelect(loadedStrategy);
+  };
+
+  const handleNavigateToConfiguration = () => {
+    setActiveTab('configuration');
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
-        <Tabs defaultValue="configuration" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-800">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-5 bg-slate-800">
             <TabsTrigger value="configuration">
               <Settings className="h-4 w-4 mr-2" />
               Configuration
@@ -74,6 +84,10 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
             <TabsTrigger value="python">
               <Code className="h-4 w-4 mr-2" />
               Python Code
+            </TabsTrigger>
+            <TabsTrigger value="saved-strategies">
+              <History className="h-4 w-4 mr-2" />
+              Saved Strategies
             </TabsTrigger>
             <TabsTrigger value="recommendations">
               <BarChart3 className="h-4 w-4 mr-2" />
@@ -112,6 +126,13 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
                 />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="saved-strategies">
+            <SavedStrategiesTab
+              onStrategyLoad={handleStrategyLoad}
+              onNavigateToConfiguration={handleNavigateToConfiguration}
+            />
           </TabsContent>
 
           <TabsContent value="recommendations">
