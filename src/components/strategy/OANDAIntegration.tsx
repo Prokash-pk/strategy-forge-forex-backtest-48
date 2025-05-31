@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { TrendingUp, Settings, Play, Square, AlertTriangle, HelpCircle, ExternalLink } from 'lucide-react';
+import { TrendingUp, Settings, Play, Square, AlertTriangle, HelpCircle, ExternalLink, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import OANDAApiGuide from './OANDAApiGuide';
 
@@ -17,6 +17,12 @@ interface OANDAConfig {
   apiKey: string;
   environment: 'practice' | 'live';
   enabled: boolean;
+  maxRiskPerTrade?: number;
+  maxDailyTrades?: number;
+  tradingHours?: {
+    start: string;
+    end: string;
+  };
 }
 
 interface OANDAIntegrationProps {
@@ -32,13 +38,21 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
 }) => {
   const { toast } = useToast();
   const [showGuide, setShowGuide] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [connectionError, setConnectionError] = useState<string>('');
   const [config, setConfig] = useState<OANDAConfig>(() => {
     const saved = localStorage.getItem('oanda_config');
     return saved ? JSON.parse(saved) : {
       accountId: '',
       apiKey: '',
       environment: 'practice',
-      enabled: false
+      enabled: false,
+      maxRiskPerTrade: 2,
+      maxDailyTrades: 10,
+      tradingHours: {
+        start: '08:00',
+        end: '17:00'
+      }
     };
   });
 
@@ -46,6 +60,12 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
     const newConfig = { ...config, [field]: value };
     setConfig(newConfig);
     localStorage.setItem('oanda_config', JSON.stringify(newConfig));
+    
+    // Reset connection status when credentials change
+    if (field === 'accountId' || field === 'apiKey' || field === 'environment') {
+      setConnectionStatus('idle');
+      setConnectionError('');
+    }
   };
 
   const handleTestConnection = async () => {
@@ -58,11 +78,46 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
       return;
     }
 
-    // Here you would implement actual OANDA API connection test
-    toast({
-      title: "Connection Test",
-      description: "Testing OANDA connection... (Demo implementation)",
-    });
+    setConnectionStatus('testing');
+    setConnectionError('');
+
+    try {
+      // Test OANDA connection by trying to get account info
+      const baseUrl = config.environment === 'practice' 
+        ? 'https://api-fxpractice.oanda.com'
+        : 'https://api-fxtrade.oanda.com';
+
+      const response = await fetch(`${baseUrl}/v3/accounts/${config.accountId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setConnectionStatus('success');
+        toast({
+          title: "Connection Successful! ✅",
+          description: `Connected to ${config.environment} account: ${data.account?.alias || config.accountId}`,
+        });
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.errorMessage || `HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('OANDA connection test failed:', error);
+      setConnectionStatus('error');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown connection error';
+      setConnectionError(errorMessage);
+      
+      toast({
+        title: "Connection Failed ❌",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleToggleForwardTesting = async () => {
@@ -75,12 +130,35 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
         });
         return;
       }
+
+      if (connectionStatus !== 'success') {
+        toast({
+          title: "Test Connection First",
+          description: "Please test your OANDA connection before starting forward testing",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
     onToggleForwardTesting(!isForwardTestingActive);
   };
 
   const isConfigured = config.accountId && config.apiKey;
+  const canStartTesting = isConfigured && connectionStatus === 'success';
+
+  const getConnectionStatusIcon = () => {
+    switch (connectionStatus) {
+      case 'testing':
+        return <Loader2 className="h-4 w-4 animate-spin text-blue-400" />;
+      case 'success':
+        return <CheckCircle className="h-4 w-4 text-emerald-400" />;
+      case 'error':
+        return <XCircle className="h-4 w-4 text-red-400" />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <>
@@ -178,15 +256,93 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
               />
             </div>
 
-            {/* Test Connection */}
-            <Button
-              onClick={handleTestConnection}
-              disabled={!config.accountId || !config.apiKey}
-              variant="outline"
-              className="border-slate-600 text-slate-300 hover:text-white"
-            >
-              Test Connection
-            </Button>
+            {/* Connection Test */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleTestConnection}
+                disabled={!config.accountId || !config.apiKey || connectionStatus === 'testing'}
+                variant="outline"
+                className="border-slate-600 text-slate-300 hover:text-white"
+              >
+                {connectionStatus === 'testing' ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Testing...
+                  </>
+                ) : (
+                  'Test Connection'
+                )}
+              </Button>
+              
+              {getConnectionStatusIcon()}
+              
+              {connectionStatus === 'success' && (
+                <span className="text-emerald-400 text-sm">Connection verified</span>
+              )}
+              
+              {connectionStatus === 'error' && (
+                <span className="text-red-400 text-sm">Connection failed</span>
+              )}
+            </div>
+
+            {connectionError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <p className="text-red-300 text-sm">{connectionError}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Risk Management Settings */}
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white">Risk Management Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-slate-300">Max Risk Per Trade (%)</Label>
+                <Input
+                  type="number"
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                  value={config.maxRiskPerTrade}
+                  onChange={(e) => handleConfigChange('maxRiskPerTrade', parseFloat(e.target.value))}
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-slate-300">Max Daily Trades</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={config.maxDailyTrades}
+                  onChange={(e) => handleConfigChange('maxDailyTrades', parseInt(e.target.value))}
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-300">Trading Hours (Singapore Time)</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="time"
+                  value={config.tradingHours?.start || '08:00'}
+                  onChange={(e) => handleConfigChange('tradingHours', { ...config.tradingHours, start: e.target.value })}
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+                <Input
+                  type="time"
+                  value={config.tradingHours?.end || '17:00'}
+                  onChange={(e) => handleConfigChange('tradingHours', { ...config.tradingHours, end: e.target.value })}
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -225,14 +381,17 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
                 <h4 className="text-white font-medium mb-1">Forward Testing Status</h4>
                 <p className="text-slate-400 text-sm">
                   {isForwardTestingActive 
-                    ? "Your strategy is running live on OANDA" 
+                    ? `Running live on OANDA ${config.environment} account` 
                     : "Forward testing is currently stopped"
                   }
                 </p>
+                {canStartTesting && !isForwardTestingActive && (
+                  <p className="text-emerald-400 text-sm mt-1">✅ Ready to start forward testing</p>
+                )}
               </div>
               <Button
                 onClick={handleToggleForwardTesting}
-                disabled={!isConfigured}
+                disabled={!canStartTesting && !isForwardTestingActive}
                 className={isForwardTestingActive 
                   ? "bg-red-600 hover:bg-red-700" 
                   : "bg-emerald-600 hover:bg-emerald-700"
@@ -252,21 +411,28 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
               </Button>
             </div>
 
-            {!isConfigured && (
+            {!canStartTesting && !isForwardTestingActive && (
               <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
                 <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5" />
                 <div>
                   <p className="text-amber-300 text-sm">
-                    Please configure your OANDA API credentials above before starting forward testing.
+                    {!isConfigured 
+                      ? "Please configure your OANDA API credentials above."
+                      : connectionStatus !== 'success'
+                      ? "Please test your connection first to verify credentials."
+                      : "Ready to start forward testing!"
+                    }
                   </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowGuide(true)}
-                    className="text-amber-400 hover:text-amber-300 p-0 h-auto mt-1"
-                  >
-                    View Setup Guide →
-                  </Button>
+                  {!isConfigured && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowGuide(true)}
+                      className="text-amber-400 hover:text-amber-300 p-0 h-auto mt-1"
+                    >
+                      View Setup Guide →
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
