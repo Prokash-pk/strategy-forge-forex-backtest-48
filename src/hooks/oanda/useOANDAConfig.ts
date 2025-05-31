@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { OANDAConfig } from '@/types/oanda';
@@ -8,20 +8,44 @@ export const useOANDAConfig = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [savedConfigs, setSavedConfigs] = useState<any[]>([]);
-  const [config, setConfig] = useState<OANDAConfig>(() => {
-    const saved = localStorage.getItem('oanda_config');
-    return saved ? JSON.parse(saved) : {
-      accountId: '',
-      apiKey: '',
-      environment: 'practice',
-      enabled: false
-    };
+  const [config, setConfig] = useState<OANDAConfig>({
+    accountId: '',
+    apiKey: '',
+    environment: 'practice',
+    enabled: false
   });
+
+  // Load config from localStorage on mount
+  useEffect(() => {
+    const loadConfigFromStorage = () => {
+      try {
+        const saved = localStorage.getItem('oanda_config');
+        if (saved) {
+          const parsedConfig = JSON.parse(saved);
+          console.log('Loading OANDA config from localStorage:', parsedConfig);
+          setConfig(parsedConfig);
+        }
+      } catch (error) {
+        console.error('Failed to load config from localStorage:', error);
+        // Clear corrupted data
+        localStorage.removeItem('oanda_config');
+      }
+    };
+
+    loadConfigFromStorage();
+  }, []);
 
   const handleConfigChange = (field: keyof OANDAConfig, value: any) => {
     const newConfig = { ...config, [field]: value };
     setConfig(newConfig);
-    localStorage.setItem('oanda_config', JSON.stringify(newConfig));
+    
+    // Persist to localStorage immediately
+    try {
+      localStorage.setItem('oanda_config', JSON.stringify(newConfig));
+      console.log('Saved OANDA config to localStorage:', newConfig);
+    } catch (error) {
+      console.error('Failed to save config to localStorage:', error);
+    }
   };
 
   const loadSavedConfigs = async () => {
@@ -103,7 +127,14 @@ export const useOANDAConfig = () => {
     };
 
     setConfig(loadedConfig);
-    localStorage.setItem('oanda_config', JSON.stringify(loadedConfig));
+    
+    // Persist to localStorage
+    try {
+      localStorage.setItem('oanda_config', JSON.stringify(loadedConfig));
+      console.log('Loaded and saved OANDA config:', loadedConfig);
+    } catch (error) {
+      console.error('Failed to save loaded config to localStorage:', error);
+    }
 
     toast({
       title: "Configuration Loaded",
