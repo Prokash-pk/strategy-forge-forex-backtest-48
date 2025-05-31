@@ -144,8 +144,8 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
                 <div className="animate-spin h-4 w-4 border-2 border-emerald-400 border-t-transparent rounded-full"></div>
                 <span className="text-white text-sm">{currentStep}</span>
               </div>
-            </Card>
-          </CardContent>
+            </CardContent>
+          </Card>
         )}
 
         {isForwardTestingActive && (
