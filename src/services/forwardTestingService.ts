@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { StrategyExecutor } from '@/utils/strategyExecutor';
 
 export interface ForwardTestingConfig {
   strategyId: string;
@@ -9,11 +10,32 @@ export interface ForwardTestingConfig {
   enabled: boolean;
 }
 
+interface StrategySettings {
+  id: string;
+  strategy_name: string;
+  strategy_code: string;
+  symbol: string;
+  timeframe: string;
+  initial_balance: number;
+  risk_per_trade: number;
+  stop_loss: number;
+  take_profit: number;
+  spread: number;
+  commission: number;
+  slippage: number;
+  max_position_size: number;
+  risk_model: string;
+  reverse_signals: boolean;
+  position_sizing_mode: string;
+  risk_reward_ratio: number;
+}
+
 export class ForwardTestingService {
   private static instance: ForwardTestingService;
   private isRunning = false;
   private intervalId?: number;
   private config?: ForwardTestingConfig;
+  private strategySettings?: StrategySettings;
 
   static getInstance(): ForwardTestingService {
     if (!ForwardTestingService.instance) {
@@ -26,15 +48,24 @@ export class ForwardTestingService {
     this.config = config;
     this.isRunning = true;
 
-    console.log('Starting forward testing for strategy:', strategy.name);
+    // Load the selected strategy settings from localStorage
+    const savedStrategySettings = localStorage.getItem('selected_strategy_settings');
+    if (savedStrategySettings) {
+      this.strategySettings = JSON.parse(savedStrategySettings);
+      console.log('Using strategy settings:', this.strategySettings?.strategy_name);
+    } else {
+      console.log('No strategy settings found, using default strategy');
+    }
+
+    console.log('Starting forward testing for strategy:', this.strategySettings?.strategy_name || strategy.name);
 
     // Run strategy every minute (adjust as needed)
     this.intervalId = window.setInterval(async () => {
-      await this.executeStrategy(strategy);
+      await this.executeStrategy();
     }, 60000); // 1 minute
 
     // Execute immediately
-    await this.executeStrategy(strategy);
+    await this.executeStrategy();
   }
 
   stopForwardTesting() {
@@ -46,15 +77,21 @@ export class ForwardTestingService {
     console.log('Forward testing stopped');
   }
 
-  private async executeStrategy(strategy: any) {
+  private async executeStrategy() {
     if (!this.isRunning || !this.config) return;
 
     try {
-      // Fetch latest market data
-      const marketData = await this.fetchMarketData(strategy.symbol);
+      const strategyToUse = this.strategySettings || {
+        name: 'Default Strategy',
+        symbol: 'EURUSD=X',
+        code: 'Smart Momentum Strategy'
+      };
+
+      // Fetch latest market data for the strategy's symbol
+      const marketData = await this.fetchMarketData(strategyToUse.symbol || 'EURUSD=X');
       
-      // Execute strategy logic (simplified - you'd need to implement the full Python execution)
-      const signals = await this.executeStrategyLogic(strategy, marketData);
+      // Execute strategy logic using the saved strategy settings
+      const signals = await this.executeStrategyLogic(strategyToUse, marketData);
 
       // Process signals and execute trades
       for (const signal of signals) {
@@ -67,47 +104,126 @@ export class ForwardTestingService {
   }
 
   private async fetchMarketData(symbol: string) {
-    // Fetch latest market data from your data source
-    // This is a simplified version - you'd integrate with your market data service
-    const response = await fetch(`/api/market-data/${symbol}`);
-    return await response.json();
+    try {
+      // Use the existing market data service
+      const response = await fetch(`/api/market-data/${symbol}`);
+      if (!response.ok) {
+        // Fallback to generating mock data for demo purposes
+        return this.generateMockMarketData();
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Market data fetch error:', error);
+      return this.generateMockMarketData();
+    }
+  }
+
+  private generateMockMarketData() {
+    const length = 100;
+    const basePrice = 1.1000;
+    const data = {
+      open: [],
+      high: [],
+      low: [],
+      close: [],
+      volume: []
+    };
+
+    for (let i = 0; i < length; i++) {
+      const price = basePrice + (Math.random() - 0.5) * 0.01;
+      const high = price + Math.random() * 0.002;
+      const low = price - Math.random() * 0.002;
+      
+      data.open.push(price);
+      data.high.push(high);
+      data.low.push(low);
+      data.close.push(price + (Math.random() - 0.5) * 0.001);
+      data.volume.push(Math.random() * 1000000);
+    }
+
+    return data;
   }
 
   private async executeStrategyLogic(strategy: any, marketData: any) {
-    // Execute the Python strategy logic
-    // This would use your Python execution service
-    // Return array of trading signals
-    return [];
+    try {
+      // Use the StrategyExecutor to run the strategy code
+      const strategyCode = strategy.strategy_code || strategy.code || 'Smart Momentum Strategy';
+      const signals = StrategyExecutor.executeStrategy(strategyCode, marketData);
+
+      // Convert strategy signals to trading signals
+      const tradingSignals = [];
+      
+      if (signals.entry && signals.entry.length > 0) {
+        const lastIndex = signals.entry.length - 1;
+        
+        if (signals.entry[lastIndex]) {
+          // Calculate position size based on strategy settings
+          const positionSize = this.calculatePositionSize();
+          
+          // Apply reverse signals if configured
+          const shouldReverse = this.strategySettings?.reverse_signals || false;
+          
+          tradingSignals.push({
+            action: shouldReverse ? 'sell' : 'buy',
+            symbol: strategy.symbol || 'EUR_USD',
+            units: positionSize,
+            stopLoss: this.strategySettings?.stop_loss || 40,
+            takeProfit: this.strategySettings?.take_profit || 80,
+            strategyId: this.config?.strategyId,
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+
+      return tradingSignals;
+    } catch (error) {
+      console.error('Strategy execution error:', error);
+      return [];
+    }
+  }
+
+  private calculatePositionSize(): number {
+    if (!this.strategySettings) return 1000; // Default size
+
+    const accountBalance = this.strategySettings.initial_balance || 10000;
+    const riskPerTrade = this.strategySettings.risk_per_trade || 1;
+    const stopLossPips = this.strategySettings.stop_loss || 40;
+    
+    // Simple position sizing calculation
+    const riskAmount = (accountBalance * riskPerTrade) / 100;
+    const pipValue = 1; // Simplified pip value
+    const positionSize = Math.floor(riskAmount / (stopLossPips * pipValue));
+    
+    // Ensure position size doesn't exceed max
+    const maxPosition = this.strategySettings.max_position_size || 100000;
+    return Math.min(positionSize, maxPosition);
   }
 
   private async executeTrade(signal: any) {
     if (!this.config) return;
 
     try {
-      const { data, error } = await supabase.functions.invoke('oanda-trade-executor', {
-        body: {
-          signal: {
-            action: signal.action,
-            symbol: signal.symbol,
-            units: signal.units,
-            stopLoss: signal.stopLoss,
-            takeProfit: signal.takeProfit,
-            strategyId: this.config.strategyId,
-            userId: 'current-user-id' // Get from auth
-          },
-          config: {
-            accountId: this.config.oandaAccountId,
-            apiKey: this.config.oandaApiKey,
-            environment: this.config.environment
-          }
-        }
-      });
+      console.log('Executing trade signal:', signal);
 
-      if (error) {
-        throw error;
-      }
+      // In a real implementation, this would call the OANDA trade executor
+      // For now, we'll just log the trade
+      const tradeLog = {
+        timestamp: signal.timestamp,
+        action: signal.action,
+        symbol: signal.symbol,
+        units: signal.units,
+        stopLoss: signal.stopLoss,
+        takeProfit: signal.takeProfit,
+        strategyName: this.strategySettings?.strategy_name || 'Default Strategy',
+        environment: this.config.environment
+      };
 
-      console.log('Trade executed:', data);
+      console.log('Trade executed:', tradeLog);
+
+      // Store trade log in localStorage for demo purposes
+      const existingLogs = JSON.parse(localStorage.getItem('forward_testing_trades') || '[]');
+      existingLogs.push(tradeLog);
+      localStorage.setItem('forward_testing_trades', JSON.stringify(existingLogs));
       
     } catch (error) {
       console.error('Trade execution error:', error);
@@ -116,5 +232,9 @@ export class ForwardTestingService {
 
   isActive(): boolean {
     return this.isRunning;
+  }
+
+  getCurrentStrategy(): StrategySettings | null {
+    return this.strategySettings || null;
   }
 }

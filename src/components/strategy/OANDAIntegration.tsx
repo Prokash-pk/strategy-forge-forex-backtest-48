@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { TrendingUp, Settings, Play, Square, AlertTriangle, HelpCircle, Save, Upload, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { TrendingUp, Settings, Play, Square, AlertTriangle, HelpCircle, Save, Upload, CheckCircle, XCircle, Loader2, BarChart3 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import OANDAApiGuide from './OANDAApiGuide';
@@ -17,6 +17,26 @@ interface OANDAConfig {
   apiKey: string;
   environment: 'practice' | 'live';
   enabled: boolean;
+}
+
+interface StrategySettings {
+  id: string;
+  strategy_name: string;
+  strategy_code: string;
+  symbol: string;
+  timeframe: string;
+  initial_balance: number;
+  risk_per_trade: number;
+  stop_loss: number;
+  take_profit: number;
+  spread: number;
+  commission: number;
+  slippage: number;
+  max_position_size: number;
+  risk_model: string;
+  reverse_signals: boolean;
+  position_sizing_mode: string;
+  risk_reward_ratio: number;
 }
 
 interface OANDAIntegrationProps {
@@ -35,6 +55,8 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [connectionError, setConnectionError] = useState<string>('');
   const [savedConfigs, setSavedConfigs] = useState<any[]>([]);
+  const [savedStrategies, setSavedStrategies] = useState<StrategySettings[]>([]);
+  const [selectedStrategy, setSelectedStrategy] = useState<StrategySettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [config, setConfig] = useState<OANDAConfig>(() => {
     const saved = localStorage.getItem('oanda_config');
@@ -48,6 +70,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
 
   React.useEffect(() => {
     loadSavedConfigs();
+    loadSavedStrategies();
   }, []);
 
   const loadSavedConfigs = async () => {
@@ -65,6 +88,24 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
       setSavedConfigs(data || []);
     } catch (error) {
       console.error('Failed to load saved configs:', error);
+    }
+  };
+
+  const loadSavedStrategies = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('strategy_results')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSavedStrategies(data || []);
+    } catch (error) {
+      console.error('Failed to load saved strategies:', error);
     }
   };
 
@@ -203,6 +244,16 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
     });
   };
 
+  const handleLoadStrategy = (strategySettings: StrategySettings) => {
+    setSelectedStrategy(strategySettings);
+    localStorage.setItem('selected_strategy_settings', JSON.stringify(strategySettings));
+    
+    toast({
+      title: "Strategy Settings Loaded",
+      description: `Loaded strategy: ${strategySettings.strategy_name}`,
+    });
+  };
+
   const handleToggleForwardTesting = async () => {
     if (!isForwardTestingActive) {
       if (!config.accountId || !config.apiKey) {
@@ -222,13 +273,22 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
         });
         return;
       }
+
+      if (!selectedStrategy) {
+        toast({
+          title: "Strategy Required",
+          description: "Please select a strategy with saved settings before starting forward testing",
+          variant: "destructive",
+        });
+        return;
+      }
     }
     
     onToggleForwardTesting(!isForwardTestingActive);
   };
 
   const isConfigured = config.accountId && config.apiKey;
-  const canStartTesting = isConfigured && connectionStatus === 'success';
+  const canStartTesting = isConfigured && connectionStatus === 'success' && selectedStrategy;
 
   const getConnectionStatusIcon = () => {
     switch (connectionStatus) {
@@ -273,7 +333,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-white">
                 <Upload className="h-5 w-5" />
-                Saved Configurations
+                Saved API Configurations
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -295,6 +355,64 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
                   </Button>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Strategy Settings Selection */}
+        {savedStrategies.length > 0 && (
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <BarChart3 className="h-5 w-5" />
+                Strategy Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-slate-400 text-sm">
+                Select a saved strategy with specific settings for forward testing. The trades will be executed based on these settings.
+              </p>
+              
+              {selectedStrategy && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+                  <h4 className="text-emerald-400 font-medium">{selectedStrategy.strategy_name}</h4>
+                  <div className="grid grid-cols-2 gap-4 mt-2 text-sm text-slate-300">
+                    <div>Symbol: {selectedStrategy.symbol}</div>
+                    <div>Timeframe: {selectedStrategy.timeframe}</div>
+                    <div>Risk per Trade: {selectedStrategy.risk_per_trade}%</div>
+                    <div>Stop Loss: {selectedStrategy.stop_loss} pips</div>
+                    <div>Take Profit: {selectedStrategy.take_profit} pips</div>
+                    <div>Risk/Reward: {selectedStrategy.risk_reward_ratio}:1</div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="space-y-3 max-h-48 overflow-y-auto">
+                {savedStrategies.map((strategySettings) => (
+                  <div key={strategySettings.id} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+                    <div>
+                      <h4 className="text-white font-medium">{strategySettings.strategy_name}</h4>
+                      <p className="text-slate-400 text-sm">
+                        {strategySettings.symbol} • {strategySettings.timeframe} • Risk: {strategySettings.risk_per_trade}%
+                      </p>
+                      <p className="text-slate-500 text-xs">
+                        SL: {strategySettings.stop_loss} | TP: {strategySettings.take_profit} | R/R: {strategySettings.risk_reward_ratio}:1
+                      </p>
+                    </div>
+                    <Button
+                      variant={selectedStrategy?.id === strategySettings.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleLoadStrategy(strategySettings)}
+                      className={selectedStrategy?.id === strategySettings.id 
+                        ? "bg-emerald-600 hover:bg-emerald-700" 
+                        : "border-slate-600 text-slate-300 hover:text-white"
+                      }
+                    >
+                      {selectedStrategy?.id === strategySettings.id ? "Selected" : "Select"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -439,10 +557,10 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-white font-medium">
-                  Strategy: {strategy.name}
+                  Strategy: {selectedStrategy ? selectedStrategy.strategy_name : "No strategy selected"}
                 </h3>
                 <p className="text-slate-400 text-sm">
-                  {strategy.symbol} • {strategy.timeframe}
+                  {selectedStrategy ? `${selectedStrategy.symbol} • ${selectedStrategy.timeframe}` : "Please select a strategy above"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -462,7 +580,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
                 <h4 className="text-white font-medium mb-1">Forward Testing Status</h4>
                 <p className="text-slate-400 text-sm">
                   {isForwardTestingActive 
-                    ? `Running live on OANDA ${config.environment} account` 
+                    ? `Running live on OANDA ${config.environment} account with ${selectedStrategy?.strategy_name}` 
                     : "Forward testing is currently stopped"
                   }
                 </p>
@@ -501,6 +619,8 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
                       ? "Please configure your OANDA API credentials above."
                       : connectionStatus !== 'success'
                       ? "Please test your connection first to verify credentials."
+                      : !selectedStrategy
+                      ? "Please select a strategy with saved settings above."
                       : "Ready to start forward testing!"
                     }
                   </p>
