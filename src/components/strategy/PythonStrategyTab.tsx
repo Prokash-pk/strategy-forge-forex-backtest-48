@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -149,12 +150,19 @@ def strategy_logic(data):
     setIsSaving(true);
 
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       // Save complete strategy configuration
       const strategySettings = {
         strategy_name: strategy.name,
         strategy_code: strategy.code,
         symbol: strategy.symbol,
         timeframe: strategy.timeframe,
+        user_id: user.id,
         win_rate: 0,
         total_return: 0,
         total_trades: 0,
@@ -164,7 +172,7 @@ def strategy_logic(data):
 
       const { data, error } = await supabase
         .from('strategy_results')
-        .insert([strategySettings])
+        .insert(strategySettings)
         .select()
         .single();
 

@@ -74,12 +74,19 @@ const StrategyConfigurationTab: React.FC<StrategyConfigurationTabProps> = ({
     setIsSaving(true);
 
     try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       // Save complete strategy configuration including all settings
       const strategySettings = {
         strategy_name: strategy.name,
         strategy_code: strategy.code,
         symbol: strategy.symbol,
         timeframe: strategy.timeframe,
+        user_id: user.id,
         initial_balance: strategy.initialBalance,
         risk_per_trade: strategy.riskPerTrade,
         stop_loss: strategy.stopLoss,
@@ -101,7 +108,7 @@ const StrategyConfigurationTab: React.FC<StrategyConfigurationTabProps> = ({
 
       const { error } = await supabase
         .from('strategy_results')
-        .insert([strategySettings]);
+        .insert(strategySettings);
 
       if (error) {
         throw error;
