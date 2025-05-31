@@ -9,6 +9,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      oanda_configs: {
+        Row: {
+          account_id: string
+          api_key: string
+          config_name: string
+          created_at: string
+          enabled: boolean | null
+          environment: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          api_key: string
+          config_name: string
+          created_at?: string
+          enabled?: boolean | null
+          environment: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          api_key?: string
+          config_name?: string
+          created_at?: string
+          enabled?: boolean | null
+          environment?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
