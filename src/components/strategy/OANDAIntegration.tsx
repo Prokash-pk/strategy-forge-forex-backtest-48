@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { TrendingUp, Settings, Play, Square, AlertTriangle, HelpCircle, Save, Upload, CheckCircle, XCircle, Loader2, BarChart3 } from 'lucide-react';
+import { TrendingUp, Settings, Play, Square, AlertTriangle, HelpCircle, Save, Upload, CheckCircle, XCircle, Loader2, BarChart3, TestTube } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import OANDAApiGuide from './OANDAApiGuide';
@@ -62,6 +62,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
   const [savedStrategies, setSavedStrategies] = useState<StrategySettings[]>([]);
   const [selectedStrategy, setSelectedStrategy] = useState<StrategySettings | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isTestingTrade, setIsTestingTrade] = useState(false);
   const [config, setConfig] = useState<OANDAConfig>(() => {
     const saved = localStorage.getItem('oanda_config');
     return saved ? JSON.parse(saved) : {
@@ -295,6 +296,92 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
       title: "Strategy Settings Loaded",
       description: `Loaded strategy: ${completeStrategy.strategy_name} with all settings`,
     });
+  };
+
+  const handleTestTrade = async () => {
+    if (!config.accountId || !config.apiKey) {
+      toast({
+        title: "Configuration Required",
+        description: "Please configure your OANDA API credentials first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (connectionStatus !== 'success') {
+      toast({
+        title: "Test Connection First",
+        description: "Please test your OANDA connection before executing a test trade",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedStrategy) {
+      toast({
+        title: "Strategy Required",
+        description: "Please select a strategy with saved settings to use for the test trade",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsTestingTrade(true);
+
+    try {
+      // Create a small test trade using the selected strategy settings
+      const testSignal = {
+        action: 'BUY' as const,
+        symbol: selectedStrategy.symbol.replace('=X', '').replace('/', '_'), // Convert to OANDA format
+        units: 100, // Small test position
+        stopLoss: undefined, // Optional for test
+        takeProfit: undefined, // Optional for test
+        strategyId: selectedStrategy.id,
+        userId: 'test-user'
+      };
+
+      const oandaConfig = {
+        accountId: config.accountId,
+        apiKey: config.apiKey,
+        environment: config.environment
+      };
+
+      console.log('Executing test trade:', testSignal);
+      
+      const response = await supabase.functions.invoke('oanda-trade-executor', {
+        body: {
+          signal: testSignal,
+          config: oandaConfig
+        }
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || 'Trade execution failed');
+      }
+
+      if (response.data?.success) {
+        toast({
+          title: "Test Trade Successful! ✅",
+          description: `Test ${testSignal.action} order for ${testSignal.units} units of ${testSignal.symbol} executed successfully`,
+        });
+        
+        console.log('Test trade result:', response.data.result);
+      } else {
+        throw new Error(response.data?.error || 'Trade execution failed');
+      }
+
+    } catch (error) {
+      console.error('Test trade error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      toast({
+        title: "Test Trade Failed ❌",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsTestingTrade(false);
+    }
   };
 
   const handleToggleForwardTesting = async () => {
@@ -634,6 +721,25 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
                   <>
                     <Save className="h-4 w-4 mr-2" />
                     Save Config
+                  </>
+                )}
+              </Button>
+
+              <Button
+                onClick={handleTestTrade}
+                disabled={!canStartTesting || isTestingTrade || isForwardTestingActive}
+                variant="outline"
+                className="border-blue-600 text-blue-300 hover:text-blue-200 disabled:opacity-50"
+              >
+                {isTestingTrade ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Testing Trade...
+                  </>
+                ) : (
+                  <>
+                    <TestTube className="h-4 w-4 mr-2" />
+                    Test Trade
                   </>
                 )}
               </Button>
