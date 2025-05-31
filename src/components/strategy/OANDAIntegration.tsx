@@ -461,7 +461,9 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
                     {selectedStrategy.total_return && (
                       <div>
                         <span className="text-slate-400">Total Return:</span>
-                        <div className="font-medium text-emerald-400">{selectedStrategy.total_return.toFixed(1)}%</div>
+                        <div className={`font-medium ${selectedStrategy.total_return >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {selectedStrategy.total_return >= 0 ? '+' : ''}{selectedStrategy.total_return.toFixed(1)}%
+                        </div>
                       </div>
                     )}
                     {selectedStrategy.profit_factor && (
@@ -499,10 +501,14 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
                       <p className="text-slate-400 text-sm">
                         {strategySettings.symbol} • {strategySettings.timeframe} • Risk: {strategySettings.risk_per_trade}%
                         {strategySettings.win_rate && ` • Win Rate: ${strategySettings.win_rate.toFixed(1)}%`}
+                        {strategySettings.total_return && (
+                          <span className={strategySettings.total_return >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                            {' '}• Return: {strategySettings.total_return >= 0 ? '+' : ''}{strategySettings.total_return.toFixed(1)}%
+                          </span>
+                        )}
                       </p>
                       <p className="text-slate-500 text-xs">
                         SL: {strategySettings.stop_loss} | TP: {strategySettings.take_profit} | R/R: {strategySettings.risk_reward_ratio}:1
-                        {strategySettings.total_return && ` | Return: ${strategySettings.total_return.toFixed(1)}%`}
                       </p>
                     </div>
                     <Button
