@@ -5,11 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { TrendingUp, Settings, Play, Square, AlertTriangle, HelpCircle, ExternalLink, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { TrendingUp, Settings, Play, Square, AlertTriangle, HelpCircle, Save, Upload, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import OANDAApiGuide from './OANDAApiGuide';
 
 interface OANDAConfig {
@@ -17,12 +17,6 @@ interface OANDAConfig {
   apiKey: string;
   environment: 'practice' | 'live';
   enabled: boolean;
-  maxRiskPerTrade?: number;
-  maxDailyTrades?: number;
-  tradingHours?: {
-    start: string;
-    end: string;
-  };
 }
 
 interface OANDAIntegrationProps {
@@ -40,21 +34,39 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
   const [showGuide, setShowGuide] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [connectionError, setConnectionError] = useState<string>('');
+  const [savedConfigs, setSavedConfigs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const [config, setConfig] = useState<OANDAConfig>(() => {
     const saved = localStorage.getItem('oanda_config');
     return saved ? JSON.parse(saved) : {
       accountId: '',
       apiKey: '',
       environment: 'practice',
-      enabled: false,
-      maxRiskPerTrade: 2,
-      maxDailyTrades: 10,
-      tradingHours: {
-        start: '08:00',
-        end: '17:00'
-      }
+      enabled: false
     };
   });
+
+  React.useEffect(() => {
+    loadSavedConfigs();
+  }, []);
+
+  const loadSavedConfigs = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('oanda_configs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setSavedConfigs(data || []);
+    } catch (error) {
+      console.error('Failed to load saved configs:', error);
+    }
+  };
 
   const handleConfigChange = (field: keyof OANDAConfig, value: any) => {
     const newConfig = { ...config, [field]: value };
@@ -120,6 +132,77 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
     }
   };
 
+  const handleSaveConfig = async () => {
+    if (!config.accountId || !config.apiKey) {
+      toast({
+        title: "Missing Configuration",
+        description: "Please enter both Account ID and API Key",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const configName = `${config.environment.toUpperCase()} - ${config.accountId.slice(-8)}`;
+
+      const { error } = await supabase
+        .from('oanda_configs')
+        .insert({
+          user_id: user.id,
+          config_name: configName,
+          account_id: config.accountId,
+          api_key: config.apiKey, // In production, encrypt this
+          environment: config.environment,
+          enabled: config.enabled
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Configuration Saved",
+        description: `OANDA configuration "${configName}" has been saved`,
+      });
+
+      loadSavedConfigs();
+
+    } catch (error) {
+      console.error('Save config error:', error);
+      toast({
+        title: "Save Failed",
+        description: error instanceof Error ? error.message : "Failed to save configuration",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleLoadConfig = (savedConfig: any) => {
+    const loadedConfig = {
+      accountId: savedConfig.account_id,
+      apiKey: savedConfig.api_key,
+      environment: savedConfig.environment,
+      enabled: savedConfig.enabled
+    };
+
+    setConfig(loadedConfig);
+    localStorage.setItem('oanda_config', JSON.stringify(loadedConfig));
+    setConnectionStatus('idle');
+    setConnectionError('');
+
+    toast({
+      title: "Configuration Loaded",
+      description: `Loaded configuration: ${savedConfig.config_name}`,
+    });
+  };
+
   const handleToggleForwardTesting = async () => {
     if (!isForwardTestingActive) {
       if (!config.accountId || !config.apiKey) {
@@ -183,6 +266,38 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
             </div>
           </CardHeader>
         </Card>
+
+        {/* Saved Configurations */}
+        {savedConfigs.length > 0 && (
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Upload className="h-5 w-5" />
+                Saved Configurations
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {savedConfigs.map((savedConfig) => (
+                <div key={savedConfig.id} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+                  <div>
+                    <h4 className="text-white font-medium">{savedConfig.config_name}</h4>
+                    <p className="text-slate-400 text-sm">
+                      {savedConfig.environment} • Account: {savedConfig.account_id.slice(-8)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleLoadConfig(savedConfig)}
+                    className="border-slate-600 text-slate-300 hover:text-white"
+                  >
+                    Load
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Configuration Card */}
         <Card className="bg-slate-800 border-slate-700">
@@ -256,7 +371,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
               />
             </div>
 
-            {/* Connection Test */}
+            {/* Action Buttons */}
             <div className="flex items-center gap-3">
               <Button
                 onClick={handleTestConnection}
@@ -271,6 +386,25 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
                   </>
                 ) : (
                   'Test Connection'
+                )}
+              </Button>
+
+              <Button
+                onClick={handleSaveConfig}
+                disabled={!isConfigured || isLoading}
+                variant="outline"
+                className="border-slate-600 text-slate-300 hover:text-white"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Save Config
+                  </>
                 )}
               </Button>
               
@@ -290,59 +424,6 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
                 <p className="text-red-300 text-sm">{connectionError}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Risk Management Settings */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-white">Risk Management Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-slate-300">Max Risk Per Trade (%)</Label>
-                <Input
-                  type="number"
-                  min="0.1"
-                  max="10"
-                  step="0.1"
-                  value={config.maxRiskPerTrade}
-                  onChange={(e) => handleConfigChange('maxRiskPerTrade', parseFloat(e.target.value))}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-slate-300">Max Daily Trades</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="50"
-                  value={config.maxDailyTrades}
-                  onChange={(e) => handleConfigChange('maxDailyTrades', parseInt(e.target.value))}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-slate-300">Trading Hours (Singapore Time)</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Input
-                  type="time"
-                  value={config.tradingHours?.start || '08:00'}
-                  onChange={(e) => handleConfigChange('tradingHours', { ...config.tradingHours, start: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-                <Input
-                  type="time"
-                  value={config.tradingHours?.end || '17:00'}
-                  onChange={(e) => handleConfigChange('tradingHours', { ...config.tradingHours, end: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -436,39 +517,6 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Additional Resources */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <ExternalLink className="h-5 w-5" />
-              Resources
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Button
-              variant="ghost"
-              onClick={() => window.open('https://www.oanda.com/demo-account/', '_blank')}
-              className="text-slate-300 hover:text-white justify-start p-0"
-            >
-              Create OANDA Demo Account
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => window.open('https://developer.oanda.com/rest-live-v20/introduction/', '_blank')}
-              className="text-slate-300 hover:text-white justify-start p-0"
-            >
-              OANDA API Documentation
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => setShowGuide(true)}
-              className="text-slate-300 hover:text-white justify-start p-0"
-            >
-              Step-by-Step Setup Guide
-            </Button>
           </CardContent>
         </Card>
       </div>
