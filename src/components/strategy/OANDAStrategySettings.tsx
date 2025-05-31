@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, Trash2 } from 'lucide-react';
 
 interface StrategySettings {
   id: string;
@@ -34,12 +33,14 @@ interface OANDAStrategySettingsProps {
   savedStrategies: StrategySettings[];
   selectedStrategy: StrategySettings | null;
   onLoadStrategy: (strategy: StrategySettings) => void;
+  onDeleteStrategy: (strategyId: string) => void;
 }
 
 const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
   savedStrategies,
   selectedStrategy,
-  onLoadStrategy
+  onLoadStrategy,
+  onDeleteStrategy
 }) => {
   if (savedStrategies.length === 0) {
     return null;
@@ -153,17 +154,27 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
                   SL: {strategySettings.stop_loss} | TP: {strategySettings.take_profit} | R/R: {strategySettings.risk_reward_ratio}:1
                 </p>
               </div>
-              <Button
-                variant={selectedStrategy?.id === strategySettings.id ? "default" : "outline"}
-                size="sm"
-                onClick={() => onLoadStrategy(strategySettings)}
-                className={selectedStrategy?.id === strategySettings.id 
-                  ? "bg-emerald-600 hover:bg-emerald-700" 
-                  : "border-slate-600 text-slate-300 hover:text-white"
-                }
-              >
-                {selectedStrategy?.id === strategySettings.id ? "Selected" : "Select"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={selectedStrategy?.id === strategySettings.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => onLoadStrategy(strategySettings)}
+                  className={selectedStrategy?.id === strategySettings.id 
+                    ? "bg-emerald-600 hover:bg-emerald-700" 
+                    : "border-slate-600 text-slate-300 hover:text-white"
+                  }
+                >
+                  {selectedStrategy?.id === strategySettings.id ? "Selected" : "Select"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDeleteStrategy(strategySettings.id)}
+                  className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ))}
         </div>

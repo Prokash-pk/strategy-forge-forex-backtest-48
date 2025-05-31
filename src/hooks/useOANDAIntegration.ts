@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -356,6 +355,45 @@ export const useOANDAIntegration = () => {
     }
   };
 
+  const handleDeleteStrategy = async (strategyId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { error } = await supabase
+        .from('strategy_results')
+        .delete()
+        .eq('id', strategyId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // If the deleted strategy was selected, clear the selection
+      if (selectedStrategy?.id === strategyId) {
+        setSelectedStrategy(null);
+        localStorage.removeItem('selected_strategy_settings');
+      }
+
+      toast({
+        title: "Strategy Deleted",
+        description: "The strategy has been successfully deleted",
+      });
+
+      // Reload the strategies list
+      loadSavedStrategies();
+
+    } catch (error) {
+      console.error('Delete strategy error:', error);
+      toast({
+        title: "Delete Failed",
+        description: error instanceof Error ? error.message : "Failed to delete strategy",
+        variant: "destructive",
+      });
+    }
+  };
+
   const isConfigured = config.accountId && config.apiKey;
   const canStartTesting = isConfigured && connectionStatus === 'success' && selectedStrategy !== null;
 
@@ -376,6 +414,7 @@ export const useOANDAIntegration = () => {
     handleLoadConfig,
     handleLoadStrategy,
     handleTestTrade,
+    handleDeleteStrategy,
     loadSelectedStrategy,
     loadSavedConfigs,
     loadSavedStrategies

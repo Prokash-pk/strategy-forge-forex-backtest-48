@@ -42,6 +42,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
     handleLoadConfig,
     handleLoadStrategy,
     handleTestTrade,
+    handleDeleteStrategy,
     loadSelectedStrategy,
     loadSavedConfigs,
     loadSavedStrategies
@@ -134,6 +135,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
           savedStrategies={savedStrategies}
           selectedStrategy={selectedStrategy}
           onLoadStrategy={handleLoadStrategy}
+          onDeleteStrategy={handleDeleteStrategy}
         />
 
         {/* API Configuration Card */}
