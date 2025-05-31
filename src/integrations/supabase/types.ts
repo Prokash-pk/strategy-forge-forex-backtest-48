@@ -57,7 +57,7 @@ export type Database = {
           timeframe: string
           total_return: number | null
           total_trades: number | null
-          user_id: string | null
+          user_id: string
           win_rate: number | null
         }
         Insert: {
@@ -83,7 +83,7 @@ export type Database = {
           timeframe: string
           total_return?: number | null
           total_trades?: number | null
-          user_id?: string | null
+          user_id: string
           win_rate?: number | null
         }
         Update: {
@@ -109,7 +109,7 @@ export type Database = {
           timeframe?: string
           total_return?: number | null
           total_trades?: number | null
-          user_id?: string | null
+          user_id?: string
           win_rate?: number | null
         }
         Relationships: []
