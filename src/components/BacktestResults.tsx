@@ -44,7 +44,7 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
       </Card>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <StrategyInfo strategy={results.strategy} />
+        <StrategyInfo results={results} />
         <PerformanceMetrics results={results} />
       </div>
 

@@ -3,8 +3,13 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const MonthlyReturnsChart: React.FC = () => {
-  const monthlyReturns = [
+interface MonthlyReturnsChartProps {
+  monthlyReturns?: any[];
+}
+
+const MonthlyReturnsChart: React.FC<MonthlyReturnsChartProps> = ({ monthlyReturns }) => {
+  // Use provided data or fallback to sample data
+  const chartData = monthlyReturns || [
     { month: 'Jan', return: 2.3 },
     { month: 'Feb', return: -1.2 },
     { month: 'Mar', return: 4.1 },
@@ -27,7 +32,7 @@ const MonthlyReturnsChart: React.FC = () => {
       <CardContent>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyReturns}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
               <XAxis dataKey="month" stroke="#9CA3AF" />
               <YAxis stroke="#9CA3AF" />
