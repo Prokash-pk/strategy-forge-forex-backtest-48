@@ -10,12 +10,20 @@ interface StrategyRecommendationsTabProps {
   strategy: any;
   backtestResults?: any;
   onStrategyChange: (updates: any) => void;
+  onStrategySelect: (strategy: any) => void;
+  onAddToStrategy: (codeSnippet: string) => void;
+  onTestReverseStrategy?: () => void;
+  isReverseTestRunning?: boolean;
 }
 
 const StrategyRecommendationsTab: React.FC<StrategyRecommendationsTabProps> = ({
   strategy,
   backtestResults,
-  onStrategyChange
+  onStrategyChange,
+  onStrategySelect,
+  onAddToStrategy,
+  onTestReverseStrategy,
+  isReverseTestRunning
 }) => {
   const { recommendations } = useRecommendationEngine({ strategy, backtestResults, onStrategyChange });
 
