@@ -35,13 +35,25 @@ export type Database = {
       }
       strategy_results: {
         Row: {
+          commission: number | null
           created_at: string | null
           id: string
+          initial_balance: number | null
           max_drawdown: number | null
+          max_position_size: number | null
+          position_sizing_mode: string | null
           profit_factor: number | null
+          reverse_signals: boolean | null
+          risk_model: string | null
+          risk_per_trade: number | null
+          risk_reward_ratio: number | null
+          slippage: number | null
+          spread: number | null
+          stop_loss: number | null
           strategy_code: string
           strategy_name: string
           symbol: string
+          take_profit: number | null
           timeframe: string
           total_return: number | null
           total_trades: number | null
@@ -49,13 +61,25 @@ export type Database = {
           win_rate: number | null
         }
         Insert: {
+          commission?: number | null
           created_at?: string | null
           id?: string
+          initial_balance?: number | null
           max_drawdown?: number | null
+          max_position_size?: number | null
+          position_sizing_mode?: string | null
           profit_factor?: number | null
+          reverse_signals?: boolean | null
+          risk_model?: string | null
+          risk_per_trade?: number | null
+          risk_reward_ratio?: number | null
+          slippage?: number | null
+          spread?: number | null
+          stop_loss?: number | null
           strategy_code: string
           strategy_name: string
           symbol: string
+          take_profit?: number | null
           timeframe: string
           total_return?: number | null
           total_trades?: number | null
@@ -63,13 +87,25 @@ export type Database = {
           win_rate?: number | null
         }
         Update: {
+          commission?: number | null
           created_at?: string | null
           id?: string
+          initial_balance?: number | null
           max_drawdown?: number | null
+          max_position_size?: number | null
+          position_sizing_mode?: string | null
           profit_factor?: number | null
+          reverse_signals?: boolean | null
+          risk_model?: string | null
+          risk_per_trade?: number | null
+          risk_reward_ratio?: number | null
+          slippage?: number | null
+          spread?: number | null
+          stop_loss?: number | null
           strategy_code?: string
           strategy_name?: string
           symbol?: string
+          take_profit?: number | null
           timeframe?: string
           total_return?: number | null
           total_trades?: number | null
