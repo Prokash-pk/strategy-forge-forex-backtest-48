@@ -68,15 +68,18 @@ serve(async (req) => {
     console.log(`Converting interval ${interval} to ${convertedInterval}`);
     console.log(`Fetching data for ${convertedSymbol} with interval ${convertedInterval}`);
 
-    // Build Twelve Data API URL
+    // Build Twelve Data API URL with Singapore timezone
     const baseUrl = 'https://api.twelvedata.com/time_series';
     const params = new URLSearchParams({
       symbol: convertedSymbol,
       interval: convertedInterval,
       outputsize: outputsize.toString(),
       apikey: apiKey,
-      format: 'JSON'
+      format: 'JSON',
+      timezone: 'Asia/Singapore'  // CRITICAL: Set timezone to Singapore to match TradingView
     });
+
+    console.log(`API URL: ${baseUrl}?${params.toString()}`);
 
     const response = await fetch(`${baseUrl}?${params}`);
     
@@ -107,7 +110,9 @@ serve(async (req) => {
       volume: parseFloat(item.volume || '0')
     })).reverse(); // Reverse to get chronological order
 
-    console.log(`Successfully fetched ${transformedData.length} data points`);
+    console.log(`Successfully fetched ${transformedData.length} data points in Singapore timezone`);
+    console.log(`First data point: ${transformedData[0]?.date} - Close: ${transformedData[0]?.close}`);
+    console.log(`Last data point: ${transformedData[transformedData.length - 1]?.date} - Close: ${transformedData[transformedData.length - 1]?.close}`);
 
     return new Response(
       JSON.stringify({
@@ -118,7 +123,9 @@ serve(async (req) => {
           interval: data.meta?.interval || convertedInterval,
           currency_base: data.meta?.currency_base,
           currency_quote: data.meta?.currency_quote,
-          type: data.meta?.type
+          type: data.meta?.type,
+          timezone: 'Asia/Singapore',
+          note: 'Data fetched in Singapore timezone to match TradingView'
         }
       }),
       {

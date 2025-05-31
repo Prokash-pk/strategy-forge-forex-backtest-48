@@ -1,12 +1,14 @@
 
-// Timezone utility functions for automatic detection and formatting
+// Timezone utility functions with Singapore timezone focus
 
 export const detectUserTimezone = (): string => {
   try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    console.log('User timezone detected:', detected);
+    return detected;
   } catch (error) {
-    console.warn('Could not detect timezone, falling back to UTC');
-    return 'UTC';
+    console.warn('Could not detect timezone, falling back to Asia/Singapore for forex trading');
+    return 'Asia/Singapore';
   }
 };
 
@@ -27,11 +29,12 @@ export const formatDateTimeInTimezone = (date: any, timezone?: string): string =
     return 'Invalid Date';
   }
   
-  const userTimezone = timezone || detectUserTimezone();
+  // Default to Singapore timezone for forex trading consistency
+  const targetTimezone = timezone || 'Asia/Singapore';
   
   try {
     return dateObj.toLocaleString('en-US', {
-      timeZone: userTimezone,
+      timeZone: targetTimezone,
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -41,25 +44,52 @@ export const formatDateTimeInTimezone = (date: any, timezone?: string): string =
       hour12: false
     });
   } catch (error) {
-    // Fallback to ISO string if timezone formatting fails
+    console.warn(`Failed to format in timezone ${targetTimezone}, using fallback`);
     return dateObj.toISOString().replace('T', ' ').slice(0, 19);
   }
 };
 
 export const getTimezoneAbbreviation = (timezone?: string): string => {
-  const userTimezone = timezone || detectUserTimezone();
+  const targetTimezone = timezone || 'Asia/Singapore';
   
   try {
     const date = new Date();
     const formatted = date.toLocaleDateString('en-US', {
-      timeZone: userTimezone,
+      timeZone: targetTimezone,
       timeZoneName: 'short'
     });
     
-    // Extract timezone abbreviation (e.g., "PST", "EST", "GMT")
+    // Extract timezone abbreviation (e.g., "SGT", "EST", "GMT")
     const match = formatted.match(/\b[A-Z]{3,4}\b/);
-    return match ? match[0] : userTimezone.split('/').pop() || 'UTC';
+    if (match) return match[0];
+    
+    // Fallback for Singapore timezone
+    if (targetTimezone === 'Asia/Singapore') return 'SGT';
+    
+    return targetTimezone.split('/').pop() || 'UTC';
   } catch (error) {
+    console.warn(`Failed to get timezone abbreviation for ${targetTimezone}`);
     return 'UTC';
+  }
+};
+
+// New function to ensure consistent Singapore timezone for forex data
+export const formatForexDateTime = (date: any): string => {
+  return formatDateTimeInTimezone(date, 'Asia/Singapore');
+};
+
+// New function to check if we're in Singapore market hours
+export const isInSingaporeMarketHours = (date?: Date): boolean => {
+  const checkDate = date || new Date();
+  
+  try {
+    const singaporeTime = new Date(checkDate.toLocaleString('en-US', { timeZone: 'Asia/Singapore' }));
+    const hour = singaporeTime.getHours();
+    const day = singaporeTime.getDay();
+    
+    // Forex market is open 24/5, but Singapore active hours are roughly 08:00-17:00 SGT
+    return day >= 1 && day <= 5 && hour >= 8 && hour <= 17;
+  } catch (error) {
+    return true; // Default to true if timezone conversion fails
   }
 };
