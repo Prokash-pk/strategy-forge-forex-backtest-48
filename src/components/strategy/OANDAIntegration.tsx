@@ -1,15 +1,15 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { TrendingUp, Settings, Play, Square, AlertTriangle, HelpCircle, Save, Upload, CheckCircle, XCircle, Loader2, BarChart3, TestTube } from 'lucide-react';
+import { TrendingUp, HelpCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import OANDAApiGuide from './OANDAApiGuide';
+import OANDAConfigForm from './OANDAConfigForm';
+import OANDASavedConfigs from './OANDASavedConfigs';
+import OANDAStrategySettings from './OANDAStrategySettings';
+import OANDAForwardTestingControl from './OANDAForwardTestingControl';
 
 interface OANDAConfig {
   accountId: string;
@@ -458,405 +458,45 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
         </Card>
 
         {/* Saved Configurations */}
-        {savedConfigs.length > 0 && (
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Upload className="h-5 w-5" />
-                Saved API Configurations
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {savedConfigs.map((savedConfig) => (
-                <div key={savedConfig.id} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
-                  <div>
-                    <h4 className="text-white font-medium">{savedConfig.config_name}</h4>
-                    <p className="text-slate-400 text-sm">
-                      {savedConfig.environment} • Account: {savedConfig.account_id.slice(-8)}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleLoadConfig(savedConfig)}
-                    className="border-slate-600 text-slate-300 hover:text-white"
-                  >
-                    Load
-                  </Button>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
+        <OANDASavedConfigs 
+          savedConfigs={savedConfigs}
+          onLoadConfig={handleLoadConfig}
+        />
 
         {/* Strategy Settings Selection */}
-        {savedStrategies.length > 0 && (
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <BarChart3 className="h-5 w-5" />
-                Strategy Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-slate-400 text-sm">
-                Select a saved strategy with specific settings for forward testing. The trades will be executed based on these settings.
-              </p>
-              
-              {selectedStrategy && (
-                <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                  <h4 className="text-emerald-400 font-medium mb-3">{selectedStrategy.strategy_name}</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-slate-300">
-                    <div>
-                      <span className="text-slate-400">Symbol:</span>
-                      <div className="font-medium">{selectedStrategy.symbol}</div>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Timeframe:</span>
-                      <div className="font-medium">{selectedStrategy.timeframe}</div>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Initial Balance:</span>
-                      <div className="font-medium">${selectedStrategy.initial_balance?.toLocaleString()}</div>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Risk per Trade:</span>
-                      <div className="font-medium">{selectedStrategy.risk_per_trade}%</div>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Stop Loss:</span>
-                      <div className="font-medium">{selectedStrategy.stop_loss} pips</div>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Take Profit:</span>
-                      <div className="font-medium">{selectedStrategy.take_profit} pips</div>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Risk/Reward:</span>
-                      <div className="font-medium">{selectedStrategy.risk_reward_ratio}:1</div>
-                    </div>
-                    <div>
-                      <span className="text-slate-400">Max Position:</span>
-                      <div className="font-medium">{selectedStrategy.max_position_size?.toLocaleString()}</div>
-                    </div>
-                    {selectedStrategy.win_rate && (
-                      <div>
-                        <span className="text-slate-400">Win Rate:</span>
-                        <div className="font-medium text-emerald-400">{selectedStrategy.win_rate.toFixed(1)}%</div>
-                      </div>
-                    )}
-                    {selectedStrategy.total_return && (
-                      <div>
-                        <span className="text-slate-400">Total Return:</span>
-                        <div className={`font-medium ${selectedStrategy.total_return >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                          {selectedStrategy.total_return >= 0 ? '+' : ''}{selectedStrategy.total_return.toFixed(1)}%
-                        </div>
-                      </div>
-                    )}
-                    {selectedStrategy.profit_factor && (
-                      <div>
-                        <span className="text-slate-400">Profit Factor:</span>
-                        <div className="font-medium">{selectedStrategy.profit_factor.toFixed(2)}</div>
-                      </div>
-                    )}
-                    {selectedStrategy.max_drawdown && (
-                      <div>
-                        <span className="text-slate-400">Max Drawdown:</span>
-                        <div className="font-medium text-red-400">{selectedStrategy.max_drawdown.toFixed(1)}%</div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <Badge variant={selectedStrategy.reverse_signals ? "destructive" : "secondary"} className="text-xs">
-                      {selectedStrategy.reverse_signals ? "Reverse Signals" : "Normal Signals"}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {selectedStrategy.position_sizing_mode}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {selectedStrategy.risk_model}
-                    </Badge>
-                  </div>
-                </div>
-              )}
-              
-              <div className="space-y-3 max-h-48 overflow-y-auto">
-                {savedStrategies.map((strategySettings) => (
-                  <div key={strategySettings.id} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
-                    <div className="flex-1">
-                      <h4 className="text-white font-medium">{strategySettings.strategy_name}</h4>
-                      <p className="text-slate-400 text-sm">
-                        {strategySettings.symbol} • {strategySettings.timeframe} • Risk: {strategySettings.risk_per_trade}%
-                        {strategySettings.win_rate && ` • Win Rate: ${strategySettings.win_rate.toFixed(1)}%`}
-                        {strategySettings.total_return && (
-                          <span className={strategySettings.total_return >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                            {' '}• Return: {strategySettings.total_return >= 0 ? '+' : ''}{strategySettings.total_return.toFixed(1)}%
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-slate-500 text-xs">
-                        SL: {strategySettings.stop_loss} | TP: {strategySettings.take_profit} | R/R: {strategySettings.risk_reward_ratio}:1
-                      </p>
-                    </div>
-                    <Button
-                      variant={selectedStrategy?.id === strategySettings.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => handleLoadStrategy(strategySettings)}
-                      className={selectedStrategy?.id === strategySettings.id 
-                        ? "bg-emerald-600 hover:bg-emerald-700" 
-                        : "border-slate-600 text-slate-300 hover:text-white"
-                      }
-                    >
-                      {selectedStrategy?.id === strategySettings.id ? "Selected" : "Select"}
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        <OANDAStrategySettings
+          savedStrategies={savedStrategies}
+          selectedStrategy={selectedStrategy}
+          onLoadStrategy={handleLoadStrategy}
+        />
 
         {/* API Configuration Card */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Settings className="h-5 w-5" />
-              API Configuration
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Environment Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="environment" className="text-slate-300">Environment</Label>
-              <Select
-                value={config.environment}
-                onValueChange={(value: 'practice' | 'live') => handleConfigChange('environment', value)}
-              >
-                <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-700 border-slate-600">
-                  <SelectItem value="practice" className="text-white">
-                    <div className="flex items-center gap-2">
-                      <span>Practice (Demo)</span>
-                      <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400 text-xs">Recommended</Badge>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="live" className="text-white">
-                    <div className="flex items-center gap-2">
-                      <span>Live Trading</span>
-                      <Badge variant="secondary" className="bg-red-500/10 text-red-400 text-xs">Advanced</Badge>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              {config.environment === 'live' && (
-                <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                  <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5" />
-                  <p className="text-red-300 text-sm">
-                    Warning: Live trading involves real money. Only use this mode with thoroughly tested strategies.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <Separator className="bg-slate-600" />
-
-            {/* Account ID */}
-            <div className="space-y-2">
-              <Label htmlFor="accountId" className="text-slate-300">Account ID</Label>
-              <Input
-                id="accountId"
-                type="text"
-                placeholder="101-001-12345678-001"
-                value={config.accountId}
-                onChange={(e) => handleConfigChange('accountId', e.target.value)}
-                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
-              />
-            </div>
-
-            {/* API Key */}
-            <div className="space-y-2">
-              <Label htmlFor="apiKey" className="text-slate-300">API Token</Label>
-              <Input
-                id="apiKey"
-                type="password"
-                placeholder="Enter your OANDA API token"
-                value={config.apiKey}
-                onChange={(e) => handleConfigChange('apiKey', e.target.value)}
-                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
-              />
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleTestConnection}
-                disabled={!config.accountId || !config.apiKey || connectionStatus === 'testing'}
-                variant="outline"
-                className="border-slate-600 text-slate-300 hover:text-white"
-              >
-                {connectionStatus === 'testing' ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  'Test Connection'
-                )}
-              </Button>
-
-              <Button
-                onClick={handleSaveConfig}
-                disabled={!isConfigured || isLoading}
-                variant="outline"
-                className="border-slate-600 text-slate-300 hover:text-white"
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Config
-                  </>
-                )}
-              </Button>
-
-              <Button
-                onClick={handleTestTrade}
-                disabled={!canStartTesting || isTestingTrade || isForwardTestingActive}
-                variant="outline"
-                className="border-blue-600 text-blue-300 hover:text-blue-200 disabled:opacity-50"
-              >
-                {isTestingTrade ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Testing Trade...
-                  </>
-                ) : (
-                  <>
-                    <TestTube className="h-4 w-4 mr-2" />
-                    Test Trade
-                  </>
-                )}
-              </Button>
-              
-              {getConnectionStatusIcon()}
-              
-              {connectionStatus === 'success' && (
-                <span className="text-emerald-400 text-sm">Connection verified</span>
-              )}
-              
-              {connectionStatus === 'error' && (
-                <span className="text-red-400 text-sm">Connection failed</span>
-              )}
-            </div>
-
-            {connectionError && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                <p className="text-red-300 text-sm">{connectionError}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <OANDAConfigForm
+          config={config}
+          onConfigChange={handleConfigChange}
+          onTestConnection={handleTestConnection}
+          onSaveConfig={handleSaveConfig}
+          onTestTrade={handleTestTrade}
+          connectionStatus={connectionStatus}
+          connectionError={connectionError}
+          isLoading={isLoading}
+          isTestingTrade={isTestingTrade}
+          canStartTesting={canStartTesting}
+          isForwardTestingActive={isForwardTestingActive}
+          connectionStatusIcon={getConnectionStatusIcon()}
+        />
 
         {/* Forward Testing Control */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              {isForwardTestingActive ? <Play className="h-5 w-5 text-emerald-400" /> : <Square className="h-5 w-5" />}
-              Forward Testing Control
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-white font-medium">
-                  Strategy: {selectedStrategy ? selectedStrategy.strategy_name : "No strategy selected"}
-                </h3>
-                <p className="text-slate-400 text-sm">
-                  {selectedStrategy ? `${selectedStrategy.symbol} • ${selectedStrategy.timeframe}` : "Please select a strategy above"}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge 
-                  variant={isForwardTestingActive ? "default" : "secondary"}
-                  className={isForwardTestingActive ? "bg-emerald-600" : "bg-slate-600"}
-                >
-                  {isForwardTestingActive ? "Active" : "Inactive"}
-                </Badge>
-              </div>
-            </div>
-
-            <Separator className="bg-slate-600" />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-white font-medium mb-1">Forward Testing Status</h4>
-                <p className="text-slate-400 text-sm">
-                  {isForwardTestingActive 
-                    ? `Running live on OANDA ${config.environment} account with ${selectedStrategy?.strategy_name}` 
-                    : "Forward testing is currently stopped"
-                  }
-                </p>
-                {canStartTesting && !isForwardTestingActive && (
-                  <p className="text-emerald-400 text-sm mt-1">✅ Ready to start forward testing</p>
-                )}
-              </div>
-              <Button
-                onClick={handleToggleForwardTesting}
-                disabled={!canStartTesting && !isForwardTestingActive}
-                className={isForwardTestingActive 
-                  ? "bg-red-600 hover:bg-red-700" 
-                  : "bg-emerald-600 hover:bg-emerald-700"
-                }
-              >
-                {isForwardTestingActive ? (
-                  <>
-                    <Square className="h-4 w-4 mr-2" />
-                    Stop Testing
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4 mr-2" />
-                    Start Testing
-                  </>
-                )}
-              </Button>
-            </div>
-
-            {!canStartTesting && !isForwardTestingActive && (
-              <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5" />
-                <div>
-                  <p className="text-amber-300 text-sm">
-                    {!isConfigured 
-                      ? "Please configure your OANDA API credentials above."
-                      : connectionStatus !== 'success'
-                      ? "Please test your connection first to verify credentials."
-                      : !selectedStrategy
-                      ? "Please select a strategy with saved settings above."
-                      : "Ready to start forward testing!"
-                    }
-                  </p>
-                  {!isConfigured && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowGuide(true)}
-                      className="text-amber-400 hover:text-amber-300 p-0 h-auto mt-1"
-                    >
-                      View Setup Guide →
-                    </Button>
-                  )}
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <OANDAForwardTestingControl
+          isForwardTestingActive={isForwardTestingActive}
+          selectedStrategy={selectedStrategy}
+          config={config}
+          canStartTesting={canStartTesting}
+          isConfigured={isConfigured}
+          connectionStatus={connectionStatus}
+          onToggleForwardTesting={handleToggleForwardTesting}
+          onShowGuide={() => setShowGuide(true)}
+        />
       </div>
 
       <OANDAApiGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
