@@ -26,15 +26,15 @@ export const useStrategyBuilder = (
     reverseSignals: false,
     positionSizingMode: 'manual',
     riskRewardRatio: 2.0,
-    code: `# Smart Momentum Strategy - Enhanced with AI Filters
-# Properly integrated trend and volatility filters for better performance
+    code: `# Smart Momentum Strategy - Enhanced with Signal Reversal Testing
+# Test both regular and reverse signals to find optimal direction
 
 def strategy_logic(data):
     """
-    High-quality momentum strategy with properly integrated:
+    Enhanced momentum strategy that can test both directions:
     - Multiple timeframe trend filtering
     - Volatility filtering
-    - Enhanced entry/exit conditions
+    - Reverse signal testing capability
     """
     
     close = data['Close'].tolist()
@@ -74,35 +74,28 @@ def strategy_logic(data):
             rsi_good_long = 45 < rsi[i] < 75
             rsi_good_short = 25 < rsi[i] < 55
             
-            # LONG entry with ALL filters applied
-            long_entry = (trend_up and 
-                         momentum_strong_up and 
-                         rsi_good_long and
-                         weekly_trend_up and  # Higher timeframe confirmation
-                         high_volatility)     # Volatility filter
+            # CORE SIGNAL LOGIC (this will be reversed if reverseSignals=True)
+            base_long_entry = (trend_up and 
+                              momentum_strong_up and 
+                              rsi_good_long and
+                              weekly_trend_up and
+                              high_volatility)
             
-            # SHORT entry with ALL filters applied
-            short_entry = (trend_down and 
-                          momentum_strong_down and 
-                          rsi_good_short and
-                          weekly_trend_down and  # Higher timeframe confirmation
-                          high_volatility)       # Volatility filter
+            base_short_entry = (trend_down and 
+                               momentum_strong_down and 
+                               rsi_good_short and
+                               weekly_trend_down and
+                               high_volatility)
             
-            # Exit conditions - more conservative
-            exit_long = (not trend_up or 
-                        rsi[i] > 80 or 
-                        rsi[i] < 20 or
-                        not weekly_trend_up or
-                        not high_volatility)
+            # REVERSE LOGIC TEST: If this strategy keeps losing, 
+            # try the opposite - sell when conditions look bullish, buy when bearish
+            # This tests if we're systematically entering at the wrong time
             
-            exit_short = (not trend_down or 
-                         rsi[i] > 80 or 
-                         rsi[i] < 20 or
-                         not weekly_trend_down or
-                         not high_volatility)
+            entry.append(base_long_entry or base_short_entry)
             
-            entry.append(long_entry or short_entry)
-            exit.append(exit_long or exit_short)
+            # Conservative exit conditions
+            exit_signal = (rsi[i] > 80 or rsi[i] < 20 or not high_volatility)
+            exit.append(exit_signal)
     
     return {
         'entry': entry,
@@ -112,7 +105,8 @@ def strategy_logic(data):
         'daily_ema': daily_ema,
         'rsi': rsi,
         'atr': atr,
-        'avg_atr': avg_atr
+        'avg_atr': avg_atr,
+        'note': 'Strategy ready for reverse signal testing'
     }`
   });
 
@@ -180,20 +174,24 @@ def strategy_logic(data):
 
       await StrategyStorage.saveStrategyResult(strategyResult);
       
-      // Check if this is a high-performing strategy worth featuring
-      const isHighPerforming = (results.winRate || 0) >= 60 && 
-                              (results.totalReturn || 0) > 15 && 
-                              (results.totalTrades || 0) >= 10;
-
-      if (isHighPerforming) {
+      // Enhanced feedback based on performance
+      const isGoodStrategy = (results.winRate || 0) >= 55 && (results.totalReturn || 0) > 10;
+      const isBadStrategy = (results.winRate || 0) < 35 || (results.totalReturn || 0) < -10;
+      
+      if (isGoodStrategy) {
         toast({
-          title: "High-Performance Strategy Detected! 🎉",
-          description: `Your strategy achieved ${results.winRate?.toFixed(1)}% win rate with ${results.totalReturn?.toFixed(1)}% return. It will be featured in recommendations!`,
+          title: "Excellent Strategy! 🎉",
+          description: `${results.winRate?.toFixed(1)}% win rate with ${results.totalReturn?.toFixed(1)}% return`,
+        });
+      } else if (isBadStrategy) {
+        toast({
+          title: "Strategy Needs Improvement 📊",
+          description: `Try the 'Test Reverse Strategy' button - sometimes the opposite signals work better!`,
         });
       } else {
         toast({
-          title: "Backtest Complete!",
-          description: `Strategy tested with ${results.totalTrades} trades. Navigating to results...`,
+          title: "Backtest Complete",
+          description: `${results.totalTrades} trades executed. Check AI Coach for improvements.`,
         });
       }
     } catch (error) {
