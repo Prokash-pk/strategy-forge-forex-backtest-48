@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
@@ -128,7 +127,7 @@ def strategy_logic(data):
     });
   };
 
-  const handleSaveStrategy = async () => {
+  const handleSaveSettings = async () => {
     if (!strategy.name.trim()) {
       toast({
         title: "Name Required",
@@ -150,19 +149,22 @@ def strategy_logic(data):
     setIsSaving(true);
 
     try {
+      // Save complete strategy configuration
+      const strategySettings = {
+        strategy_name: strategy.name,
+        strategy_code: strategy.code,
+        symbol: strategy.symbol,
+        timeframe: strategy.timeframe,
+        win_rate: 0,
+        total_return: 0,
+        total_trades: 0,
+        profit_factor: 0,
+        max_drawdown: 0
+      };
+
       const { data, error } = await supabase
         .from('strategy_results')
-        .insert([{
-          strategy_name: strategy.name,
-          strategy_code: strategy.code,
-          symbol: strategy.symbol,
-          timeframe: strategy.timeframe,
-          win_rate: 0,
-          total_return: 0,
-          total_trades: 0,
-          profit_factor: 0,
-          max_drawdown: 0
-        }])
+        .insert([strategySettings])
         .select()
         .single();
 
@@ -171,17 +173,17 @@ def strategy_logic(data):
       }
 
       toast({
-        title: "Strategy Saved",
-        description: `"${strategy.name}" has been saved successfully`,
+        title: "Settings Saved",
+        description: `Complete strategy configuration for "${strategy.name}" has been saved successfully`,
       });
 
       setCodeChanged(false);
 
     } catch (error) {
-      console.error('Save strategy error:', error);
+      console.error('Save settings error:', error);
       toast({
         title: "Save Failed",
-        description: error instanceof Error ? error.message : "Failed to save strategy",
+        description: error instanceof Error ? error.message : "Failed to save strategy settings",
         variant: "destructive",
       });
     } finally {
@@ -210,7 +212,7 @@ def strategy_logic(data):
 
       <StrategyActionButtons
         onRunBacktest={onRunBacktest}
-        onSaveStrategy={handleSaveStrategy}
+        onSaveSettings={handleSaveSettings}
         isRunning={isRunning}
         isSaving={isSaving}
         codeChanged={codeChanged}

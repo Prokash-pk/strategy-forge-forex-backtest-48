@@ -5,7 +5,7 @@ import { Save, Play } from 'lucide-react';
 
 interface StrategyActionButtonsProps {
   onRunBacktest?: () => void;
-  onSaveStrategy: () => void;
+  onSaveSettings: () => void;
   isRunning?: boolean;
   isSaving: boolean;
   codeChanged: boolean;
@@ -14,7 +14,7 @@ interface StrategyActionButtonsProps {
 
 const StrategyActionButtons: React.FC<StrategyActionButtonsProps> = ({
   onRunBacktest,
-  onSaveStrategy,
+  onSaveSettings,
   isRunning = false,
   isSaving,
   codeChanged,
@@ -43,7 +43,7 @@ const StrategyActionButtons: React.FC<StrategyActionButtonsProps> = ({
       )}
 
       <Button
-        onClick={onSaveStrategy}
+        onClick={onSaveSettings}
         disabled={isSaving}
         variant="outline"
         className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
@@ -56,7 +56,7 @@ const StrategyActionButtons: React.FC<StrategyActionButtonsProps> = ({
         ) : (
           <>
             <Save className="h-4 w-4 mr-2" />
-            Save Strategy
+            Save Settings
           </>
         )}
       </Button>
