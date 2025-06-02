@@ -1,3 +1,4 @@
+
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
@@ -43,11 +44,21 @@ export const useOANDAIntegration = () => {
     handleTestTrade
   } = useOANDATrade();
 
-  // Load saved strategies on mount
+  // Load saved strategies on mount and log the process
   useEffect(() => {
+    console.log('useOANDAIntegration: Loading strategies on mount');
     loadSavedStrategies();
     loadSelectedStrategy();
   }, []);
+
+  // Debug log when strategies or selected strategy changes
+  useEffect(() => {
+    console.log('Strategies updated:', {
+      totalStrategies: savedStrategies.length,
+      selectedStrategy: selectedStrategy?.strategy_name || 'None',
+      strategies: savedStrategies.map(s => s.strategy_name)
+    });
+  }, [savedStrategies, selectedStrategy]);
 
   // Check autonomous server-side trading status on mount and periodically
   useEffect(() => {
@@ -130,8 +141,18 @@ export const useOANDAIntegration = () => {
     console.log('Show OANDA setup guide');
   };
 
-  const isConfigured = config.accountId && config.apiKey;
+  // Improve configuration checking logic
+  const isConfigured = Boolean(config.accountId?.trim() && config.apiKey?.trim());
   const canStartTesting = isConfigured && connectionStatus === 'success' && selectedStrategy !== null;
+
+  console.log('useOANDAIntegration state:', {
+    isConfigured,
+    connectionStatus,
+    selectedStrategy: selectedStrategy?.strategy_name || 'None',
+    canStartTesting,
+    isTestingTrade,
+    isForwardTestingActive
+  });
 
   // Connection status icon
   const getConnectionStatusIcon = () => {

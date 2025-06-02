@@ -11,9 +11,11 @@ export const useOANDAStrategies = () => {
 
   const loadSelectedStrategy = () => {
     const saved = localStorage.getItem('selected_strategy_settings');
+    console.log('Loading selected strategy from localStorage:', saved);
     if (saved) {
       try {
         const strategySettings = JSON.parse(saved);
+        console.log('Parsed strategy settings:', strategySettings);
         setSelectedStrategy(strategySettings);
       } catch (error) {
         console.error('Failed to load selected strategy:', error);
@@ -24,7 +26,12 @@ export const useOANDAStrategies = () => {
   const loadSavedStrategies = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log('No user found, cannot load strategies');
+        return;
+      }
+
+      console.log('Loading saved strategies for user:', user.id);
 
       const { data, error } = await supabase
         .from('strategy_results')
@@ -32,14 +39,35 @@ export const useOANDAStrategies = () => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading strategies:', error);
+        throw error;
+      }
+      
+      console.log('Loaded strategies from database:', data);
+      
+      // Filter for strategies that contain "smart momentum" in the name
+      const smartMomentumStrategies = data?.filter(strategy => 
+        strategy.strategy_name?.toLowerCase().includes('smart momentum') ||
+        strategy.strategy_name?.toLowerCase().includes('momentum')
+      ) || [];
+      
+      console.log('Smart momentum strategies found:', smartMomentumStrategies);
+      
       setSavedStrategies(data || []);
     } catch (error) {
       console.error('Failed to load saved strategies:', error);
+      toast({
+        title: "Failed to Load Strategies",
+        description: "Could not load your saved strategies. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
   const handleLoadStrategy = (strategySettings: StrategySettings) => {
+    console.log('Loading strategy:', strategySettings);
+    
     const completeStrategy: StrategySettings = {
       id: strategySettings.id,
       strategy_name: strategySettings.strategy_name,
@@ -67,6 +95,8 @@ export const useOANDAStrategies = () => {
 
     setSelectedStrategy(completeStrategy);
     localStorage.setItem('selected_strategy_settings', JSON.stringify(completeStrategy));
+    
+    console.log('Strategy loaded and saved to localStorage:', completeStrategy);
     
     toast({
       title: "Strategy Settings Loaded",

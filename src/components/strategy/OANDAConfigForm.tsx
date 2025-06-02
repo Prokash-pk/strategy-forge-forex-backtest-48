@@ -53,8 +53,18 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
 }) => {
   const { savedStrategies, loadSavedStrategies } = useOANDAStrategies();
   
-  // Fix: The test connection button should be enabled when account ID and API key are provided
-  const isConfiguredForTesting = !!(config.accountId && config.apiKey);
+  // Fix: Properly check if credentials are configured
+  const isConfiguredForTesting = Boolean(config.accountId?.trim() && config.apiKey?.trim());
+
+  console.log('OANDAConfigForm Debug:', {
+    accountId: config.accountId,
+    apiKey: config.apiKey ? 'SET' : 'NOT_SET',
+    isConfiguredForTesting,
+    connectionStatus,
+    canStartTesting,
+    isTestingTrade,
+    isForwardTestingActive
+  });
 
   const handleConnectOANDA = async () => {
     // First test the connection
@@ -121,7 +131,7 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
             onApiKeyChange={(value) => onConfigChange('apiKey', value)}
           />
 
-          {/* Action Buttons - Fixed: Use isConfiguredForTesting instead of isConfigured */}
+          {/* Action Buttons - Use the corrected isConfiguredForTesting */}
           <OANDAActionButtons
             isConfigured={isConfiguredForTesting}
             connectionStatus={connectionStatus}
