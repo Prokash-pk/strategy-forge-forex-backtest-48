@@ -1,24 +1,12 @@
+
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Separator } from '@/components/ui/separator';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  Activity, 
-  DollarSign, 
-  Clock, 
-  X,
-  RefreshCw,
-  AlertCircle,
-  BarChart3,
-  Loader2
-} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDateTimeInTimezone, detectUserTimezone, getTimezoneAbbreviation } from '@/utils/timezoneUtils';
+import AccountSummaryCard from './dashboard/AccountSummaryCard';
+import PositionsTable from './dashboard/PositionsTable';
+import TradeLogCard from './dashboard/TradeLogCard';
+import InactiveStateCard from './dashboard/InactiveStateCard';
 
 interface Position {
   id: string;
@@ -270,232 +258,33 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
   };
 
   if (!isActive) {
-    return (
-      <Card className="bg-slate-800 border-slate-700">
-        <CardContent className="p-12 text-center">
-          <AlertCircle className="h-16 w-16 text-slate-500 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Forward Testing Inactive</h3>
-          <p className="text-slate-400">
-            Please start forward testing to view positions and trade logs.
-          </p>
-        </CardContent>
-      </Card>
-    );
+    return <InactiveStateCard />;
   }
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Account Summary */}
-      <Card className="bg-slate-800 border-slate-700">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="flex items-center gap-2 text-white">
-              <BarChart3 className="h-5 w-5" />
-              Live OANDA Account - {strategy?.strategy_name || 'No Strategy'}
-            </CardTitle>
-            <Button
-              onClick={handleRefresh}
-              disabled={isLoading}
-              variant="outline"
-              size="sm"
-              className="border-slate-600 text-slate-300 hover:text-white self-start sm:self-auto"
-            >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh Live Data
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-slate-700/50 rounded-lg">
-              <DollarSign className="h-5 w-5 text-emerald-400 mx-auto mb-1" />
-              <div className="text-lg font-semibold text-white">
-                ${accountBalance.toFixed(2)}
-              </div>
-              <p className="text-xs text-slate-400">Live Account Balance</p>
-            </div>
-            <div className="text-center p-3 bg-slate-700/50 rounded-lg">
-              <Activity className="h-5 w-5 text-blue-400 mx-auto mb-1" />
-              <div className="text-lg font-semibold text-white">
-                {positions.length}
-              </div>
-              <p className="text-xs text-slate-400">Open Positions</p>
-            </div>
-            <div className="text-center p-3 bg-slate-700/50 rounded-lg">
-              <TrendingUp className={`h-5 w-5 mx-auto mb-1 ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`} />
-              <div className={`text-lg font-semibold ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {totalPL >= 0 ? '+' : ''}${totalPL.toFixed(2)}
-              </div>
-              <p className="text-xs text-slate-400">Unrealized P&L</p>
-            </div>
-          </div>
+      <AccountSummaryCard
+        strategyName={strategy?.strategy_name || 'No Strategy'}
+        accountBalance={accountBalance}
+        positionsCount={positions.length}
+        totalPL={totalPL}
+        environment={environment}
+        accountId={oandaConfig.accountId}
+        isLoading={isLoading}
+        onRefresh={handleRefresh}
+      />
 
-          {/* Status indicator */}
-          <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-              <span className="text-emerald-300 text-sm font-medium">
-                Live connection to OANDA {environment} account: {oandaConfig.accountId}
-              </span>
-            </div>
-            <p className="text-emerald-400 text-xs mt-1">
-              Data refreshes every 30 seconds • Autonomous trading active
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <PositionsTable
+        positions={positions}
+        closingPositions={closingPositions}
+        onClosePosition={handleClosePosition}
+      />
 
-      {/* Open Positions */}
-      {positions.length > 0 && (
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-white">
-              <Activity className="h-5 w-5" />
-              Open Positions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-slate-700">
-                    <TableHead className="text-slate-400">Instrument</TableHead>
-                    <TableHead className="text-slate-400">Side</TableHead>
-                    <TableHead className="text-slate-400">Units</TableHead>
-                    <TableHead className="text-slate-400">Avg Price</TableHead>
-                    <TableHead className="text-slate-400">Unrealized P&L</TableHead>
-                    <TableHead className="text-slate-400">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {positions.map((position) => {
-                    const isClosing = closingPositions.has(position.id);
-                    
-                    return (
-                      <TableRow key={position.id} className="border-slate-700">
-                        <TableCell className="text-white font-medium">
-                          {position.instrument}
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            className={position.side === 'BUY' 
-                              ? 'bg-emerald-500/10 text-emerald-400' 
-                              : 'bg-red-500/10 text-red-400'
-                            }
-                          >
-                            {position.side}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-slate-300">
-                          {Math.abs(position.units).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="text-slate-300">
-                          {position.price.toFixed(5)}
-                        </TableCell>
-                        <TableCell className={position.unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                          {position.unrealizedPL >= 0 ? '+' : ''}${position.unrealizedPL.toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            onClick={() => handleClosePosition(position)}
-                            disabled={isClosing}
-                            variant="outline"
-                            size="sm"
-                            className="border-red-600 text-red-300 hover:text-red-200 disabled:opacity-50"
-                          >
-                            {isClosing ? (
-                              <>
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                Closing...
-                              </>
-                            ) : (
-                              <>
-                                <X className="h-3 w-3 mr-1" />
-                                Close
-                              </>
-                            )}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Trade Log */}
-      <Card className="bg-slate-800 border-slate-700">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-white">
-            <Clock className="h-5 w-5" />
-            Autonomous Trade Log
-          </CardTitle>
-          <p className="text-sm text-slate-400">
-            Recent trades from autonomous forward testing ({timezoneAbbr})
-          </p>
-        </CardHeader>
-        <CardContent>
-          {tradeLog.length === 0 ? (
-            <div className="text-center py-8">
-              <Clock className="h-12 w-12 text-slate-500 mx-auto mb-3" />
-              <p className="text-slate-400">No autonomous trades executed yet</p>
-              <p className="text-xs text-slate-500 mt-1">
-                Server-side trading will execute trades automatically based on your strategy signals
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto max-h-96 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-slate-700">
-                    <TableHead className="text-slate-400">
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Time ({timezoneAbbr})
-                      </div>
-                    </TableHead>
-                    <TableHead className="text-slate-400">Action</TableHead>
-                    <TableHead className="text-slate-400 hidden sm:table-cell">Symbol</TableHead>
-                    <TableHead className="text-slate-400 hidden sm:table-cell">Units</TableHead>
-                    <TableHead className="text-slate-400">Strategy</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {tradeLog.map((trade, index) => (
-                    <TableRow key={`${trade.timestamp}-${index}`} className="border-slate-700">
-                      <TableCell className="text-slate-300 text-sm">
-                        {formatDateTimeInTimezone(trade.timestamp, userTimezone)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          className={trade.action === 'BUY' 
-                            ? 'bg-emerald-500/10 text-emerald-400' 
-                            : 'bg-red-500/10 text-red-400'
-                          }
-                        >
-                          {trade.action}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-slate-300 hidden sm:table-cell">
-                        {trade.symbol}
-                      </TableCell>
-                      <TableCell className="text-slate-300 hidden sm:table-cell">
-                        {trade.units.toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-slate-300 text-sm">
-                        {trade.strategyName}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <TradeLogCard
+        tradeLog={tradeLog}
+        timezoneAbbr={timezoneAbbr}
+        formatDateTime={(timestamp) => formatDateTimeInTimezone(timestamp, userTimezone)}
+      />
     </div>
   );
 };
