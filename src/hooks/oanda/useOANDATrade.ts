@@ -63,22 +63,38 @@ export const useOANDATrade = () => {
       });
 
       let currentPrice = null;
+      let spread = 0;
       if (priceResponse.ok) {
         const priceData = await priceResponse.json();
         if (priceData.prices && priceData.prices.length > 0) {
           const pricing = priceData.prices[0];
-          currentPrice = parseFloat(pricing.bids[0].price);
-          console.log('Current price for', symbol, ':', currentPrice);
+          const bidPrice = parseFloat(pricing.bids[0].price);
+          const askPrice = parseFloat(pricing.asks[0].price);
+          currentPrice = askPrice; // Use ask price for BUY orders
+          spread = askPrice - bidPrice;
+          console.log('Current bid/ask for', symbol, ':', bidPrice, '/', askPrice, 'spread:', spread);
         }
       }
+
+      if (!currentPrice) {
+        throw new Error('Could not fetch current market price. Please check if the symbol is valid and markets are open.');
+      }
+
+      // Calculate proper stop loss and take profit levels
+      // For BUY orders: SL below current price, TP above current price
+      // Use minimum of 10 pips or 3x spread, whichever is larger
+      const minDistance = Math.max(0.001, spread * 3); // Minimum 10 pips or 3x spread
+      
+      const stopLossPrice = (currentPrice - minDistance * 2).toFixed(5); // 2x min distance below
+      const takeProfitPrice = (currentPrice + minDistance * 3).toFixed(5); // 3x min distance above
 
       // Create a realistic test trade signal
       const testSignal = {
         action: 'BUY' as const,
         symbol: symbol,
         units: 100, // Small test size
-        stopLoss: currentPrice ? (currentPrice - 0.0020).toFixed(5) : undefined, // 20 pip stop loss
-        takeProfit: currentPrice ? (currentPrice + 0.0030).toFixed(5) : undefined, // 30 pip take profit
+        stopLoss: stopLossPrice,
+        takeProfit: takeProfitPrice,
         strategyId: selectedStrategy?.id || 'test-strategy',
         userId: 'test-user'
       };
@@ -90,11 +106,7 @@ export const useOANDATrade = () => {
       };
 
       console.log('Executing test trade:', testSignal);
-      console.log('Using OANDA config:', { 
-        accountId: oandaConfig.accountId, 
-        environment: oandaConfig.environment,
-        apiKeyLength: oandaConfig.apiKey?.length 
-      });
+      console.log('Current price:', currentPrice, 'SL:', stopLossPrice, 'TP:', takeProfitPrice);
       
       const response = await supabase.functions.invoke('oanda-trade-executor', {
         body: {
@@ -113,12 +125,32 @@ export const useOANDATrade = () => {
 
       if (response.data?.success) {
         const result = response.data.result;
-        const transactionId = result?.orderCreateTransaction?.id || result?.transactionID || 'N/A';
+        const orderTransaction = result?.orderCreateTransaction;
+        const cancelTransaction = result?.orderCancelTransaction;
+        const fillTransaction = result?.orderFillTransaction;
         
-        toast({
-          title: "✅ Test Trade Executed Successfully!",
-          description: `${testSignal.action} order for ${testSignal.units} units of ${testSignal.symbol} placed. Transaction ID: ${transactionId}. This validates your forward testing setup is working correctly.`,
-        });
+        // Check if order was canceled
+        if (cancelTransaction) {
+          toast({
+            title: "⚠️ Test Trade Canceled",
+            description: `Order was created but canceled by OANDA. Reason: ${cancelTransaction.reason}. This might be due to market conditions or invalid price levels.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Check if order was filled
+        if (fillTransaction) {
+          toast({
+            title: "✅ Test Trade Executed Successfully!",
+            description: `BUY order for ${testSignal.units} units of ${testSignal.symbol} was filled at ${fillTransaction.price}. Transaction ID: ${fillTransaction.id}. Check your OANDA platform for details.`,
+          });
+        } else if (orderTransaction) {
+          toast({
+            title: "✅ Test Order Placed Successfully!",
+            description: `BUY order for ${testSignal.units} units of ${testSignal.symbol} placed. Transaction ID: ${orderTransaction.id}. Order is pending execution.`,
+          });
+        }
         
         console.log('Test trade result:', result);
         
@@ -129,10 +161,12 @@ export const useOANDATrade = () => {
             action: testSignal.action,
             symbol: testSignal.symbol,
             units: testSignal.units,
-            transaction_id: transactionId,
+            transaction_id: orderTransaction?.id || 'N/A',
             environment: config.environment,
-            status: 'success',
-            current_price: currentPrice
+            status: fillTransaction ? 'filled' : (cancelTransaction ? 'canceled' : 'pending'),
+            current_price: currentPrice,
+            stop_loss: stopLossPrice,
+            take_profit: takeProfitPrice
           };
           
           localStorage.setItem('last_test_trade', JSON.stringify(testRecord));
@@ -151,7 +185,7 @@ export const useOANDATrade = () => {
       
       toast({
         title: "❌ Test Trade Failed",
-        description: `Error: ${errorMessage}. Please check your OANDA credentials, account permissions, and ensure you have sufficient balance.`,
+        description: `Error: ${errorMessage}. Please check your OANDA credentials, account permissions, and ensure markets are open.`,
         variant: "destructive",
       });
     } finally {
