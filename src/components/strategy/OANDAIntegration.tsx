@@ -124,11 +124,11 @@ const OANDAIntegration: React.FC = () => {
 
             <TabsContent value="control" className="mt-6">
               <OANDAForwardTestingControl
-                isForwardTestingActive={isForwardTestingActive}
+                isForwardTestingActive={Boolean(isForwardTestingActive)}
                 selectedStrategy={selectedStrategy}
                 config={config}
-                canStartTesting={canStartTesting}
-                isConfigured={isConfigured}
+                canStartTesting={Boolean(canStartTesting)}
+                isConfigured={Boolean(isConfigured)}
                 connectionStatus={connectionStatus}
                 onToggleForwardTesting={handleToggleForwardTesting}
                 onShowGuide={handleShowGuide}
@@ -137,7 +137,7 @@ const OANDAIntegration: React.FC = () => {
 
             <TabsContent value="dashboard" className="mt-6">
               <OANDATradingDashboard
-                isActive={isForwardTestingActive}
+                isActive={Boolean(isForwardTestingActive)}
                 strategy={selectedStrategy}
                 environment={config.environment}
                 oandaConfig={config}
