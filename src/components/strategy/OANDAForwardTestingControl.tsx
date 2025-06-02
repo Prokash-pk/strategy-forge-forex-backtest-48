@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Play, Square, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Play, Square, AlertTriangle, CheckCircle, Globe } from 'lucide-react';
 
 interface StrategySettings {
   id: string;
@@ -40,8 +40,17 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white">
-          {isForwardTestingActive ? <Play className="h-5 w-5 text-emerald-400" /> : <Square className="h-5 w-5" />}
-          Forward Testing Control
+          {isForwardTestingActive ? (
+            <>
+              <Globe className="h-5 w-5 text-emerald-400" />
+              Server-Side Forward Testing
+            </>
+          ) : (
+            <>
+              <Square className="h-5 w-5" />
+              Forward Testing Control
+            </>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -59,7 +68,14 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
               variant={isForwardTestingActive ? "default" : "secondary"}
               className={isForwardTestingActive ? "bg-emerald-600" : "bg-slate-600"}
             >
-              {isForwardTestingActive ? "Active" : "Inactive"}
+              {isForwardTestingActive ? (
+                <>
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Server Active
+                </>
+              ) : (
+                "Inactive"
+              )}
             </Badge>
           </div>
         </div>
@@ -68,15 +84,24 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
 
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="text-white font-medium mb-1">Forward Testing Status</h4>
+            <h4 className="text-white font-medium mb-1">
+              {isForwardTestingActive ? "Server-Side Trading Status" : "Forward Testing Status"}
+            </h4>
             <p className="text-slate-400 text-sm">
-              {isForwardTestingActive 
-                ? `Running live on OANDA ${config.environment} account with ${selectedStrategy?.strategy_name}` 
-                : "Forward testing is currently stopped"
-              }
+              {isForwardTestingActive ? (
+                <>
+                  ✅ Running continuously on server with {selectedStrategy?.strategy_name}
+                  <br />
+                  <span className="text-emerald-400 text-xs">
+                    🌐 Trading continues even when browser is closed
+                  </span>
+                </>
+              ) : (
+                "Forward testing is currently stopped"
+              )}
             </p>
             {canStartTesting && !isForwardTestingActive && (
-              <p className="text-emerald-400 text-sm mt-1">✅ Ready to start forward testing</p>
+              <p className="text-emerald-400 text-sm mt-1">✅ Ready to start server-side forward testing</p>
             )}
           </div>
           <Button
@@ -90,16 +115,33 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
             {isForwardTestingActive ? (
               <>
                 <Square className="h-4 w-4 mr-2" />
-                Stop Testing
+                Stop Server Trading
               </>
             ) : (
               <>
-                <Play className="h-4 w-4 mr-2" />
-                Start Testing
+                <Globe className="h-4 w-4 mr-2" />
+                Start Server Trading
               </>
             )}
           </Button>
         </div>
+
+        {isForwardTestingActive && (
+          <div className="flex items-start gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5" />
+            <div>
+              <p className="text-emerald-300 text-sm font-medium">
+                Server-Side Trading Active
+              </p>
+              <p className="text-emerald-400 text-xs mt-1">
+                • Your strategy is running on our servers 24/7<br />
+                • Trading continues even when you're offline<br />
+                • OANDA credentials are securely stored<br />
+                • Trades execute automatically via cron job every 5 minutes
+              </p>
+            </div>
+          </div>
+        )}
 
         {!canStartTesting && !isForwardTestingActive && (
           <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
@@ -112,7 +154,7 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
                   ? "Please test your connection first to verify credentials."
                   : !selectedStrategy
                   ? "Please select a strategy with saved settings above."
-                  : "Ready to start forward testing!"
+                  : "Ready to start server-side forward testing!"
                 }
               </p>
               {!isConfigured && (

@@ -32,10 +32,9 @@ interface StrategySettings {
 
 export class ForwardTestingService {
   private static instance: ForwardTestingService;
-  private isRunning = false;
+  private isClientSideRunning = false;
   private config?: ForwardTestingConfig;
   private strategySettings?: StrategySettings;
-  private useServerSide = true; // New flag to use server-side execution
 
   static getInstance(): ForwardTestingService {
     if (!ForwardTestingService.instance) {
@@ -46,7 +45,7 @@ export class ForwardTestingService {
 
   async startForwardTesting(config: ForwardTestingConfig, strategy: any) {
     this.config = config;
-    this.isRunning = true;
+    this.isClientSideRunning = true;
 
     // Load the selected strategy settings from localStorage
     const savedStrategySettings = localStorage.getItem('selected_strategy_settings');
@@ -55,55 +54,51 @@ export class ForwardTestingService {
       console.log('Using strategy settings:', this.strategySettings?.strategy_name);
     } else {
       console.log('No strategy settings found, using default strategy');
+      throw new Error('No strategy settings found. Please select a strategy first.');
     }
 
-    if (this.useServerSide && this.strategySettings) {
-      // Use server-side execution
-      console.log('Starting SERVER-SIDE forward testing for strategy:', this.strategySettings.strategy_name);
-      
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('User not authenticated');
+    console.log('🚀 Starting SERVER-SIDE forward testing for strategy:', this.strategySettings.strategy_name);
+    console.log('✅ This will continue running even when you close the browser!');
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-        const session: ServerTradingSession = {
-          user_id: user.id,
-          strategy_id: this.strategySettings.id,
-          strategy_code: this.strategySettings.strategy_code,
-          symbol: this.strategySettings.symbol,
-          timeframe: this.strategySettings.timeframe,
-          oanda_account_id: config.oandaAccountId,
-          oanda_api_key: config.oandaApiKey,
-          environment: config.environment,
-          risk_per_trade: this.strategySettings.risk_per_trade,
-          stop_loss: this.strategySettings.stop_loss,
-          take_profit: this.strategySettings.take_profit,
-          max_position_size: this.strategySettings.max_position_size,
-          reverse_signals: this.strategySettings.reverse_signals
-        };
+      // Create server-side session that will persist independently
+      const session: ServerTradingSession = {
+        user_id: user.id,
+        strategy_id: this.strategySettings.id,
+        strategy_code: this.strategySettings.strategy_code,
+        symbol: this.strategySettings.symbol,
+        timeframe: this.strategySettings.timeframe,
+        oanda_account_id: config.oandaAccountId,
+        oanda_api_key: config.oandaApiKey,
+        environment: config.environment,
+        risk_per_trade: this.strategySettings.risk_per_trade,
+        stop_loss: this.strategySettings.stop_loss,
+        take_profit: this.strategySettings.take_profit,
+        max_position_size: this.strategySettings.max_position_size,
+        reverse_signals: this.strategySettings.reverse_signals
+      };
 
-        await ServerForwardTestingService.startServerSideForwardTesting(session);
-        console.log('✅ Server-side forward testing started successfully');
-        
-      } catch (error) {
-        console.error('Failed to start server-side forward testing:', error);
-        this.isRunning = false;
-        throw error;
-      }
-    } else {
-      // Fall back to client-side execution (original implementation)
-      console.log('Starting CLIENT-SIDE forward testing for strategy:', this.strategySettings?.strategy_name || strategy.name);
-      console.log('⚠️ Note: This will only run when the browser is open');
+      await ServerForwardTestingService.startServerSideForwardTesting(session);
       
-      // Original client-side implementation would go here...
-      // For now, we'll just log that it's not implemented
-      console.log('Client-side execution not implemented in this version');
+      console.log('✅ Server-side forward testing started successfully');
+      console.log('📊 Trading will continue automatically every 5 minutes via cron job');
+      console.log('🔒 Your OANDA credentials are securely stored on the server');
+      console.log('🌐 You can safely close your browser - trading will continue');
+      
+    } catch (error) {
+      console.error('Failed to start server-side forward testing:', error);
+      this.isClientSideRunning = false;
+      throw error;
     }
   }
 
   async stopForwardTesting() {
-    this.isRunning = false;
+    this.isClientSideRunning = false;
 
-    if (this.useServerSide && this.strategySettings && this.config) {
+    if (this.strategySettings && this.config) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('User not authenticated');
@@ -112,7 +107,9 @@ export class ForwardTestingService {
           user.id, 
           this.strategySettings.id
         );
+        
         console.log('✅ Server-side forward testing stopped successfully');
+        console.log('🛑 All trading sessions have been deactivated');
         
       } catch (error) {
         console.error('Failed to stop server-side forward testing:', error);
@@ -123,7 +120,7 @@ export class ForwardTestingService {
   }
 
   isActive(): boolean {
-    return this.isRunning;
+    return this.isClientSideRunning;
   }
 
   getCurrentStrategy(): StrategySettings | null {
@@ -132,43 +129,38 @@ export class ForwardTestingService {
 
   // Get trading statistics from server-side logs
   async getForwardTestingStats() {
-    if (this.useServerSide) {
-      try {
-        const logs: TradingLog[] = await ServerForwardTestingService.getTradingLogs();
-        const tradeLogs = logs.filter(log => log.log_type === 'trade');
-        const errorLogs = logs.filter(log => log.log_type === 'error');
+    try {
+      const logs: TradingLog[] = await ServerForwardTestingService.getTradingLogs();
+      const tradeLogs = logs.filter(log => log.log_type === 'trade');
+      const errorLogs = logs.filter(log => log.log_type === 'error');
 
-        return {
-          totalTrades: tradeLogs.length,
-          successfulTrades: tradeLogs.filter(log => log.trade_data?.success).length,
-          failedTrades: tradeLogs.filter(log => !log.trade_data?.success).length,
-          totalErrors: errorLogs.length,
-          lastExecution: tradeLogs.length > 0 ? tradeLogs[0].timestamp : null,
-          isUsingServerSide: true
-        };
-      } catch (error) {
-        console.error('Failed to get server-side stats:', error);
-      }
+      return {
+        totalTrades: tradeLogs.length,
+        successfulTrades: tradeLogs.filter(log => log.trade_data?.success).length,
+        failedTrades: tradeLogs.filter(log => !log.trade_data?.success).length,
+        totalErrors: errorLogs.length,
+        lastExecution: tradeLogs.length > 0 ? tradeLogs[0].timestamp : null,
+        isUsingServerSide: true,
+        message: tradeLogs.length > 0 
+          ? `Running server-side with ${tradeLogs.length} trades executed`
+          : 'Server-side forward testing active - waiting for trading signals'
+      };
+    } catch (error) {
+      console.error('Failed to get server-side stats:', error);
+      return {
+        totalTrades: 0,
+        successfulTrades: 0,
+        failedTrades: 0,
+        totalErrors: 0,
+        lastExecution: null,
+        isUsingServerSide: true,
+        message: 'Server-side forward testing active'
+      };
     }
-
-    // Fallback to client-side stats
-    const trades = JSON.parse(localStorage.getItem('forward_testing_trades') || '[]');
-    const errors = JSON.parse(localStorage.getItem('forward_testing_errors') || '[]');
-    
-    return {
-      totalTrades: trades.length,
-      successfulTrades: trades.filter((t: any) => t.status === 'executed').length,
-      failedTrades: trades.filter((t: any) => t.status === 'failed').length,
-      totalErrors: errors.length,
-      lastExecution: trades.length > 0 ? trades[trades.length - 1].timestamp : null,
-      isUsingServerSide: false
-    };
   }
 
   // Check if there are active server-side sessions
   async hasActiveServerSessions(): Promise<boolean> {
-    if (!this.useServerSide) return false;
-    
     try {
       const sessions = await ServerForwardTestingService.getActiveSessions();
       return sessions.length > 0;

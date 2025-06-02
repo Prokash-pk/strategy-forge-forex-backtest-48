@@ -1,4 +1,3 @@
-
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
@@ -50,32 +49,38 @@ export const useOANDAIntegration = () => {
     loadSelectedStrategy();
   }, []);
 
-  // Check forward testing status on mount and periodically
+  // Check server-side forward testing status on mount and periodically
   useEffect(() => {
     const checkForwardTestingStatus = async () => {
       try {
-        // Check both client-side and server-side status
-        const clientSideActive = ForwardTestingService.getInstance().isActive();
+        // Check server-side status - this is the primary source of truth
         const activeSessions = await ServerForwardTestingService.getActiveSessions();
         const serverSideActive = activeSessions.length > 0;
         
-        const isActive = clientSideActive || serverSideActive;
-        setIsForwardTestingActive(isActive);
+        // Update state based on server-side status
+        setIsForwardTestingActive(serverSideActive);
         
-        console.log('Forward testing status check:', {
-          clientSideActive,
+        console.log('📊 Forward testing status check:', {
           serverSideActive: activeSessions.length > 0,
           totalActiveSessions: activeSessions.length,
-          finalStatus: isActive
+          finalStatus: serverSideActive
         });
+
+        if (serverSideActive) {
+          console.log('✅ Server-side forward testing is ACTIVE');
+          console.log('🔄 Trading sessions are running independently on the server');
+        } else {
+          console.log('⏸️ No active server-side trading sessions found');
+        }
       } catch (error) {
         console.error('Failed to check forward testing status:', error);
+        setIsForwardTestingActive(false);
       }
     };
 
     checkForwardTestingStatus();
     
-    // Check status every 30 seconds
+    // Check status every 30 seconds to stay in sync with server
     const interval = setInterval(checkForwardTestingStatus, 30000);
     
     return () => clearInterval(interval);
@@ -93,24 +98,33 @@ export const useOANDAIntegration = () => {
     const service = ForwardTestingService.getInstance();
     
     if (isForwardTestingActive) {
-      service.stopForwardTesting();
+      // Stop forward testing
+      await service.stopForwardTesting();
       setIsForwardTestingActive(false);
+      console.log('🛑 Forward testing stopped');
     } else {
+      // Start forward testing
       if (canStartTesting && selectedStrategy) {
-        await service.startForwardTesting({
-          strategyId: selectedStrategy.id,
-          oandaAccountId: config.accountId,
-          oandaApiKey: config.apiKey,
-          environment: config.environment,
-          enabled: true
-        }, selectedStrategy);
-        setIsForwardTestingActive(true);
+        try {
+          await service.startForwardTesting({
+            strategyId: selectedStrategy.id,
+            oandaAccountId: config.accountId,
+            oandaApiKey: config.apiKey,
+            environment: config.environment,
+            enabled: true
+          }, selectedStrategy);
+          
+          setIsForwardTestingActive(true);
+          console.log('🚀 Forward testing started - will continue running on server');
+        } catch (error) {
+          console.error('Failed to start forward testing:', error);
+          // Keep the state as false if starting failed
+        }
       }
     }
   };
 
   const handleShowGuide = () => {
-    // This could navigate to a guide or open a modal
     console.log('Show OANDA setup guide');
   };
 
