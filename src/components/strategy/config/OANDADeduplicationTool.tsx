@@ -107,10 +107,12 @@ const OANDADeduplicationTool: React.FC<OANDADeduplicationToolProps> = ({
       let removedCount = 0;
 
       for (const group of duplicateGroups) {
-        // Keep the most recent one, remove the rest
-        const sortedGroup = group.sort((a, b) => 
-          new Date(b.id).localeCompare(new Date(a.id).toISOString())
-        );
+        // Keep the most recent one, remove the rest - fix the sorting issue
+        const sortedGroup = group.sort((a, b) => {
+          const dateA = new Date(a.id);
+          const dateB = new Date(b.id);
+          return dateB.getTime() - dateA.getTime();
+        });
         
         const toRemove = sortedGroup.slice(1); // Keep first (most recent), remove rest
         
