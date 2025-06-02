@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,13 +35,15 @@ interface OANDAStrategySettingsProps {
   selectedStrategy: StrategySettings | null;
   onLoadStrategy: (strategy: StrategySettings) => void;
   onDeleteStrategy: (strategyId: string) => void;
+  onRefresh: () => void;
 }
 
 const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
   savedStrategies,
   selectedStrategy,
   onLoadStrategy,
-  onDeleteStrategy
+  onDeleteStrategy,
+  onRefresh
 }) => {
   if (savedStrategies.length === 0) {
     return null;

@@ -92,25 +92,26 @@ export class ServerForwardTestingService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Use raw SQL query to avoid TypeScript issues with new tables
-      const { data, error } = await supabase.rpc('get_active_trading_sessions', {
+      // First try the RPC function
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_active_trading_sessions', {
         p_user_id: user.id
       });
 
+      if (!rpcError && rpcData) {
+        return rpcData;
+      }
+
+      console.error('RPC error, falling back to direct query:', rpcError);
+      
+      // Fallback to direct query
+      const { data, error } = await supabase
+        .from('trading_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
       if (error) {
-        console.error('RPC error, falling back to direct query:', error);
-        // Fallback to direct query using any type
-        const { data: fallbackData, error: fallbackError } = await (supabase as any)
-          .from('trading_sessions')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('is_active', true);
-
-        if (fallbackError) {
-          throw fallbackError;
-        }
-
-        return fallbackData || [];
+        throw error;
       }
 
       return data || [];
@@ -125,8 +126,7 @@ export class ServerForwardTestingService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Use any type to bypass TypeScript issues with new tables
-      let query = (supabase as any)
+      let query = supabase
         .from('trading_logs')
         .select('*')
         .eq('user_id', user.id)

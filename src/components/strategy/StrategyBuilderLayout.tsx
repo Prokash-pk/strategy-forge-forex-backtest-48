@@ -159,10 +159,7 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
 
           <TabsContent value="oanda" className="mt-0 w-full">
             <div className="w-full space-y-6">
-              <OANDAIntegration
-                selectedStrategy={strategy}
-                onStrategyUpdate={onStrategyChange}
-              />
+              <OANDAIntegration />
             </div>
           </TabsContent>
         </div>
