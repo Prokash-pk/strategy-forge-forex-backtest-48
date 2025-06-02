@@ -98,12 +98,13 @@ export const useOANDAConfig = () => {
         account_id: config.accountId,
         api_key: config.apiKey,
         environment: config.environment,
+        config_name: `${config.environment} - ${new Date().toLocaleDateString()}`,
         enabled: true
       };
 
       const { error } = await supabase
         .from('oanda_configs')
-        .insert([configToSave]);
+        .insert(configToSave);
 
       if (error) throw error;
 
