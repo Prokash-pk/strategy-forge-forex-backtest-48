@@ -102,7 +102,6 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
                 onStrategyChange={onStrategyChange}
                 onRunBacktest={onRunBacktest}
                 isRunning={isRunning}
-                currentStep={currentStep}
                 backtestResults={backtestResults}
                 onTestReverseStrategy={onTestReverseStrategy}
                 isReverseTestRunning={isReverseTestRunning}
@@ -117,7 +116,6 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
                 onStrategyChange={onStrategyChange}
                 onRunBacktest={onRunBacktest}
                 isRunning={isRunning}
-                currentStep={currentStep}
                 onAddToStrategy={onAddToStrategy}
               />
             </div>
@@ -126,7 +124,6 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
           <TabsContent value="saved" className="mt-0 w-full">
             <div className="w-full space-y-6">
               <SavedStrategiesTab
-                onStrategySelect={onStrategySelect}
                 onStrategyChange={onStrategyChange}
                 currentStrategy={strategy}
               />
@@ -135,7 +132,11 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
 
           <TabsContent value="visual" className="mt-0 w-full">
             <div className="w-full space-y-6">
-              <VisualStrategyTab onStrategyChange={onStrategyChange} />
+              <VisualStrategyTab 
+                strategy={strategy}
+                onStrategyChange={onStrategyChange} 
+                onAddToStrategy={onAddToStrategy}
+              />
             </div>
           </TabsContent>
 
@@ -146,6 +147,7 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
                 onStrategyChange={onStrategyChange}
                 backtestResults={backtestResults}
                 onAddToStrategy={onAddToStrategy}
+                onStrategySelect={onStrategySelect}
               />
             </div>
           </TabsContent>

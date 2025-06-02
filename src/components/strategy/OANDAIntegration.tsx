@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Settings, Activity, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Settings, Activity, TrendingUp, AlertTriangle, CheckCircle, XCircle, Clock } from 'lucide-react';
 import OANDAConfigForm from './OANDAConfigForm';
 import OANDAStrategySettings from './OANDAStrategySettings';
 import OANDAForwardTestingControl from './OANDAForwardTestingControl';
@@ -41,6 +41,18 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
 
   const handleTestTradeClick = () => {
     handleTestTrade(config, selectedStrategy, connectionStatus);
+  };
+
+  // Get the appropriate icon component
+  const getStatusIcon = () => {
+    const IconComponent = connectionStatusIcon;
+    if (connectionStatus === 'success') {
+      return <IconComponent className="h-5 w-5 text-emerald-400" />;
+    } else if (connectionStatus === 'testing') {
+      return <IconComponent className="h-5 w-5 text-yellow-400 animate-spin" />;
+    } else {
+      return <IconComponent className="h-5 w-5 text-slate-500" />;
+    }
   };
 
   return (
@@ -130,14 +142,13 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
             isTestingTrade={isTestingTrade}
             canStartTesting={canStartTesting}
             isForwardTestingActive={isForwardTestingActive}
-            connectionStatusIcon={connectionStatusIcon}
+            connectionStatusIcon={getStatusIcon()}
           />
         </TabsContent>
 
         <TabsContent value="strategy">
           <OANDAStrategySettings
             selectedStrategy={selectedStrategy}
-            config={config}
             connectionStatus={connectionStatus}
           />
         </TabsContent>

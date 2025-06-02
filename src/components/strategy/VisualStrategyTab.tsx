@@ -10,19 +10,19 @@ import { TrendingUp, Target, Shield, Zap, Plus, Users, Settings } from 'lucide-r
 import PersonalizedRecommendations from './PersonalizedRecommendations';
 
 interface VisualStrategyTabProps {
-  strategy: any;
+  strategy?: any;
   onStrategyChange: (updates: any) => void;
-  onAddToStrategy: (codeSnippet: string) => void;
+  onAddToStrategy?: (codeSnippet: string) => void;
 }
 
 const VisualStrategyTab: React.FC<VisualStrategyTabProps> = ({
-  strategy,
+  strategy = {},
   onStrategyChange,
   onAddToStrategy
 }) => {
   const [userPreferences, setUserPreferences] = useState({
-    symbol: strategy.symbol || 'EURUSD=X',
-    timeframe: strategy.timeframe || '5m',
+    symbol: strategy?.symbol || 'EURUSD=X',
+    timeframe: strategy?.timeframe || '5m',
     riskTolerance: 'medium' as 'low' | 'medium' | 'high',
     targetReturn: 20
   });
