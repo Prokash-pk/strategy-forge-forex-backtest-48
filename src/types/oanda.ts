@@ -1,8 +1,17 @@
+
 export interface OANDAConfig {
   accountId: string;
   apiKey: string;
   environment: 'practice' | 'live';
   enabled?: boolean;
+  configName?: string;
+}
+
+export interface SavedOANDAConfig extends OANDAConfig {
+  id: string;
+  configName: string;
+  enabled: boolean;
+  createdAt: string;
 }
 
 export interface StrategySettings {

@@ -16,7 +16,9 @@ export const useOANDAIntegration = () => {
     isLoading,
     handleConfigChange,
     handleSaveConfig,
+    handleSaveNewConfig,
     handleLoadConfig,
+    handleDeleteConfig,
     loadSavedConfigs
   } = useOANDAConfig();
 
@@ -104,9 +106,9 @@ export const useOANDAIntegration = () => {
 
   return {
     config,
+    savedConfigs,
     connectionStatus,
     connectionError,
-    savedConfigs,
     savedStrategies,
     selectedStrategy,
     isLoading,
@@ -118,7 +120,9 @@ export const useOANDAIntegration = () => {
     handleConfigChange: handleConfigChangeWithReset,
     handleTestConnection: () => handleTestConnection(config),
     handleSaveConfig,
+    handleSaveNewConfig,
     handleLoadConfig,
+    handleDeleteConfig,
     handleLoadStrategy,
     handleTestTrade: () => handleTestTrade(config, selectedStrategy, connectionStatus),
     handleDeleteStrategy,

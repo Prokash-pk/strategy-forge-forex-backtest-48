@@ -8,19 +8,18 @@ import OANDAConnectionStatus from './config/OANDAConnectionStatus';
 import OANDACredentialsForm from './config/OANDACredentialsForm';
 import OANDAActionButtons from './config/OANDAActionButtons';
 import OANDAErrorDisplay from './config/OANDAErrorDisplay';
-
-interface OANDAConfig {
-  accountId: string;
-  apiKey: string;
-  environment: 'practice' | 'live';
-  enabled: boolean;
-}
+import OANDAMultiAccountManager from './config/OANDAMultiAccountManager';
+import { OANDAConfig, SavedOANDAConfig } from '@/types/oanda';
 
 interface OANDAConfigFormProps {
   config: OANDAConfig;
+  savedConfigs: SavedOANDAConfig[];
   onConfigChange: (field: keyof OANDAConfig, value: any) => void;
   onTestConnection: () => void;
   onSaveConfig: () => void;
+  onSaveNewConfig: (config: OANDAConfig & { configName: string }) => void;
+  onLoadConfig: (config: SavedOANDAConfig) => void;
+  onDeleteConfig: (configId: string) => void;
   onTestTrade: () => void;
   connectionStatus: 'idle' | 'testing' | 'success' | 'error';
   connectionError: string;
@@ -33,9 +32,13 @@ interface OANDAConfigFormProps {
 
 const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
   config,
+  savedConfigs,
   onConfigChange,
   onTestConnection,
   onSaveConfig,
+  onSaveNewConfig,
+  onLoadConfig,
+  onDeleteConfig,
   onTestTrade,
   connectionStatus,
   connectionError,
@@ -58,56 +61,68 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
   };
 
   return (
-    <Card className="bg-slate-800 border-slate-700">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <Settings className="h-5 w-5" />
-          Connect OANDA
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Connection Status */}
-        <OANDAConnectionStatus 
-          connectionStatus={connectionStatus}
-          environment={config.environment}
-          accountId={config.accountId}
-        />
+    <div className="space-y-6">
+      {/* Multi-Account Manager */}
+      <OANDAMultiAccountManager
+        savedConfigs={savedConfigs}
+        currentConfig={config}
+        onLoadConfig={onLoadConfig}
+        onDeleteConfig={onDeleteConfig}
+        onSaveNewConfig={onSaveNewConfig}
+      />
 
-        {/* Environment Selection */}
-        <OANDAEnvironmentSelector
-          environment={config.environment}
-          onEnvironmentChange={(value) => onConfigChange('environment', value)}
-        />
+      {/* Main Configuration Form */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Settings className="h-5 w-5" />
+            Configure OANDA Connection
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Connection Status */}
+          <OANDAConnectionStatus 
+            connectionStatus={connectionStatus}
+            environment={config.environment}
+            accountId={config.accountId}
+          />
 
-        <Separator className="bg-slate-600" />
+          {/* Environment Selection */}
+          <OANDAEnvironmentSelector
+            environment={config.environment}
+            onEnvironmentChange={(value) => onConfigChange('environment', value)}
+          />
 
-        {/* Credentials Form */}
-        <OANDACredentialsForm
-          accountId={config.accountId}
-          apiKey={config.apiKey}
-          onAccountIdChange={(value) => onConfigChange('accountId', value)}
-          onApiKeyChange={(value) => onConfigChange('apiKey', value)}
-        />
+          <Separator className="bg-slate-600" />
 
-        {/* Action Buttons */}
-        <OANDAActionButtons
-          isConfigured={isConfigured}
-          connectionStatus={connectionStatus}
-          isLoading={isLoading}
-          isTestingTrade={isTestingTrade}
-          canStartTesting={canStartTesting}
-          isForwardTestingActive={isForwardTestingActive}
-          connectionStatusIcon={connectionStatusIcon}
-          onConnect={handleConnectOANDA}
-          onTestConnection={onTestConnection}
-          onSaveConfig={onSaveConfig}
-          onTestTrade={onTestTrade}
-        />
+          {/* Credentials Form */}
+          <OANDACredentialsForm
+            accountId={config.accountId}
+            apiKey={config.apiKey}
+            onAccountIdChange={(value) => onConfigChange('accountId', value)}
+            onApiKeyChange={(value) => onConfigChange('apiKey', value)}
+          />
 
-        {/* Error Display */}
-        <OANDAErrorDisplay connectionError={connectionError} />
-      </CardContent>
-    </Card>
+          {/* Action Buttons */}
+          <OANDAActionButtons
+            isConfigured={isConfigured}
+            connectionStatus={connectionStatus}
+            isLoading={isLoading}
+            isTestingTrade={isTestingTrade}
+            canStartTesting={canStartTesting}
+            isForwardTestingActive={isForwardTestingActive}
+            connectionStatusIcon={connectionStatusIcon}
+            onConnect={handleConnectOANDA}
+            onTestConnection={onTestConnection}
+            onSaveConfig={onSaveConfig}
+            onTestTrade={onTestTrade}
+          />
+
+          {/* Error Display */}
+          <OANDAErrorDisplay connectionError={connectionError} />
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

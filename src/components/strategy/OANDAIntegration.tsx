@@ -22,9 +22,13 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
 }) => {
   const {
     config,
+    savedConfigs,
     handleConfigChange,
     handleTestConnection,
     handleSaveConfig,
+    handleSaveNewConfig,
+    handleLoadConfig,
+    handleDeleteConfig,
     connectionStatus,
     connectionError,
     isLoading,
@@ -135,9 +139,13 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
         <TabsContent value="config">
           <OANDAConfigForm
             config={config}
+            savedConfigs={savedConfigs}
             onConfigChange={handleConfigChange}
             onTestConnection={handleTestConnection}
             onSaveConfig={handleSaveConfig}
+            onSaveNewConfig={handleSaveNewConfig}
+            onLoadConfig={handleLoadConfig}
+            onDeleteConfig={handleDeleteConfig}
             onTestTrade={handleTestTradeClick}
             connectionStatus={connectionStatus}
             connectionError={connectionError}
