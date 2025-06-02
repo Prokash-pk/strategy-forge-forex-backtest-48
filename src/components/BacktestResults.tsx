@@ -34,15 +34,15 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
   }
 
   const handleExportPDF = () => {
-    console.log('Export PDF functionality');
+    alert('PDF export feature is coming soon!');
   };
 
   const handleShareResults = () => {
-    console.log('Share results functionality');
+    alert('Share results feature is coming soon!');
   };
 
   const handleScreenshot = () => {
-    console.log('Screenshot functionality');
+    alert('Screenshot feature is coming soon!');
   };
 
   const handleReoptimize = () => {
@@ -111,7 +111,7 @@ const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-slate-800 border-slate-700 hover:scale-105 transition-transform duration-200 hover:shadow-xl hover:shadow-emerald-500/10">
           <CardContent className="p-6 text-center">
-            <div className="text-3xl font-bold text-emerald-400 mb-2">
+            <div className={`text-3xl font-bold mb-2 ${results.totalReturn > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {results.totalReturn > 0 ? '+' : ''}{results.totalReturn.toFixed(2)}%
             </div>
             <p className="text-slate-400 text-sm">Total Return</p>
