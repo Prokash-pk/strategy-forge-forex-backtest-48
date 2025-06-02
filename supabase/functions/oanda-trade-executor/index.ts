@@ -6,8 +6,8 @@ interface TradeSignal {
   action: 'BUY' | 'SELL' | 'CLOSE'
   symbol: string
   units: number
-  stopLoss?: number
-  takeProfit?: number
+  stopLoss?: string
+  takeProfit?: string
   strategyId: string
   userId: string
 }
@@ -15,7 +15,7 @@ interface TradeSignal {
 interface OANDAConfig {
   accountId: string
   apiKey: string
-  environment: 'practice' | 'live' // practice for demo
+  environment: 'practice' | 'live'
 }
 
 serve(async (req) => {
@@ -24,7 +24,18 @@ serve(async (req) => {
   }
 
   try {
-    const { signal, config }: { signal: TradeSignal, config: OANDAConfig } = await req.json()
+    const { signal, config, testMode }: { 
+      signal: TradeSignal, 
+      config: OANDAConfig,
+      testMode?: boolean 
+    } = await req.json()
+
+    console.log('Received trade signal:', signal)
+    console.log('Using config:', { 
+      accountId: config.accountId, 
+      environment: config.environment,
+      testMode: testMode || false
+    })
 
     // OANDA API base URL
     const baseUrl = config.environment === 'practice' 
@@ -34,6 +45,7 @@ serve(async (req) => {
     const headers = {
       'Authorization': `Bearer ${config.apiKey}`,
       'Content-Type': 'application/json',
+      'Accept-Datetime-Format': 'UNIX'
     }
 
     if (signal.action === 'CLOSE') {
@@ -51,10 +63,10 @@ serve(async (req) => {
       )
 
       const closeResult = await closeResponse.json()
-      console.log('Position closed:', closeResult)
+      console.log('Position close response:', closeResult)
 
       return new Response(JSON.stringify({
-        success: true,
+        success: closeResponse.ok,
         action: 'CLOSE',
         result: closeResult
       }), {
@@ -62,25 +74,34 @@ serve(async (req) => {
       })
     }
 
-    // Create market order
+    // Create market order with proper error handling
     const orderData = {
       order: {
         type: 'MARKET',
         instrument: signal.symbol,
-        units: signal.action === 'BUY' ? signal.units : -signal.units,
+        units: signal.action === 'BUY' ? signal.units.toString() : (-signal.units).toString(),
         timeInForce: 'FOK', // Fill or Kill
-        ...(signal.stopLoss && {
-          stopLossOnFill: {
-            price: signal.stopLoss.toString()
-          }
-        }),
-        ...(signal.takeProfit && {
-          takeProfitOnFill: {
-            price: signal.takeProfit.toString()
-          }
-        })
+        positionFill: 'DEFAULT'
       }
     }
+
+    // Add stop loss if provided
+    if (signal.stopLoss) {
+      orderData.order.stopLossOnFill = {
+        price: signal.stopLoss,
+        timeInForce: 'GTC'
+      }
+    }
+
+    // Add take profit if provided
+    if (signal.takeProfit) {
+      orderData.order.takeProfitOnFill = {
+        price: signal.takeProfit,
+        timeInForce: 'GTC'
+      }
+    }
+
+    console.log('Sending order to OANDA:', JSON.stringify(orderData, null, 2))
 
     const response = await fetch(
       `${baseUrl}/v3/accounts/${config.accountId}/orders`,
@@ -92,17 +113,33 @@ serve(async (req) => {
     )
 
     const result = await response.json()
+    console.log('OANDA response status:', response.status)
+    console.log('OANDA response:', JSON.stringify(result, null, 2))
 
     if (!response.ok) {
-      throw new Error(`OANDA API Error: ${result.errorMessage || 'Unknown error'}`)
+      const errorMsg = result.errorMessage || result.message || `HTTP ${response.status}: ${response.statusText}`
+      console.error('OANDA API Error:', errorMsg)
+      throw new Error(`OANDA API Error: ${errorMsg}`)
     }
 
-    console.log('Trade executed:', result)
+    // Check if order was successful
+    const orderTransaction = result.orderCreateTransaction
+    const orderFillTransaction = result.orderFillTransaction
+    
+    if (orderTransaction) {
+      console.log('Order created successfully:', orderTransaction.id)
+      
+      if (orderFillTransaction) {
+        console.log('Order filled successfully:', orderFillTransaction.id)
+      }
+    }
 
     return new Response(JSON.stringify({
       success: true,
       action: signal.action,
-      result
+      result: result,
+      orderCreateTransaction: orderTransaction,
+      orderFillTransaction: orderFillTransaction
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
@@ -111,7 +148,7 @@ serve(async (req) => {
     console.error('Trade execution error:', error)
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error.message || 'Unknown error occurred'
     }), {
       status: 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -27,26 +27,45 @@ export const useOANDATrade = () => {
       return;
     }
 
-    if (!selectedStrategy) {
-      toast({
-        title: "Strategy Required",
-        description: "Please select a strategy with saved settings to use for the test trade",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsTestingTrade(true);
 
     try {
-      // Create a minimal test trade signal - just testing the connection
+      // Get current market price first to set appropriate stop loss and take profit
+      const symbol = selectedStrategy?.symbol?.replace('=X', '').replace('/', '_') || 'EUR_USD';
+      
+      // Get current pricing information
+      const baseUrl = config.environment === 'practice' 
+        ? 'https://api-fxpractice.oanda.com'
+        : 'https://api-fxtrade.oanda.com';
+
+      console.log('Fetching current price for', symbol);
+      
+      const priceResponse = await fetch(`${baseUrl}/v3/accounts/${config.accountId}/pricing?instruments=${symbol}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      let currentPrice = null;
+      if (priceResponse.ok) {
+        const priceData = await priceResponse.json();
+        if (priceData.prices && priceData.prices.length > 0) {
+          const pricing = priceData.prices[0];
+          currentPrice = parseFloat(pricing.bids[0].price);
+          console.log('Current price for', symbol, ':', currentPrice);
+        }
+      }
+
+      // Create a realistic test trade signal
       const testSignal = {
         action: 'BUY' as const,
-        symbol: selectedStrategy.symbol.replace('=X', '').replace('/', '_'),
-        units: 1, // Minimal trade size for testing
-        stopLoss: undefined,
-        takeProfit: undefined,
-        strategyId: selectedStrategy.id,
+        symbol: symbol,
+        units: 100, // Small test size
+        stopLoss: currentPrice ? (currentPrice - 0.0020).toFixed(5) : undefined, // 20 pip stop loss
+        takeProfit: currentPrice ? (currentPrice + 0.0030).toFixed(5) : undefined, // 30 pip take profit
+        strategyId: selectedStrategy?.id || 'test-strategy',
         userId: 'test-user'
       };
 
@@ -67,7 +86,7 @@ export const useOANDATrade = () => {
         body: {
           signal: testSignal,
           config: oandaConfig,
-          testMode: true // Add test mode flag
+          testMode: false // Use real mode for actual validation
         }
       });
 
@@ -79,12 +98,34 @@ export const useOANDATrade = () => {
       }
 
       if (response.data?.success) {
+        const result = response.data.result;
+        const transactionId = result?.orderCreateTransaction?.id || result?.transactionID || 'N/A';
+        
         toast({
-          title: "Test Trade Successful! ✅",
-          description: `Test ${testSignal.action} order for ${testSignal.units} units of ${testSignal.symbol} executed successfully. Transaction ID: ${response.data.result?.transactionID || 'N/A'}`,
+          title: "✅ Test Trade Executed Successfully!",
+          description: `${testSignal.action} order for ${testSignal.units} units of ${testSignal.symbol} placed. Transaction ID: ${transactionId}. This validates your forward testing setup is working correctly.`,
         });
         
-        console.log('Test trade result:', response.data.result);
+        console.log('Test trade result:', result);
+        
+        // Store the successful test for analytics
+        try {
+          const testRecord = {
+            timestamp: new Date().toISOString(),
+            action: testSignal.action,
+            symbol: testSignal.symbol,
+            units: testSignal.units,
+            transaction_id: transactionId,
+            environment: config.environment,
+            status: 'success',
+            current_price: currentPrice
+          };
+          
+          localStorage.setItem('last_test_trade', JSON.stringify(testRecord));
+        } catch (storageError) {
+          console.error('Failed to store test record:', storageError);
+        }
+        
       } else {
         console.error('Trade execution failed:', response.data);
         throw new Error(response.data?.error || 'Trade execution failed');
@@ -95,8 +136,8 @@ export const useOANDATrade = () => {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       toast({
-        title: "Test Trade Failed ❌",
-        description: `Error: ${errorMessage}. Please check your OANDA credentials and account permissions.`,
+        title: "❌ Test Trade Failed",
+        description: `Error: ${errorMessage}. Please check your OANDA credentials, account permissions, and ensure you have sufficient balance.`,
         variant: "destructive",
       });
     } finally {

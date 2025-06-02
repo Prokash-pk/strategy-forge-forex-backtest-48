@@ -1,188 +1,165 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Code, Settings, BarChart3, TrendingUp, History } from 'lucide-react';
-import StrategyConfiguration from './StrategyConfiguration';
+import { Settings, Code2, Bookmark, Lightbulb, TrendingUp, Cpu } from 'lucide-react';
+import StrategyConfigurationTab from './StrategyConfigurationTab';
 import PythonStrategyTab from './PythonStrategyTab';
-import StrategyRecommendationsTab from './StrategyRecommendationsTab';
 import SavedStrategiesTab from './SavedStrategiesTab';
+import VisualStrategyTab from './VisualStrategyTab';
+import StrategyRecommendationsTab from './StrategyRecommendationsTab';
+import HighPerformanceStrategiesTab from './HighPerformanceStrategiesTab';
 import OANDAIntegration from './OANDAIntegration';
-import { ForwardTestingService } from '@/services/forwardTestingService';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
-  onStrategyChange: (updates: any) => void;
-  onRunBacktest?: () => void;
-  isRunning?: boolean;
-  currentStep?: string;
+  onStrategyChange: (strategy: any) => void;
+  onRunBacktest: () => void;
+  isRunning: boolean;
+  currentStep: string;
   onStrategySelect: (strategy: any) => void;
-  backtestResults?: any;
-  onAddToStrategy: (codeSnippet: string) => void;
-  onTestReverseStrategy?: () => void;
-  isReverseTestRunning?: boolean;
+  backtestResults: any;
+  onAddToStrategy: (code: string) => void;
+  onTestReverseStrategy: () => void;
+  isReverseTestRunning: boolean;
 }
 
 const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   strategy,
   onStrategyChange,
   onRunBacktest,
-  isRunning = false,
+  isRunning,
   currentStep,
   onStrategySelect,
   backtestResults,
   onAddToStrategy,
   onTestReverseStrategy,
-  isReverseTestRunning = false
+  isReverseTestRunning
 }) => {
-  const [isForwardTestingActive, setIsForwardTestingActive] = React.useState(false);
-  const [activeTab, setActiveTab] = React.useState('configuration');
-  const forwardTestingService = ForwardTestingService.getInstance();
-
-  React.useEffect(() => {
-    setIsForwardTestingActive(forwardTestingService.isActive());
-  }, []);
-
-  const handleToggleForwardTesting = async (active: boolean) => {
-    if (active) {
-      // Get OANDA config from localStorage (in a real app, you'd store this securely)
-      const configStr = localStorage.getItem('oanda_config');
-      if (configStr) {
-        const config = JSON.parse(configStr);
-        await forwardTestingService.startForwardTesting({
-          strategyId: strategy.name,
-          oandaAccountId: config.accountId,
-          oandaApiKey: config.apiKey,
-          environment: config.environment,
-          enabled: config.enabled
-        }, strategy);
-        setIsForwardTestingActive(true);
-      }
-    } else {
-      forwardTestingService.stopForwardTesting();
-      setIsForwardTestingActive(false);
-    }
-  };
-
-  const handleStrategyLoad = (loadedStrategy: any) => {
-    onStrategySelect(loadedStrategy);
-  };
-
-  const handleNavigateToConfiguration = () => {
-    setActiveTab('configuration');
-  };
-
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-slate-800">
-            <TabsTrigger value="configuration">
-              <Settings className="h-4 w-4 mr-2" />
-              Configuration
-            </TabsTrigger>
-            <TabsTrigger value="python">
-              <Code className="h-4 w-4 mr-2" />
-              Python Code
-            </TabsTrigger>
-            <TabsTrigger value="saved-strategies">
-              <History className="h-4 w-4 mr-2" />
-              Saved Strategies
-            </TabsTrigger>
-            <TabsTrigger value="recommendations">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              AI Recommendations
-            </TabsTrigger>
-            <TabsTrigger value="forward-testing">
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Forward Testing
-            </TabsTrigger>
-          </TabsList>
+    <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8">
+      <Tabs defaultValue="configuration" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 bg-slate-800 border-slate-700 h-auto p-1">
+          <TabsTrigger 
+            value="configuration" 
+            className="data-[state=active]:bg-emerald-600 flex flex-col items-center gap-1 py-3 px-2 text-xs lg:text-sm"
+          >
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">Configuration</span>
+            <span className="sm:hidden">Config</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="python" 
+            className="data-[state=active]:bg-emerald-600 flex flex-col items-center gap-1 py-3 px-2 text-xs lg:text-sm"
+          >
+            <Code2 className="h-4 w-4" />
+            <span className="hidden sm:inline">Python Code</span>
+            <span className="sm:hidden">Code</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="saved" 
+            className="data-[state=active]:bg-emerald-600 flex flex-col items-center gap-1 py-3 px-2 text-xs lg:text-sm"
+          >
+            <Bookmark className="h-4 w-4" />
+            <span className="hidden sm:inline">Saved Strategies</span>
+            <span className="sm:hidden">Saved</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="visual" 
+            className="data-[state=active]:bg-emerald-600 flex flex-col items-center gap-1 py-3 px-2 text-xs lg:text-sm"
+          >
+            <Cpu className="h-4 w-4" />
+            <span className="hidden sm:inline">Visual Builder</span>
+            <span className="sm:hidden">Visual</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="recommendations" 
+            className="data-[state=active]:bg-emerald-600 flex flex-col items-center gap-1 py-3 px-2 text-xs lg:text-sm"
+          >
+            <Lightbulb className="h-4 w-4" />
+            <span className="hidden sm:inline">AI Recommendations</span>
+            <span className="sm:hidden">AI</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="oanda" 
+            className="data-[state=active]:bg-emerald-600 flex flex-col items-center gap-1 py-3 px-2 text-xs lg:text-sm"
+          >
+            <TrendingUp className="h-4 w-4" />
+            <span className="hidden sm:inline">OANDA Trading</span>
+            <span className="sm:hidden">OANDA</span>
+          </TabsTrigger>
+        </TabsList>
 
-          <TabsContent value="configuration">
-            <StrategyConfiguration
-              strategy={strategy}
-              onStrategyChange={onStrategyChange}
-              onRunBacktest={onRunBacktest}
-              isRunning={isRunning}
-            />
+        <div className="w-full">
+          <TabsContent value="configuration" className="mt-0 w-full">
+            <div className="w-full space-y-6">
+              <StrategyConfigurationTab
+                strategy={strategy}
+                onStrategyChange={onStrategyChange}
+                onRunBacktest={onRunBacktest}
+                isRunning={isRunning}
+                currentStep={currentStep}
+                backtestResults={backtestResults}
+                onTestReverseStrategy={onTestReverseStrategy}
+                isReverseTestRunning={isReverseTestRunning}
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="python">
-            <Card className="bg-slate-800 border-slate-700">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-white">
-                  <Code className="h-5 w-5" />
-                  Python Strategy Editor
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <PythonStrategyTab
-                  strategy={strategy}
-                  onStrategyChange={onStrategyChange}
-                  onRunBacktest={onRunBacktest}
-                  isRunning={isRunning}
-                  backtestResults={backtestResults}
-                />
-              </CardContent>
-            </Card>
+          <TabsContent value="python" className="mt-0 w-full">
+            <div className="w-full space-y-6">
+              <PythonStrategyTab
+                strategy={strategy}
+                onStrategyChange={onStrategyChange}
+                onRunBacktest={onRunBacktest}
+                isRunning={isRunning}
+                currentStep={currentStep}
+                onAddToStrategy={onAddToStrategy}
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="saved-strategies">
-            <SavedStrategiesTab
-              onStrategyLoad={handleStrategyLoad}
-              onNavigateToConfiguration={handleNavigateToConfiguration}
-            />
+          <TabsContent value="saved" className="mt-0 w-full">
+            <div className="w-full space-y-6">
+              <SavedStrategiesTab
+                onStrategySelect={onStrategySelect}
+                onStrategyChange={onStrategyChange}
+                currentStrategy={strategy}
+              />
+            </div>
           </TabsContent>
 
-          <TabsContent value="recommendations">
-            <StrategyRecommendationsTab
-              strategy={strategy}
-              backtestResults={backtestResults}
-              onStrategyChange={onStrategyChange}
-              onStrategySelect={onStrategySelect}
-              onAddToStrategy={onAddToStrategy}
-              onTestReverseStrategy={onTestReverseStrategy}
-              isReverseTestRunning={isReverseTestRunning}
-            />
+          <TabsContent value="visual" className="mt-0 w-full">
+            <div className="w-full space-y-6">
+              <VisualStrategyTab onStrategyChange={onStrategyChange} />
+            </div>
           </TabsContent>
 
-          <TabsContent value="forward-testing">
-            <OANDAIntegration
-              strategy={strategy}
-              isForwardTestingActive={isForwardTestingActive}
-              onToggleForwardTesting={handleToggleForwardTesting}
-            />
+          <TabsContent value="recommendations" className="mt-0 w-full">
+            <div className="w-full space-y-6">
+              <StrategyRecommendationsTab
+                strategy={strategy}
+                onStrategyChange={onStrategyChange}
+                backtestResults={backtestResults}
+                onAddToStrategy={onAddToStrategy}
+              />
+            </div>
           </TabsContent>
-        </Tabs>
-      </div>
 
-      {/* Right sidebar can show status, live trades, etc. */}
-      <div className="space-y-4">
-        {isRunning && currentStep && (
-          <Card className="bg-slate-800 border-slate-700">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2">
-                <div className="animate-spin h-4 w-4 border-2 border-emerald-400 border-t-transparent rounded-full"></div>
-                <span className="text-white text-sm">{currentStep}</span>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {isForwardTestingActive && (
-          <Card className="bg-slate-800 border-slate-700 border-emerald-500">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-emerald-400">Forward Testing Active</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <p className="text-xs text-slate-400">
-                Strategy is running live on OANDA demo account
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+          <TabsContent value="oanda" className="mt-0 w-full">
+            <div className="w-full space-y-6">
+              <OANDAIntegration
+                selectedStrategy={strategy}
+                onStrategyUpdate={onStrategyChange}
+              />
+            </div>
+          </TabsContent>
+        </div>
+      </Tabs>
     </div>
   );
 };

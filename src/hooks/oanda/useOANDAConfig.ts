@@ -15,9 +15,10 @@ export const useOANDAConfig = () => {
     enabled: false
   });
 
-  // Load config from localStorage on mount
+  // Load config from localStorage and database on mount
   useEffect(() => {
-    const loadConfigFromStorage = () => {
+    const loadConfig = async () => {
+      // First try localStorage for immediate availability
       try {
         const saved = localStorage.getItem('oanda_config');
         if (saved) {
@@ -27,14 +28,61 @@ export const useOANDAConfig = () => {
         }
       } catch (error) {
         console.error('Failed to load config from localStorage:', error);
-        // Clear corrupted data
         localStorage.removeItem('oanda_config');
       }
+
+      // Then load from database for authenticated users
+      await loadConfigFromDatabase();
+      await loadSavedConfigs();
     };
 
-    loadConfigFromStorage();
-    loadSavedConfigs();
+    loadConfig();
   }, []);
+
+  const loadConfigFromDatabase = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Load the most recent enabled config for this user
+      const { data, error } = await supabase
+        .from('oanda_configs')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('enabled', true)
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const dbConfig = data[0];
+        const loadedConfig = {
+          accountId: dbConfig.account_id,
+          apiKey: dbConfig.api_key,
+          environment: dbConfig.environment,
+          enabled: dbConfig.enabled
+        };
+
+        setConfig(loadedConfig);
+        
+        // Also save to localStorage for faster future loads
+        localStorage.setItem('oanda_config', JSON.stringify(loadedConfig));
+        console.log('Auto-loaded OANDA config from database:', {
+          accountId: loadedConfig.accountId,
+          environment: loadedConfig.environment,
+          enabled: loadedConfig.enabled
+        });
+
+        toast({
+          title: "OANDA Configuration Loaded",
+          description: `Automatically loaded your ${loadedConfig.environment} account configuration`,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load config from database:', error);
+    }
+  };
 
   const handleConfigChange = (field: keyof OANDAConfig, value: any) => {
     const newConfig = { ...config, [field]: value };
@@ -87,6 +135,12 @@ export const useOANDAConfig = () => {
 
       const configName = `${config.environment.toUpperCase()} - ${config.accountId.slice(-8)}`;
 
+      // Disable all other configs for this user first
+      await supabase
+        .from('oanda_configs')
+        .update({ enabled: false })
+        .eq('user_id', user.id);
+
       // Check if config already exists
       const { data: existingConfigs } = await supabase
         .from('oanda_configs')
@@ -96,12 +150,12 @@ export const useOANDAConfig = () => {
         .eq('environment', config.environment);
 
       if (existingConfigs && existingConfigs.length > 0) {
-        // Update existing config
+        // Update existing config and enable it
         const { error } = await supabase
           .from('oanda_configs')
           .update({
             api_key: config.apiKey,
-            enabled: config.enabled,
+            enabled: true,
             updated_at: new Date().toISOString()
           })
           .eq('id', existingConfigs[0].id);
@@ -109,11 +163,11 @@ export const useOANDAConfig = () => {
         if (error) throw error;
 
         toast({
-          title: "Configuration Updated",
-          description: `OANDA configuration "${configName}" has been updated`,
+          title: "Configuration Updated & Auto-Save Enabled",
+          description: `OANDA configuration "${configName}" will be automatically loaded on future logins`,
         });
       } else {
-        // Insert new config
+        // Insert new config as enabled
         const { error } = await supabase
           .from('oanda_configs')
           .insert({
@@ -122,18 +176,18 @@ export const useOANDAConfig = () => {
             account_id: config.accountId,
             api_key: config.apiKey,
             environment: config.environment,
-            enabled: config.enabled
+            enabled: true
           });
 
         if (error) throw error;
 
         toast({
-          title: "Configuration Saved",
-          description: `OANDA configuration "${configName}" has been saved`,
+          title: "Configuration Saved & Auto-Save Enabled",
+          description: `OANDA configuration "${configName}" will be automatically loaded on future logins`,
         });
       }
 
-      // Mark config as enabled after successful save
+      // Mark config as enabled in local state
       const updatedConfig = { ...config, enabled: true };
       setConfig(updatedConfig);
       localStorage.setItem('oanda_config', JSON.stringify(updatedConfig));
@@ -183,6 +237,7 @@ export const useOANDAConfig = () => {
     handleConfigChange,
     handleSaveConfig,
     handleLoadConfig,
-    loadSavedConfigs
+    loadSavedConfigs,
+    loadConfigFromDatabase
   };
 };

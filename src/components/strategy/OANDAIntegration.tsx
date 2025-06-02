@@ -31,7 +31,10 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
     isLoading,
     canStartTesting,
     isForwardTestingActive,
-    connectionStatusIcon
+    connectionStatusIcon,
+    isConfigured,
+    handleToggleForwardTesting,
+    handleShowGuide
   } = useOANDAIntegration();
 
   const { isTestingTrade, handleTestTrade } = useOANDATrade();
@@ -41,7 +44,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Status Overview */}
       <Card className="bg-slate-800 border-slate-700">
         <CardHeader>
@@ -134,7 +137,6 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
         <TabsContent value="strategy">
           <OANDAStrategySettings
             selectedStrategy={selectedStrategy}
-            onStrategyUpdate={onStrategyUpdate}
             config={config}
             connectionStatus={connectionStatus}
           />
@@ -147,6 +149,9 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
             connectionStatus={connectionStatus}
             isForwardTestingActive={isForwardTestingActive}
             canStartTesting={canStartTesting}
+            isConfigured={isConfigured}
+            onToggleForwardTesting={handleToggleForwardTesting}
+            onShowGuide={handleShowGuide}
           />
         </TabsContent>
 
@@ -154,6 +159,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
           <OANDATradingDashboard
             config={config}
             connectionStatus={connectionStatus}
+            isForwardTestingActive={isForwardTestingActive}
           />
         </TabsContent>
       </Tabs>
