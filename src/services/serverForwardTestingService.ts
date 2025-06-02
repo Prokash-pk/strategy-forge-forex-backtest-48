@@ -92,13 +92,13 @@ export class ServerForwardTestingService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // First try the RPC function
-      const { data: rpcData, error: rpcError } = await supabase.rpc('get_active_trading_sessions', {
+      // First try the RPC function - using explicit typing
+      const { data: rpcData, error: rpcError } = await supabase.rpc<TradingSessionRecord[]>('get_active_trading_sessions', {
         p_user_id: user.id
       });
 
       if (!rpcError && rpcData) {
-        return rpcData as TradingSessionRecord[];
+        return rpcData;
       }
 
       console.error('RPC error, falling back to direct query:', rpcError);
@@ -114,7 +114,7 @@ export class ServerForwardTestingService {
         throw error;
       }
 
-      return data || [];
+      return (data || []) as TradingSessionRecord[];
     } catch (error) {
       console.error('Failed to get active sessions:', error);
       return [];
@@ -153,6 +153,30 @@ export class ServerForwardTestingService {
     } catch (error) {
       console.error('Failed to get trading logs:', error);
       return [];
+    }
+  }
+
+  // Add a test method to verify server-side functionality
+  static async testServerSideConnection(): Promise<boolean> {
+    try {
+      console.log('Testing server-side connection...');
+      
+      const { data, error } = await supabase.functions.invoke('oanda-forward-testing', {
+        body: {
+          action: 'test'
+        }
+      });
+
+      if (error) {
+        console.error('Server-side test failed:', error);
+        return false;
+      }
+
+      console.log('Server-side test response:', data);
+      return true;
+    } catch (error) {
+      console.error('Server-side test error:', error);
+      return false;
     }
   }
 }

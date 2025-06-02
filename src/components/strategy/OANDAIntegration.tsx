@@ -137,7 +137,7 @@ const OANDAIntegration: React.FC = () => {
 
             <TabsContent value="dashboard" className="mt-6">
               <OANDATradingDashboard
-                isForwardTestingActive={isForwardTestingActive}
+                isActive={isForwardTestingActive}
                 strategy={selectedStrategy}
                 environment={config.environment}
               />
