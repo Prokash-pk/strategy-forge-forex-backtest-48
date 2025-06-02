@@ -108,12 +108,12 @@ const OANDADeduplicationTool: React.FC<OANDADeduplicationToolProps> = ({
       let removedCount = 0;
 
       for (const group of duplicateGroups) {
-        // Sort by created_at timestamp properly - use the actual created_at field if available
+        // Sort by ID timestamp since StrategySettings doesn't have created_at
         const sortedGroup = group.sort((a, b) => {
-          // Try to use created_at field first, fallback to parsing ID as timestamp
-          const dateA = a.created_at ? new Date(a.created_at).getTime() : new Date(a.id).getTime();
-          const dateB = b.created_at ? new Date(b.created_at).getTime() : new Date(b.id).getTime();
-          return dateB - dateA; // Most recent first
+          // Parse UUID timestamp or use string comparison as fallback
+          const timestampA = new Date(a.id).getTime() || a.id.localeCompare(b.id);
+          const timestampB = new Date(b.id).getTime() || b.id.localeCompare(a.id);
+          return timestampB - timestampA; // Most recent first
         });
         
         const toRemove = sortedGroup.slice(1); // Keep first (most recent), remove rest
