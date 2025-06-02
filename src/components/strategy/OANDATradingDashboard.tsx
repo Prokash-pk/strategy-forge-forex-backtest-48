@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,9 +13,11 @@ import {
   X,
   RefreshCw,
   AlertCircle,
-  BarChart3
+  BarChart3,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { formatDateTimeInTimezone, detectUserTimezone, getTimezoneAbbreviation } from '@/utils/timezoneUtils';
 
 interface Position {
@@ -73,6 +74,7 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [accountBalance, setAccountBalance] = useState<number>(0);
   const [totalPL, setTotalPL] = useState<number>(0);
+  const [closingPositions, setClosingPositions] = useState<Set<string>>(new Set());
 
   const userTimezone = detectUserTimezone();
   const timezoneAbbr = getTimezoneAbbreviation();
@@ -186,8 +188,80 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
   };
 
   const handleClosePosition = async (position: Position) => {
-    console.log('Closing position:', position);
-    // Implementation for closing positions would go here
+    console.log('🔄 Closing position:', position);
+    
+    // Add position to closing state
+    setClosingPositions(prev => new Set(prev).add(position.id));
+    
+    try {
+      const closeSignal = {
+        action: 'CLOSE' as const,
+        symbol: position.instrument,
+        units: 0, // Not used for CLOSE action
+        strategyId: strategy?.id || 'manual-close',
+        userId: 'user'
+      };
+
+      const oandaConfigForClose = {
+        accountId: oandaConfig.accountId,
+        apiKey: oandaConfig.apiKey,
+        environment: oandaConfig.environment
+      };
+
+      console.log('🔄 Sending close signal for', position.instrument);
+      
+      const response = await supabase.functions.invoke('oanda-trade-executor', {
+        body: {
+          signal: closeSignal,
+          config: oandaConfigForClose,
+          testMode: false
+        }
+      });
+
+      console.log('📋 Close position response:', response);
+
+      if (response.error) {
+        console.error('❌ Supabase function error:', response.error);
+        throw new Error(response.error.message || 'Position close failed');
+      }
+
+      if (response.data?.success) {
+        const result = response.data.result;
+        
+        toast({
+          title: "✅ Position Closed Successfully!",
+          description: `Closed ${position.instrument} position. Check your OANDA platform for confirmation.`,
+        });
+        
+        console.log('✅ Position closed successfully:', result);
+        
+        // Refresh account data to update positions
+        setTimeout(() => {
+          fetchOANDAAccountData();
+        }, 2000); // Give OANDA a moment to process
+        
+      } else {
+        console.error('❌ Position close failed:', response.data);
+        throw new Error(response.data?.error || 'Position close failed');
+      }
+
+    } catch (error) {
+      console.error('❌ Close position error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      toast({
+        title: "❌ Failed to Close Position",
+        description: `Error: ${errorMessage}. Please check your OANDA connection and try again.`,
+        variant: "destructive",
+      });
+    } finally {
+      // Remove position from closing state
+      setClosingPositions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(position.id);
+        return newSet;
+      });
+    }
   };
 
   const handleRefresh = () => {
@@ -294,43 +368,57 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {positions.map((position) => (
-                    <TableRow key={position.id} className="border-slate-700">
-                      <TableCell className="text-white font-medium">
-                        {position.instrument}
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          className={position.side === 'BUY' 
-                            ? 'bg-emerald-500/10 text-emerald-400' 
-                            : 'bg-red-500/10 text-red-400'
-                          }
-                        >
-                          {position.side}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-slate-300">
-                        {Math.abs(position.units).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-slate-300">
-                        {position.price.toFixed(5)}
-                      </TableCell>
-                      <TableCell className={position.unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                        {position.unrealizedPL >= 0 ? '+' : ''}${position.unrealizedPL.toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          onClick={() => handleClosePosition(position)}
-                          variant="outline"
-                          size="sm"
-                          className="border-red-600 text-red-300 hover:text-red-200"
-                        >
-                          <X className="h-3 w-3 mr-1" />
-                          Close
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {positions.map((position) => {
+                    const isClosing = closingPositions.has(position.id);
+                    
+                    return (
+                      <TableRow key={position.id} className="border-slate-700">
+                        <TableCell className="text-white font-medium">
+                          {position.instrument}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            className={position.side === 'BUY' 
+                              ? 'bg-emerald-500/10 text-emerald-400' 
+                              : 'bg-red-500/10 text-red-400'
+                            }
+                          >
+                            {position.side}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-slate-300">
+                          {Math.abs(position.units).toLocaleString()}
+                        </TableCell>
+                        <TableCell className="text-slate-300">
+                          {position.price.toFixed(5)}
+                        </TableCell>
+                        <TableCell className={position.unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                          {position.unrealizedPL >= 0 ? '+' : ''}${position.unrealizedPL.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            onClick={() => handleClosePosition(position)}
+                            disabled={isClosing}
+                            variant="outline"
+                            size="sm"
+                            className="border-red-600 text-red-300 hover:text-red-200 disabled:opacity-50"
+                          >
+                            {isClosing ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                Closing...
+                              </>
+                            ) : (
+                              <>
+                                <X className="h-3 w-3 mr-1" />
+                                Close
+                              </>
+                            )}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
