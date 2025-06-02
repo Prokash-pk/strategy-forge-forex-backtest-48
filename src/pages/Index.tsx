@@ -55,7 +55,7 @@ const Index = () => {
   if (isMobile) {
     return (
       <div className="min-h-screen bg-slate-900 text-white pb-20">
-        <div className="container mx-auto px-4 py-4">
+        <div className="px-4 py-4">
           {/* Mobile Header */}
           <div className="mb-6 flex justify-between items-center">
             <div className="flex items-center gap-3">
@@ -135,7 +135,7 @@ const Index = () => {
                   <TabsTrigger
                     key={item.id}
                     value={item.id}
-                    className="flex flex-col items-center justify-center h-full px-1 py-1 data-[state=active]:bg-emerald-600 data-[state=active]:text-white rounded-lg"
+                    className="flex flex-col items-center justify-center h-full px-1 py-1 data-[state=active]:bg-emerald-600 data-[state=active]:text-white rounded-lg transition-all duration-200"
                   >
                     <item.icon className="h-4 w-4 mb-1" />
                     <span className="text-xs">{item.shortLabel}</span>
@@ -153,19 +153,19 @@ const Index = () => {
 
   // Desktop Layout
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex">
-      {/* Desktop Sidebar */}
-      <div className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
+    <div className="min-h-screen bg-slate-900 text-white flex w-full">
+      {/* Desktop Sidebar - Reduced width */}
+      <div className="w-56 bg-slate-800 border-r border-slate-700 flex flex-col">
         {/* Sidebar Header */}
-        <div className="p-6 border-b border-slate-700">
+        <div className="p-4 border-b border-slate-700">
           <div className="flex items-center gap-3">
             <img 
               src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iOCIgZmlsbD0idXJsKCNncmFkaWVudDApIi8+CjxwYXRoIGQ9Ik04IDIwSDI0TDE2IDEyTDggMjBaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNOCAxMkgyNEwxNiAyMEw4IDEyWiIgZmlsbD0id2hpdGUiIG9wYWNpdHk9IjAuNyIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudDAiIHgxPSIwIiB5MT0iMCIgeDI9IjMyIiB5Mj0iMzIiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj4KPHN0b3Agc3RvcC1jb2xvcj0iIzEwQjk4MSIvPgo8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwRDlDODgiLz4KPC9saW5lYXJHcmFkaWVudD4KPC9kZWZzPgo8L3N2Zz4K" 
               alt="Stratyx Logo" 
-              className="h-10 w-10"
+              className="h-8 w-8"
             />
             <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">
+              <h1 className="text-lg font-bold bg-gradient-to-r from-emerald-400 to-emerald-600 bg-clip-text text-transparent">
                 Stratyx
               </h1>
               <Badge 
@@ -184,21 +184,21 @@ const Index = () => {
 
         {/* Sidebar Navigation */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
-          <TabsList className="flex flex-col h-auto bg-transparent p-4 space-y-2">
+          <TabsList className="flex flex-col h-auto bg-transparent p-3 space-y-2">
             {tabItems.map((item) => (
               <TabsTrigger
                 key={item.id}
                 value={item.id}
-                className="w-full justify-start gap-3 h-12 data-[state=active]:bg-emerald-600 data-[state=active]:text-white rounded-lg"
+                className="w-full justify-start gap-3 h-10 data-[state=active]:bg-emerald-600 data-[state=active]:text-white rounded-lg transition-all duration-200 hover:bg-slate-700"
               >
-                <item.icon className="h-5 w-5" />
-                <span>{item.label}</span>
+                <item.icon className="h-4 w-4" />
+                <span className="text-sm">{item.label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
 
           {/* Sidebar Footer */}
-          <div className="p-4 border-t border-slate-700 space-y-3">
+          <div className="p-3 border-t border-slate-700 space-y-3">
             {showUpgradePrompt && (
               <Button
                 onClick={() => setPricingModalOpen(true)}
@@ -225,46 +225,52 @@ const Index = () => {
         </Tabs>
       </div>
 
-      {/* Desktop Main Content */}
+      {/* Desktop Main Content - Centered and constrained */}
       <div className="flex-1 flex flex-col">
-        <div className="p-6 border-b border-slate-700">
-          <p className="text-slate-400">
-            Professional forex strategy backtesting and analysis platform
-          </p>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-700">
+          <div className="max-w-6xl mx-auto">
+            <p className="text-slate-400 text-sm">
+              Professional forex strategy backtesting and analysis platform
+            </p>
+          </div>
         </div>
 
-        <div className="flex-1 p-6">
-          <Tabs value={activeTab} onValueChange={handleTabChange}>
-            <TabsContent value="strategy" className="mt-0">
-              <StrategyBuilder
-                onStrategyUpdate={handleStrategyUpdate}
-                onBacktestComplete={handleBacktestComplete}
-                onNavigateToResults={handleNavigateToResults}
-                initialStrategy={strategy}
-                backtestResults={backtestResults}
-              />
-            </TabsContent>
+        {/* Main Content Container - Centered with max width */}
+        <div className="flex-1 px-6 py-6">
+          <div className="max-w-6xl mx-auto">
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
+              <TabsContent value="strategy" className="mt-0">
+                <StrategyBuilder
+                  onStrategyUpdate={handleStrategyUpdate}
+                  onBacktestComplete={handleBacktestComplete}
+                  onNavigateToResults={handleNavigateToResults}
+                  initialStrategy={strategy}
+                  backtestResults={backtestResults}
+                />
+              </TabsContent>
 
-            <TabsContent value="results" className="mt-0">
-              <BacktestResults results={backtestResults} />
-            </TabsContent>
+              <TabsContent value="results" className="mt-0">
+                <BacktestResults results={backtestResults} />
+              </TabsContent>
 
-            <TabsContent value="data" className="mt-0">
-              <DataManager />
-            </TabsContent>
+              <TabsContent value="data" className="mt-0">
+                <DataManager />
+              </TabsContent>
 
-            <TabsContent value="analytics" className="mt-0">
-              <UserTestingAnalytics />
-            </TabsContent>
+              <TabsContent value="analytics" className="mt-0">
+                <UserTestingAnalytics />
+              </TabsContent>
 
-            <TabsContent value="billing" className="mt-0">
-              <BillingTab />
-            </TabsContent>
+              <TabsContent value="billing" className="mt-0">
+                <BillingTab />
+              </TabsContent>
 
-            <TabsContent value="support" className="mt-0">
-              <SupportTab />
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="support" className="mt-0">
+                <SupportTab />
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       </div>
 

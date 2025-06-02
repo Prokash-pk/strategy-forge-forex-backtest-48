@@ -1,210 +1,163 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { TrendingUp, HelpCircle, CheckCircle, XCircle, Loader2, Settings, BarChart3 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { useOANDAIntegration } from '@/hooks/useOANDAIntegration';
-import OANDAApiGuide from './OANDAApiGuide';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Settings, Activity, TrendingUp, AlertTriangle } from 'lucide-react';
 import OANDAConfigForm from './OANDAConfigForm';
-import OANDASavedConfigs from './OANDASavedConfigs';
 import OANDAStrategySettings from './OANDAStrategySettings';
 import OANDAForwardTestingControl from './OANDAForwardTestingControl';
 import OANDATradingDashboard from './OANDATradingDashboard';
+import { useOANDAIntegration } from '@/hooks/useOANDAIntegration';
+import { useOANDATrade } from '@/hooks/oanda/useOANDATrade';
 
 interface OANDAIntegrationProps {
-  strategy: any;
-  isForwardTestingActive: boolean;
-  onToggleForwardTesting: (active: boolean) => void;
+  selectedStrategy: any;
+  onStrategyUpdate: (strategy: any) => void;
 }
 
 const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
-  strategy,
-  isForwardTestingActive,
-  onToggleForwardTesting
+  selectedStrategy,
+  onStrategyUpdate
 }) => {
-  const { toast } = useToast();
-  const [showGuide, setShowGuide] = useState(false);
-  const [activeTab, setActiveTab] = useState('setup');
-  
   const {
     config,
-    connectionStatus,
-    connectionError,
-    savedConfigs,
-    savedStrategies,
-    selectedStrategy,
-    isLoading,
-    isTestingTrade,
-    isConfigured,
-    canStartTesting,
     handleConfigChange,
     handleTestConnection,
     handleSaveConfig,
-    handleLoadConfig,
-    handleLoadStrategy,
-    handleTestTrade,
-    handleDeleteStrategy,
-    loadSelectedStrategy,
-    loadSavedConfigs,
-    loadSavedStrategies
+    connectionStatus,
+    connectionError,
+    isLoading,
+    canStartTesting,
+    isForwardTestingActive,
+    connectionStatusIcon
   } = useOANDAIntegration();
 
-  React.useEffect(() => {
-    loadSavedConfigs();
-    loadSavedStrategies();
-    loadSelectedStrategy();
-  }, []);
+  const { isTestingTrade, handleTestTrade } = useOANDATrade();
 
-  React.useEffect(() => {
-    // Auto-switch to dashboard tab when forward testing starts
-    if (isForwardTestingActive && connectionStatus === 'success') {
-      setActiveTab('dashboard');
-    }
-  }, [isForwardTestingActive, connectionStatus]);
-
-  const handleToggleForwardTesting = async () => {
-    if (!isForwardTestingActive) {
-      if (!config.accountId || !config.apiKey) {
-        toast({
-          title: "Configuration Required",
-          description: "Please configure your OANDA API credentials first",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (connectionStatus !== 'success') {
-        toast({
-          title: "Test Connection First",
-          description: "Please test your OANDA connection before starting forward testing",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!selectedStrategy) {
-        toast({
-          title: "Strategy Required",
-          description: "Please select a strategy with saved settings before starting forward testing",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-    
-    onToggleForwardTesting(!isForwardTestingActive);
-  };
-
-  const getConnectionStatusIcon = () => {
-    switch (connectionStatus) {
-      case 'testing':
-        return <Loader2 className="h-4 w-4 animate-spin text-blue-400" />;
-      case 'success':
-        return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-      case 'error':
-        return <XCircle className="h-4 w-4 text-red-400" />;
-      default:
-        return null;
-    }
+  const handleTestTradeClick = () => {
+    handleTestTrade(config, selectedStrategy, connectionStatus);
   };
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header */}
-        <Card className="bg-slate-800 border-slate-700">
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle className="flex items-center gap-2 text-white">
-                <TrendingUp className="h-5 w-5" />
-                OANDA Trading Platform
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowGuide(true)}
-                className="border-slate-600 text-slate-300 hover:text-white self-start sm:self-auto"
-              >
-                <HelpCircle className="h-4 w-4 mr-2" />
-                Setup Guide
-              </Button>
+    <div className="space-y-6">
+      {/* Status Overview */}
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <Activity className="h-5 w-5" />
+            OANDA Integration Status
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${
+                connectionStatus === 'success' ? 'bg-emerald-500' : 'bg-slate-500'
+              }`} />
+              <span className="text-sm text-slate-300">
+                Connection: {connectionStatus === 'success' ? 'Active' : 'Inactive'}
+              </span>
             </div>
-          </CardHeader>
-        </Card>
+            
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${
+                isForwardTestingActive ? 'bg-blue-500' : 'bg-slate-500'
+              }`} />
+              <span className="text-sm text-slate-300">
+                Forward Testing: {isForwardTestingActive ? 'Running' : 'Stopped'}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant={config.environment === 'practice' ? 'secondary' : 'destructive'}
+                className="text-xs"
+              >
+                {config.environment === 'practice' ? 'Practice Mode' : 'Live Trading'}
+              </Badge>
+            </div>
+          </div>
 
-        {/* Main Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 bg-slate-800">
-            <TabsTrigger value="setup" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Setup & Config</span>
-              <span className="sm:hidden">Setup</span>
-            </TabsTrigger>
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Trading Dashboard</span>
-              <span className="sm:hidden">Dashboard</span>
-            </TabsTrigger>
-          </TabsList>
+          {isForwardTestingActive && (
+            <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                <span className="text-yellow-300 text-sm">
+                  Forward testing is currently active. Stop it first to test individual trades.
+                </span>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-          <TabsContent value="setup" className="space-y-6">
-            {/* Saved Configurations */}
-            <OANDASavedConfigs 
-              savedConfigs={savedConfigs}
-              onLoadConfig={handleLoadConfig}
-            />
+      {/* Configuration Tabs */}
+      <Tabs defaultValue="config" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4 bg-slate-800 border-slate-700">
+          <TabsTrigger value="config" className="data-[state=active]:bg-emerald-600">
+            <Settings className="h-4 w-4 mr-2" />
+            Config
+          </TabsTrigger>
+          <TabsTrigger value="strategy" className="data-[state=active]:bg-emerald-600">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Strategy
+          </TabsTrigger>
+          <TabsTrigger value="control" className="data-[state=active]:bg-emerald-600">
+            <Activity className="h-4 w-4 mr-2" />
+            Control
+          </TabsTrigger>
+          <TabsTrigger value="dashboard" className="data-[state=active]:bg-emerald-600">
+            <Activity className="h-4 w-4 mr-2" />
+            Dashboard
+          </TabsTrigger>
+        </TabsList>
 
-            {/* Strategy Settings Selection */}
-            <OANDAStrategySettings
-              savedStrategies={savedStrategies}
-              selectedStrategy={selectedStrategy}
-              onLoadStrategy={handleLoadStrategy}
-              onDeleteStrategy={handleDeleteStrategy}
-            />
+        <TabsContent value="config">
+          <OANDAConfigForm
+            config={config}
+            onConfigChange={handleConfigChange}
+            onTestConnection={handleTestConnection}
+            onSaveConfig={handleSaveConfig}
+            onTestTrade={handleTestTradeClick}
+            connectionStatus={connectionStatus}
+            connectionError={connectionError}
+            isLoading={isLoading}
+            isTestingTrade={isTestingTrade}
+            canStartTesting={canStartTesting}
+            isForwardTestingActive={isForwardTestingActive}
+            connectionStatusIcon={connectionStatusIcon}
+          />
+        </TabsContent>
 
-            {/* API Configuration Card */}
-            <OANDAConfigForm
-              config={config}
-              onConfigChange={handleConfigChange}
-              onTestConnection={handleTestConnection}
-              onSaveConfig={handleSaveConfig}
-              onTestTrade={handleTestTrade}
-              connectionStatus={connectionStatus}
-              connectionError={connectionError}
-              isLoading={isLoading}
-              isTestingTrade={isTestingTrade}
-              canStartTesting={canStartTesting && !isForwardTestingActive}
-              isForwardTestingActive={isForwardTestingActive}
-              connectionStatusIcon={getConnectionStatusIcon()}
-            />
+        <TabsContent value="strategy">
+          <OANDAStrategySettings
+            selectedStrategy={selectedStrategy}
+            onStrategyUpdate={onStrategyUpdate}
+            config={config}
+            connectionStatus={connectionStatus}
+          />
+        </TabsContent>
 
-            {/* Forward Testing Control */}
-            <OANDAForwardTestingControl
-              isForwardTestingActive={isForwardTestingActive}
-              selectedStrategy={selectedStrategy}
-              config={config}
-              canStartTesting={canStartTesting}
-              isConfigured={isConfigured}
-              connectionStatus={connectionStatus}
-              onToggleForwardTesting={handleToggleForwardTesting}
-              onShowGuide={() => setShowGuide(true)}
-            />
-          </TabsContent>
+        <TabsContent value="control">
+          <OANDAForwardTestingControl
+            config={config}
+            selectedStrategy={selectedStrategy}
+            connectionStatus={connectionStatus}
+            isForwardTestingActive={isForwardTestingActive}
+            canStartTesting={canStartTesting}
+          />
+        </TabsContent>
 
-          <TabsContent value="dashboard" className="space-y-6">
-            <OANDATradingDashboard
-              config={config}
-              connectionStatus={connectionStatus}
-              isForwardTestingActive={isForwardTestingActive}
-            />
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      <OANDAApiGuide isOpen={showGuide} onClose={() => setShowGuide(false)} />
-    </>
+        <TabsContent value="dashboard">
+          <OANDATradingDashboard
+            config={config}
+            connectionStatus={connectionStatus}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };
 

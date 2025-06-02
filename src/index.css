@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -35,19 +36,12 @@
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -97,5 +91,52 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  /* Consistent spacing utilities */
+  .section-spacing {
+    @apply space-y-6;
+  }
+  
+  .card-spacing {
+    @apply p-6;
+  }
+  
+  .form-spacing {
+    @apply space-y-4;
+  }
+  
+  /* Smooth transitions for interactive elements */
+  .smooth-transition {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  /* Consistent button spacing */
+  .button-group {
+    @apply flex gap-3;
+  }
+  
+  /* Mobile-first responsive text */
+  .heading-primary {
+    @apply text-xl font-semibold text-white md:text-2xl;
+  }
+  
+  .heading-secondary {
+    @apply text-lg font-medium text-slate-200 md:text-xl;
+  }
+  
+  .text-body {
+    @apply text-sm text-slate-300 md:text-base;
+  }
+  
+  /* Consistent emerald theme colors */
+  .emerald-primary {
+    @apply bg-emerald-600 hover:bg-emerald-700 text-white;
+  }
+  
+  .emerald-secondary {
+    @apply bg-emerald-500/10 text-emerald-300 border-emerald-500/20;
   }
 }
