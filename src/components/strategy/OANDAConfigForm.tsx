@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Settings, AlertTriangle, Save, TestTube, Loader2, Wifi } from 'lucide-react';
+import { Settings, AlertTriangle, Save, TestTube, Loader2, Wifi, CircleCheck } from 'lucide-react';
 
 interface OANDAConfig {
   accountId: string;
@@ -69,7 +68,7 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
         {/* Connection Status */}
         {connectionStatus === 'success' && (
           <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <CheckCircle className="h-4 w-4 text-emerald-400" />
+            <CircleCheck className="h-4 w-4 text-emerald-400" />
             <span className="text-emerald-300 text-sm">
               Connected to OANDA {config.environment} account: {config.accountId}
             </span>
