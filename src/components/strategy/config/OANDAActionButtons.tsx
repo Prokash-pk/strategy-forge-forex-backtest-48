@@ -30,6 +30,9 @@ const OANDAActionButtons: React.FC<OANDAActionButtonsProps> = ({
   onSaveConfig,
   onTestTrade
 }) => {
+  // Allow test trades even when autonomous trading is active, as long as configured
+  const canTestTrade = isConfigured && !isTestingTrade;
+
   return (
     <>
       {/* Main Connect Button */}
@@ -85,7 +88,7 @@ const OANDAActionButtons: React.FC<OANDAActionButtonsProps> = ({
 
         <Button
           onClick={onTestTrade}
-          disabled={!canStartTesting || isTestingTrade || isForwardTestingActive}
+          disabled={!canTestTrade}
           variant="outline"
           size="sm"
           className="border-blue-600 text-blue-300 hover:text-blue-200 disabled:opacity-50"

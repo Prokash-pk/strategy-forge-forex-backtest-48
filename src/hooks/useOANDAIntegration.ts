@@ -1,4 +1,3 @@
-
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
@@ -170,11 +169,8 @@ export const useOANDAIntegration = () => {
   // Improve configuration checking logic
   const isConfigured = Boolean(config.accountId?.trim() && config.apiKey?.trim());
   
-  // Fix: Allow testing if configured, even if connection status is 'idle' - as long as we have valid credentials
-  const canStartTesting = isConfigured && selectedStrategy !== null && (
-    connectionStatus === 'success' || 
-    (connectionStatus === 'idle' && isConfigured) // Allow if idle but configured
-  );
+  // Allow test trades as long as we have valid credentials and a strategy
+  const canStartTesting = isConfigured && selectedStrategy !== null;
 
   console.log('useOANDAIntegration state:', {
     isConfigured,
