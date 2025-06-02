@@ -100,11 +100,11 @@ const OANDAIntegration: React.FC = () => {
                 onDeleteConfig={handleDeleteConfig}
                 onTestTrade={handleTestTrade}
                 connectionStatus={connectionStatus}
-                connectionError={connectionError}
-                isLoading={isLoading}
-                isTestingTrade={isTestingTrade}
-                canStartTesting={canStartTesting}
-                isForwardTestingActive={isForwardTestingActive}
+                connectionError={connectionError || ''}
+                isLoading={Boolean(isLoading)}
+                isTestingTrade={Boolean(isTestingTrade)}
+                canStartTesting={Boolean(canStartTesting)}
+                isForwardTestingActive={Boolean(isForwardTestingActive)}
                 connectionStatusIcon={ConnectionStatusIcon ? <ConnectionStatusIcon className="h-4 w-4" /> : null}
               />
             </TabsContent>
