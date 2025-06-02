@@ -35,6 +35,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
     handleToggleForwardTesting,
     handleShowGuide,
     savedStrategies,
+    selectedStrategy: oandaSelectedStrategy,
     handleLoadStrategy,
     handleDeleteStrategy
   } = useOANDAIntegration();
@@ -42,7 +43,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
   const { isTestingTrade, handleTestTrade } = useOANDATrade();
 
   const handleTestTradeClick = () => {
-    handleTestTrade(config, selectedStrategy, connectionStatus);
+    handleTestTrade(config, oandaSelectedStrategy || selectedStrategy, connectionStatus);
   };
 
   // Get the appropriate icon component
@@ -151,7 +152,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
         <TabsContent value="strategy">
           <OANDAStrategySettings
             savedStrategies={savedStrategies || []}
-            selectedStrategy={selectedStrategy}
+            selectedStrategy={oandaSelectedStrategy}
             onLoadStrategy={handleLoadStrategy}
             onDeleteStrategy={handleDeleteStrategy}
           />
@@ -160,7 +161,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
         <TabsContent value="control">
           <OANDAForwardTestingControl
             config={config}
-            selectedStrategy={selectedStrategy}
+            selectedStrategy={oandaSelectedStrategy}
             connectionStatus={connectionStatus}
             isForwardTestingActive={isForwardTestingActive}
             canStartTesting={canStartTesting}

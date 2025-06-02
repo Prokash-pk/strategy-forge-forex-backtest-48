@@ -102,8 +102,6 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
                 onStrategyChange={onStrategyChange}
                 onRunBacktest={onRunBacktest}
                 isRunning={isRunning}
-                onTestReverseStrategy={onTestReverseStrategy}
-                isReverseTestRunning={isReverseTestRunning}
               />
             </div>
           </TabsContent>
@@ -121,9 +119,7 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
 
           <TabsContent value="saved" className="mt-0 w-full">
             <div className="w-full space-y-6">
-              <SavedStrategiesTab
-                currentStrategy={strategy}
-              />
+              <SavedStrategiesTab />
             </div>
           </TabsContent>
 
