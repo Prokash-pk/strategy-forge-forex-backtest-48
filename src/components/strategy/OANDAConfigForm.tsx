@@ -1,12 +1,13 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Settings, AlertTriangle, Save, TestTube, Loader2, Wifi, CircleCheck } from 'lucide-react';
+import { Settings } from 'lucide-react';
+import OANDAEnvironmentSelector from './config/OANDAEnvironmentSelector';
+import OANDAConnectionStatus from './config/OANDAConnectionStatus';
+import OANDACredentialsForm from './config/OANDACredentialsForm';
+import OANDAActionButtons from './config/OANDAActionButtons';
+import OANDAErrorDisplay from './config/OANDAErrorDisplay';
 
 interface OANDAConfig {
   accountId: string;
@@ -66,155 +67,45 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Connection Status */}
-        {connectionStatus === 'success' && (
-          <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <CircleCheck className="h-4 w-4 text-emerald-400" />
-            <span className="text-emerald-300 text-sm">
-              Connected to OANDA {config.environment} account: {config.accountId}
-            </span>
-          </div>
-        )}
+        <OANDAConnectionStatus 
+          connectionStatus={connectionStatus}
+          environment={config.environment}
+          accountId={config.accountId}
+        />
 
         {/* Environment Selection */}
-        <div className="space-y-2">
-          <Label htmlFor="environment" className="text-slate-300">Environment</Label>
-          <Select
-            value={config.environment}
-            onValueChange={(value: 'practice' | 'live') => onConfigChange('environment', value)}
-          >
-            <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent className="bg-slate-700 border-slate-600">
-              <SelectItem value="practice" className="text-white">
-                <div className="flex items-center gap-2">
-                  <span>Practice (Demo)</span>
-                  <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400 text-xs">Recommended</Badge>
-                </div>
-              </SelectItem>
-              <SelectItem value="live" className="text-white">
-                <div className="flex items-center gap-2">
-                  <span>Live Trading</span>
-                  <Badge variant="secondary" className="bg-red-500/10 text-red-400 text-xs">Advanced</Badge>
-                </div>
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          {config.environment === 'live' && (
-            <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-              <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5" />
-              <p className="text-red-300 text-sm">
-                Warning: Live trading involves real money. Only use this mode with thoroughly tested strategies.
-              </p>
-            </div>
-          )}
-        </div>
+        <OANDAEnvironmentSelector
+          environment={config.environment}
+          onEnvironmentChange={(value) => onConfigChange('environment', value)}
+        />
 
         <Separator className="bg-slate-600" />
 
-        {/* Account ID */}
-        <div className="space-y-2">
-          <Label htmlFor="accountId" className="text-slate-300">Account ID</Label>
-          <Input
-            id="accountId"
-            type="text"
-            placeholder="101-001-12345678-001"
-            value={config.accountId}
-            onChange={(e) => onConfigChange('accountId', e.target.value)}
-            className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
-          />
-        </div>
+        {/* Credentials Form */}
+        <OANDACredentialsForm
+          accountId={config.accountId}
+          apiKey={config.apiKey}
+          onAccountIdChange={(value) => onConfigChange('accountId', value)}
+          onApiKeyChange={(value) => onConfigChange('apiKey', value)}
+        />
 
-        {/* API Key */}
-        <div className="space-y-2">
-          <Label htmlFor="apiKey" className="text-slate-300">API Token</Label>
-          <Input
-            id="apiKey"
-            type="password"
-            placeholder="Enter your OANDA API token"
-            value={config.apiKey}
-            onChange={(e) => onConfigChange('apiKey', e.target.value)}
-            className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
-          />
-        </div>
+        {/* Action Buttons */}
+        <OANDAActionButtons
+          isConfigured={isConfigured}
+          connectionStatus={connectionStatus}
+          isLoading={isLoading}
+          isTestingTrade={isTestingTrade}
+          canStartTesting={canStartTesting}
+          isForwardTestingActive={isForwardTestingActive}
+          connectionStatusIcon={connectionStatusIcon}
+          onConnect={handleConnectOANDA}
+          onTestConnection={onTestConnection}
+          onSaveConfig={onSaveConfig}
+          onTestTrade={onTestTrade}
+        />
 
-        {/* Main Connect Button */}
-        <div className="flex items-center gap-3 pt-4">
-          <Button
-            onClick={handleConnectOANDA}
-            disabled={!isConfigured || connectionStatus === 'testing' || isLoading}
-            className="bg-emerald-600 hover:bg-emerald-700 flex-1"
-          >
-            {connectionStatus === 'testing' || isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Connecting...
-              </>
-            ) : connectionStatus === 'success' ? (
-              <>
-                <Wifi className="h-4 w-4 mr-2" />
-                Connected
-              </>
-            ) : (
-              <>
-                <Wifi className="h-4 w-4 mr-2" />
-                Connect OANDA
-              </>
-            )}
-          </Button>
-
-          {connectionStatusIcon}
-        </div>
-
-        {/* Secondary Action Buttons */}
-        <div className="flex items-center gap-3">
-          <Button
-            onClick={onTestConnection}
-            disabled={!isConfigured || connectionStatus === 'testing'}
-            variant="outline"
-            size="sm"
-            className="border-slate-600 text-slate-300 hover:text-white"
-          >
-            Test Connection
-          </Button>
-
-          <Button
-            onClick={onSaveConfig}
-            disabled={!isConfigured || isLoading}
-            variant="outline"
-            size="sm"
-            className="border-slate-600 text-slate-300 hover:text-white"
-          >
-            <Save className="h-4 w-4 mr-2" />
-            Save Config
-          </Button>
-
-          <Button
-            onClick={onTestTrade}
-            disabled={!canStartTesting || isTestingTrade || isForwardTestingActive}
-            variant="outline"
-            size="sm"
-            className="border-blue-600 text-blue-300 hover:text-blue-200 disabled:opacity-50"
-          >
-            {isTestingTrade ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Testing...
-              </>
-            ) : (
-              <>
-                <TestTube className="h-4 w-4 mr-2" />
-                Test Trade
-              </>
-            )}
-          </Button>
-        </div>
-
-        {connectionError && (
-          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <p className="text-red-300 text-sm">{connectionError}</p>
-          </div>
-        )}
+        {/* Error Display */}
+        <OANDAErrorDisplay connectionError={connectionError} />
       </CardContent>
     </Card>
   );
