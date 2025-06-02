@@ -5,6 +5,7 @@ import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
 import { useOANDATrade } from '@/hooks/oanda/useOANDATrade';
 import { useState, useEffect } from 'react';
 import { ForwardTestingService } from '@/services/forwardTestingService';
+import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 
 export const useOANDAIntegration = () => {
@@ -49,10 +50,35 @@ export const useOANDAIntegration = () => {
     loadSelectedStrategy();
   }, []);
 
-  // Check forward testing status on mount
+  // Check forward testing status on mount and periodically
   useEffect(() => {
-    const service = ForwardTestingService.getInstance();
-    setIsForwardTestingActive(service.isActive());
+    const checkForwardTestingStatus = async () => {
+      try {
+        // Check both client-side and server-side status
+        const clientSideActive = ForwardTestingService.getInstance().isActive();
+        const activeSessions = await ServerForwardTestingService.getActiveSessions();
+        const serverSideActive = activeSessions.length > 0;
+        
+        const isActive = clientSideActive || serverSideActive;
+        setIsForwardTestingActive(isActive);
+        
+        console.log('Forward testing status check:', {
+          clientSideActive,
+          serverSideActive: activeSessions.length > 0,
+          totalActiveSessions: activeSessions.length,
+          finalStatus: isActive
+        });
+      } catch (error) {
+        console.error('Failed to check forward testing status:', error);
+      }
+    };
+
+    checkForwardTestingStatus();
+    
+    // Check status every 30 seconds
+    const interval = setInterval(checkForwardTestingStatus, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   // Reset connection status when credentials change

@@ -92,13 +92,13 @@ export class ServerForwardTestingService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // First try the RPC function - using explicit typing
-      const { data: rpcData, error: rpcError } = await supabase.rpc<TradingSessionRecord[]>('get_active_trading_sessions', {
+      // First try the RPC function - using proper typing
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_active_trading_sessions', {
         p_user_id: user.id
       });
 
       if (!rpcError && rpcData) {
-        return rpcData;
+        return rpcData as TradingSessionRecord[];
       }
 
       console.error('RPC error, falling back to direct query:', rpcError);
