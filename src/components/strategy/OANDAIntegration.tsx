@@ -140,6 +140,7 @@ const OANDAIntegration: React.FC = () => {
                 isActive={isForwardTestingActive}
                 strategy={selectedStrategy}
                 environment={config.environment}
+                oandaConfig={config}
               />
             </TabsContent>
           </Tabs>

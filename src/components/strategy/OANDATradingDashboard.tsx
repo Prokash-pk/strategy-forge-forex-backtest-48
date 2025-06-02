@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,16 +48,24 @@ interface StrategySettings {
   timeframe: string;
 }
 
+interface OANDAConfig {
+  accountId: string;
+  apiKey: string;
+  environment: 'practice' | 'live';
+}
+
 interface OANDATradingDashboardProps {
   isActive: boolean;
   strategy: StrategySettings | null;
   environment: 'practice' | 'live';
+  oandaConfig: OANDAConfig;
 }
 
 const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
   isActive,
   strategy,
-  environment
+  environment,
+  oandaConfig
 }) => {
   const { toast } = useToast();
   const [positions, setPositions] = useState<Position[]>([]);
@@ -72,19 +81,19 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
     // Load trade log from localStorage
     loadTradeLog();
     
-    // If active, fetch positions
-    if (isActive) {
-      fetchPositions();
+    // If active and configured, fetch real OANDA data
+    if (isActive && oandaConfig.accountId && oandaConfig.apiKey) {
+      fetchOANDAAccountData();
       
       // Set up periodic refresh when forward testing is active
       const interval = setInterval(() => {
-        fetchPositions();
+        fetchOANDAAccountData();
         loadTradeLog();
       }, 30000); // Refresh every 30 seconds
       
       return () => clearInterval(interval);
     }
-  }, [isActive]);
+  }, [isActive, oandaConfig.accountId, oandaConfig.apiKey]);
 
   const loadTradeLog = () => {
     try {
@@ -98,17 +107,91 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
     }
   };
 
-  const fetchPositions = async () => {
-    // Mock implementation - would need actual OANDA credentials from config
-    console.log('Fetching positions for environment:', environment);
+  const fetchOANDAAccountData = async () => {
+    if (!oandaConfig.accountId || !oandaConfig.apiKey) return;
+    
+    setIsLoading(true);
+    
+    try {
+      const baseUrl = environment === 'practice' 
+        ? 'https://api-fxpractice.oanda.com'
+        : 'https://api-fxtrade.oanda.com';
+
+      console.log('🔄 Fetching live OANDA account data...');
+
+      // Fetch account details
+      const accountResponse = await fetch(`${baseUrl}/v3/accounts/${oandaConfig.accountId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${oandaConfig.apiKey}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (accountResponse.ok) {
+        const accountData = await accountResponse.json();
+        const balance = parseFloat(accountData.account.balance);
+        const nav = parseFloat(accountData.account.NAV);
+        const unrealizedPL = parseFloat(accountData.account.unrealizedPL);
+        
+        console.log('✅ OANDA Account Data:', {
+          balance,
+          nav,
+          unrealizedPL,
+          currency: accountData.account.currency
+        });
+
+        setAccountBalance(balance);
+        setTotalPL(unrealizedPL);
+
+        // Fetch open positions
+        const openPositions = accountData.account.positions || [];
+        const formattedPositions: Position[] = openPositions
+          .filter((pos: any) => parseFloat(pos.long.units) !== 0 || parseFloat(pos.short.units) !== 0)
+          .map((pos: any) => ({
+            id: pos.instrument,
+            instrument: pos.instrument,
+            units: parseFloat(pos.long.units) || parseFloat(pos.short.units),
+            price: parseFloat(pos.long.averagePrice) || parseFloat(pos.short.averagePrice) || 0,
+            unrealizedPL: parseFloat(pos.long.unrealizedPL) + parseFloat(pos.short.unrealizedPL),
+            side: parseFloat(pos.long.units) !== 0 ? 'BUY' : 'SELL',
+            timestamp: new Date().toISOString()
+          }));
+
+        setPositions(formattedPositions);
+
+        console.log('📊 Open Positions:', formattedPositions);
+
+      } else {
+        const errorData = await accountResponse.json();
+        console.error('❌ Failed to fetch OANDA account data:', errorData);
+        
+        toast({
+          title: "Failed to fetch account data",
+          description: `Error: ${errorData.errorMessage || 'Unknown error'}`,
+          variant: "destructive",
+        });
+      }
+
+    } catch (error) {
+      console.error('❌ Error fetching OANDA data:', error);
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to OANDA API. Please check your connection.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleClosePosition = async (position: Position) => {
     console.log('Closing position:', position);
+    // Implementation for closing positions would go here
   };
 
   const handleRefresh = () => {
-    fetchPositions();
+    fetchOANDAAccountData();
     loadTradeLog();
   };
 
@@ -134,7 +217,7 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="flex items-center gap-2 text-white">
               <BarChart3 className="h-5 w-5" />
-              Account Summary - {strategy?.strategy_name || 'No Strategy'}
+              Live OANDA Account - {strategy?.strategy_name || 'No Strategy'}
             </CardTitle>
             <Button
               onClick={handleRefresh}
@@ -144,7 +227,7 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
               className="border-slate-600 text-slate-300 hover:text-white self-start sm:self-auto"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
+              Refresh Live Data
             </Button>
           </div>
         </CardHeader>
@@ -155,7 +238,7 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
               <div className="text-lg font-semibold text-white">
                 ${accountBalance.toFixed(2)}
               </div>
-              <p className="text-xs text-slate-400">Account Balance</p>
+              <p className="text-xs text-slate-400">Live Account Balance</p>
             </div>
             <div className="text-center p-3 bg-slate-700/50 rounded-lg">
               <Activity className="h-5 w-5 text-blue-400 mx-auto mb-1" />
@@ -172,27 +255,107 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
               <p className="text-xs text-slate-400">Unrealized P&L</p>
             </div>
           </div>
+
+          {/* Status indicator */}
+          <div className="mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+              <span className="text-emerald-300 text-sm font-medium">
+                Live connection to OANDA {environment} account: {oandaConfig.accountId}
+              </span>
+            </div>
+            <p className="text-emerald-400 text-xs mt-1">
+              Data refreshes every 30 seconds • Autonomous trading active
+            </p>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Open Positions */}
+      {positions.length > 0 && (
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-white">
+              <Activity className="h-5 w-5" />
+              Open Positions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-700">
+                    <TableHead className="text-slate-400">Instrument</TableHead>
+                    <TableHead className="text-slate-400">Side</TableHead>
+                    <TableHead className="text-slate-400">Units</TableHead>
+                    <TableHead className="text-slate-400">Avg Price</TableHead>
+                    <TableHead className="text-slate-400">Unrealized P&L</TableHead>
+                    <TableHead className="text-slate-400">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {positions.map((position) => (
+                    <TableRow key={position.id} className="border-slate-700">
+                      <TableCell className="text-white font-medium">
+                        {position.instrument}
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          className={position.side === 'BUY' 
+                            ? 'bg-emerald-500/10 text-emerald-400' 
+                            : 'bg-red-500/10 text-red-400'
+                          }
+                        >
+                          {position.side}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-slate-300">
+                        {Math.abs(position.units).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-slate-300">
+                        {position.price.toFixed(5)}
+                      </TableCell>
+                      <TableCell className={position.unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                        {position.unrealizedPL >= 0 ? '+' : ''}${position.unrealizedPL.toFixed(2)}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          onClick={() => handleClosePosition(position)}
+                          variant="outline"
+                          size="sm"
+                          className="border-red-600 text-red-300 hover:text-red-200"
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Close
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Trade Log */}
       <Card className="bg-slate-800 border-slate-700">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-white">
             <Clock className="h-5 w-5" />
-            Trade Log
+            Autonomous Trade Log
           </CardTitle>
           <p className="text-sm text-slate-400">
-            Recent trades from forward testing ({timezoneAbbr})
+            Recent trades from autonomous forward testing ({timezoneAbbr})
           </p>
         </CardHeader>
         <CardContent>
           {tradeLog.length === 0 ? (
             <div className="text-center py-8">
               <Clock className="h-12 w-12 text-slate-500 mx-auto mb-3" />
-              <p className="text-slate-400">No trades executed yet</p>
+              <p className="text-slate-400">No autonomous trades executed yet</p>
               <p className="text-xs text-slate-500 mt-1">
-                Start forward testing to see trade executions here
+                Server-side trading will execute trades automatically based on your strategy signals
               </p>
             </div>
           ) : (
