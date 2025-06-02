@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3, Trash2 } from 'lucide-react';
+import { BarChart3, Trash2, TrendingUp } from 'lucide-react';
 
 interface StrategySettings {
   id: string;
@@ -46,8 +46,31 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
   onRefresh
 }) => {
   if (savedStrategies.length === 0) {
-    return null;
+    return (
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <BarChart3 className="h-5 w-5" />
+            Strategy Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-slate-400 text-sm">
+            No saved strategies found. Please create and save a strategy first.
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
+
+  // Highlight Smart Momentum Strategy with high returns
+  const smartMomentumStrategies = savedStrategies.filter(s => 
+    s.strategy_name?.toLowerCase().includes('smart momentum')
+  );
+  
+  const highReturnStrategy = smartMomentumStrategies.find(s => 
+    s.total_return && s.total_return > 60 && s.total_return < 65
+  );
 
   return (
     <Card className="bg-slate-800 border-slate-700">
@@ -55,12 +78,41 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
         <CardTitle className="flex items-center gap-2 text-white">
           <BarChart3 className="h-5 w-5" />
           Strategy Settings
+          {highReturnStrategy && (
+            <Badge className="bg-emerald-500 text-white">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              High Return Found!
+            </Badge>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-slate-400 text-sm">
           Select a saved strategy with specific settings for forward testing. The trades will be executed based on these settings.
         </p>
+        
+        {highReturnStrategy && (
+          <div className="p-4 bg-emerald-500/20 border border-emerald-500/40 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <h4 className="text-emerald-400 font-medium flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                {highReturnStrategy.strategy_name}
+              </h4>
+              <Badge className="bg-emerald-500 text-white">
+                {highReturnStrategy.total_return?.toFixed(1)}% Return
+              </Badge>
+            </div>
+            <p className="text-emerald-300 text-sm mb-3">
+              🎯 This is your Smart Momentum Strategy with ~62% return!
+            </p>
+            <Button
+              onClick={() => onLoadStrategy(highReturnStrategy)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              Load High-Return Strategy
+            </Button>
+          </div>
+        )}
         
         {selectedStrategy && (
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
@@ -141,9 +193,21 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
         
         <div className="space-y-3 max-h-48 overflow-y-auto">
           {savedStrategies.map((strategySettings) => (
-            <div key={strategySettings.id} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+            <div key={strategySettings.id} className={`flex items-center justify-between p-3 rounded-lg ${
+              strategySettings.id === highReturnStrategy?.id 
+                ? 'bg-emerald-900/50 border border-emerald-500/30' 
+                : 'bg-slate-900'
+            }`}>
               <div className="flex-1">
-                <h4 className="text-white font-medium">{strategySettings.strategy_name}</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-white font-medium">{strategySettings.strategy_name}</h4>
+                  {strategySettings.id === highReturnStrategy?.id && (
+                    <Badge className="bg-emerald-500 text-white text-xs">
+                      <TrendingUp className="h-3 w-3 mr-1" />
+                      62% Return
+                    </Badge>
+                  )}
+                </div>
                 <p className="text-slate-400 text-sm">
                   {strategySettings.symbol} • {strategySettings.timeframe} • Risk: {strategySettings.risk_per_trade}%
                   {strategySettings.win_rate && ` • Win Rate: ${strategySettings.win_rate.toFixed(1)}%`}
