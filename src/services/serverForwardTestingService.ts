@@ -98,7 +98,7 @@ export class ServerForwardTestingService {
       });
 
       if (!rpcError && rpcData) {
-        return rpcData;
+        return rpcData as TradingSessionRecord[];
       }
 
       console.error('RPC error, falling back to direct query:', rpcError);
@@ -143,7 +143,13 @@ export class ServerForwardTestingService {
         throw error;
       }
 
-      return data || [];
+      // Type cast the data to ensure log_type matches our interface
+      const logs = (data || []).map(log => ({
+        ...log,
+        log_type: log.log_type as 'trade' | 'error' | 'info'
+      })) as TradingLog[];
+
+      return logs;
     } catch (error) {
       console.error('Failed to get trading logs:', error);
       return [];
