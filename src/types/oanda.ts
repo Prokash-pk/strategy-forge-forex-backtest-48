@@ -1,8 +1,8 @@
-
 export interface OANDAConfig {
   accountId: string;
   apiKey: string;
   environment: 'practice' | 'live';
+  enabled?: boolean;
 }
 
 export interface StrategySettings {

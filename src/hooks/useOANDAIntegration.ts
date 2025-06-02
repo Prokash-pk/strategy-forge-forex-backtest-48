@@ -41,6 +41,12 @@ export const useOANDAIntegration = () => {
     handleTestTrade
   } = useOANDATrade();
 
+  // Load saved strategies on mount
+  useEffect(() => {
+    loadSavedStrategies();
+    loadSelectedStrategy();
+  }, []);
+
   // Check forward testing status on mount
   useEffect(() => {
     const service = ForwardTestingService.getInstance();
