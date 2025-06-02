@@ -84,13 +84,17 @@ export const useOANDAIntegration = () => {
   const canStartTesting = isConfigured && connectionStatus === 'success' && selectedStrategy !== null;
 
   // Connection status icon
-  const connectionStatusIcon = connectionStatus === 'success' ? (
-    <CheckCircle className="h-5 w-5 text-emerald-400" />
-  ) : connectionStatus === 'testing' ? (
-    <Clock className="h-5 w-5 text-yellow-400 animate-spin" />
-  ) : (
-    <XCircle className="h-5 w-5 text-slate-500" />
-  );
+  const getConnectionStatusIcon = () => {
+    if (connectionStatus === 'success') {
+      return CheckCircle;
+    } else if (connectionStatus === 'testing') {
+      return Clock;
+    } else {
+      return XCircle;
+    }
+  };
+
+  const connectionStatusIcon = getConnectionStatusIcon();
 
   return {
     config,
