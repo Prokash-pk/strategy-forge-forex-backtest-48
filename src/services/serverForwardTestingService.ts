@@ -17,6 +17,26 @@ export interface ServerTradingSession {
   reverse_signals: boolean;
 }
 
+export interface TradingLog {
+  id: string;
+  session_id: string;
+  user_id: string;
+  log_type: 'trade' | 'error' | 'info';
+  message: string;
+  trade_data?: any;
+  timestamp: string;
+}
+
+export interface TradingSessionRecord {
+  id: string;
+  user_id: string;
+  strategy_id: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  last_execution: string;
+}
+
 export class ServerForwardTestingService {
   static async startServerSideForwardTesting(session: ServerTradingSession) {
     try {
@@ -67,19 +87,30 @@ export class ServerForwardTestingService {
     }
   }
 
-  static async getActiveSessions() {
+  static async getActiveSessions(): Promise<TradingSessionRecord[]> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const { data, error } = await supabase
-        .from('trading_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true);
+      // Use raw SQL query to avoid TypeScript issues with new tables
+      const { data, error } = await supabase.rpc('get_active_trading_sessions', {
+        p_user_id: user.id
+      });
 
       if (error) {
-        throw error;
+        console.error('RPC error, falling back to direct query:', error);
+        // Fallback to direct query using any type
+        const { data: fallbackData, error: fallbackError } = await (supabase as any)
+          .from('trading_sessions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('is_active', true);
+
+        if (fallbackError) {
+          throw fallbackError;
+        }
+
+        return fallbackData || [];
       }
 
       return data || [];
@@ -89,12 +120,13 @@ export class ServerForwardTestingService {
     }
   }
 
-  static async getTradingLogs(sessionId?: string) {
+  static async getTradingLogs(sessionId?: string): Promise<TradingLog[]> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      let query = supabase
+      // Use any type to bypass TypeScript issues with new tables
+      let query = (supabase as any)
         .from('trading_logs')
         .select('*')
         .eq('user_id', user.id)

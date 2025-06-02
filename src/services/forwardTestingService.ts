@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { ServerForwardTestingService, ServerTradingSession } from './serverForwardTestingService';
+import { ServerForwardTestingService, ServerTradingSession, TradingLog } from './serverForwardTestingService';
 
 export interface ForwardTestingConfig {
   strategyId: string;
@@ -134,7 +134,7 @@ export class ForwardTestingService {
   async getForwardTestingStats() {
     if (this.useServerSide) {
       try {
-        const logs = await ServerForwardTestingService.getTradingLogs();
+        const logs: TradingLog[] = await ServerForwardTestingService.getTradingLogs();
         const tradeLogs = logs.filter(log => log.log_type === 'trade');
         const errorLogs = logs.filter(log => log.log_type === 'error');
 

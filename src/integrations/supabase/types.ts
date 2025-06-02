@@ -222,6 +222,107 @@ export type Database = {
         }
         Relationships: []
       }
+      trading_logs: {
+        Row: {
+          id: string
+          log_type: string
+          message: string
+          session_id: string
+          timestamp: string
+          trade_data: Json | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          log_type: string
+          message: string
+          session_id: string
+          timestamp?: string
+          trade_data?: Json | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          log_type?: string
+          message?: string
+          session_id?: string
+          timestamp?: string
+          trade_data?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trading_logs_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "trading_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trading_sessions: {
+        Row: {
+          created_at: string
+          environment: string
+          id: string
+          is_active: boolean
+          last_execution: string | null
+          max_position_size: number
+          oanda_account_id: string
+          oanda_api_key: string
+          reverse_signals: boolean
+          risk_per_trade: number
+          stop_loss: number
+          strategy_code: string
+          strategy_id: string
+          symbol: string
+          take_profit: number
+          timeframe: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          environment: string
+          id?: string
+          is_active?: boolean
+          last_execution?: string | null
+          max_position_size?: number
+          oanda_account_id: string
+          oanda_api_key: string
+          reverse_signals?: boolean
+          risk_per_trade?: number
+          stop_loss?: number
+          strategy_code: string
+          strategy_id: string
+          symbol: string
+          take_profit?: number
+          timeframe: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          last_execution?: string | null
+          max_position_size?: number
+          oanda_account_id?: string
+          oanda_api_key?: string
+          reverse_signals?: boolean
+          risk_per_trade?: number
+          stop_loss?: number
+          strategy_code?: string
+          strategy_id?: string
+          symbol?: string
+          take_profit?: number
+          timeframe?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
