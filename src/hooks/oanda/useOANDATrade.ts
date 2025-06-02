@@ -30,10 +30,24 @@ export const useOANDATrade = () => {
     setIsTestingTrade(true);
 
     try {
-      // Get current market price first to set appropriate stop loss and take profit
-      const symbol = selectedStrategy?.symbol?.replace('=X', '').replace('/', '_') || 'EUR_USD';
+      // Convert symbol to OANDA format
+      let symbol = selectedStrategy?.symbol || 'EURUSD';
       
-      // Get current pricing information
+      // Handle different symbol formats
+      if (symbol.includes('=X')) {
+        // Yahoo Finance format like USDJPY=X
+        symbol = symbol.replace('=X', '');
+      }
+      
+      if (symbol.includes('/')) {
+        // Format like EUR/USD
+        symbol = symbol.replace('/', '_');
+      } else if (symbol.length === 6 && !symbol.includes('_')) {
+        // Format like EURUSD - convert to EUR_USD
+        symbol = `${symbol.slice(0, 3)}_${symbol.slice(3)}`;
+      }
+
+      // Get current market price first to set appropriate stop loss and take profit
       const baseUrl = config.environment === 'practice' 
         ? 'https://api-fxpractice.oanda.com'
         : 'https://api-fxtrade.oanda.com';

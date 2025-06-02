@@ -53,7 +53,7 @@ export class RecommendationsService {
         }
 
         // Risk tolerance matching
-        const riskLevel = this.calculateRiskLevel(Math.abs(provenStrategy.max_drawdown), provenStrategy.total_return);
+        const riskLevel = RecommendationsService.calculateRiskLevel(Math.abs(provenStrategy.max_drawdown), provenStrategy.total_return);
         
         if (riskLevel === userPreferences.riskTolerance) {
           score += 20;
@@ -119,7 +119,7 @@ export class RecommendationsService {
 
         // Risk tolerance matching based on max drawdown
         const drawdown = Math.abs(strategy.max_drawdown || 0);
-        const riskLevel = this.calculateRiskLevel(drawdown, strategy.total_return || 0);
+        const riskLevel = RecommendationsService.calculateRiskLevel(drawdown, strategy.total_return || 0);
         
         if (riskLevel === userPreferences.riskTolerance) {
           score += 20;

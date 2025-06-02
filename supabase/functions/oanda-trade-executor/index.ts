@@ -48,10 +48,24 @@ serve(async (req) => {
       'Accept-Datetime-Format': 'UNIX'
     }
 
+    // Convert symbol to OANDA format (ensure underscore format)
+    let oandaSymbol = signal.symbol;
+    if (signal.symbol.includes('/')) {
+      oandaSymbol = signal.symbol.replace('/', '_');
+    } else if (signal.symbol.includes('=X')) {
+      // Handle Yahoo Finance format like USDJPY=X
+      oandaSymbol = signal.symbol.replace('=X', '').replace(/(.{3})(.{3})/, '$1_$2');
+    } else if (signal.symbol.length === 6 && !signal.symbol.includes('_')) {
+      // Handle 6-character format like USDJPY
+      oandaSymbol = signal.symbol.replace(/(.{3})(.{3})/, '$1_$2');
+    }
+
+    console.log('Converted symbol from', signal.symbol, 'to', oandaSymbol);
+
     if (signal.action === 'CLOSE') {
       // Close all positions for this instrument
       const closeResponse = await fetch(
-        `${baseUrl}/v3/accounts/${config.accountId}/positions/${signal.symbol}/close`,
+        `${baseUrl}/v3/accounts/${config.accountId}/positions/${oandaSymbol}/close`,
         {
           method: 'PUT',
           headers,
@@ -78,7 +92,7 @@ serve(async (req) => {
     const orderData = {
       order: {
         type: 'MARKET',
-        instrument: signal.symbol,
+        instrument: oandaSymbol,
         units: signal.action === 'BUY' ? signal.units.toString() : (-signal.units).toString(),
         timeInForce: 'FOK', // Fill or Kill
         positionFill: 'DEFAULT'
