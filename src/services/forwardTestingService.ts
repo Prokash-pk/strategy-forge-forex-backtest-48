@@ -1,5 +1,7 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { StrategyExecutor } from '@/utils/strategyExecutor';
+import { OANDAMarketDataService } from './oandaMarketDataService';
 
 export interface ForwardTestingConfig {
   strategyId: string;
@@ -56,12 +58,13 @@ export class ForwardTestingService {
       console.log('No strategy settings found, using default strategy');
     }
 
-    console.log('Starting forward testing for strategy:', this.strategySettings?.strategy_name || strategy.name);
+    console.log('Starting LIVE forward testing for strategy:', this.strategySettings?.strategy_name || strategy.name);
+    console.log('Using OANDA live data from:', config.environment, 'account');
 
-    // Run strategy every minute (adjust as needed)
+    // Run strategy every 30 seconds for more responsive testing
     this.intervalId = window.setInterval(async () => {
       await this.executeStrategy();
-    }, 60000); // 1 minute
+    }, 30000); // 30 seconds
 
     // Execute immediately
     await this.executeStrategy();
@@ -73,24 +76,28 @@ export class ForwardTestingService {
       clearInterval(this.intervalId);
       this.intervalId = undefined;
     }
-    console.log('Forward testing stopped');
+    console.log('Live forward testing stopped');
   }
 
   private async executeStrategy() {
-    if (!this.isRunning || !this.config) return;
+    if (!this.isRunning || !this.config || !this.strategySettings) return;
 
     try {
-      const strategyToUse = this.strategySettings || {
-        name: 'Default Strategy',
-        symbol: 'EURUSD=X',
-        code: 'Smart Momentum Strategy'
-      };
+      console.log('Executing strategy with live OANDA data...');
 
-      // Use mock data for demo purposes since the API endpoint doesn't exist
-      const marketData = this.generateMockMarketData();
+      // Convert symbol to OANDA format
+      const oandaSymbol = OANDAMarketDataService.convertSymbolToOANDA(this.strategySettings.symbol);
       
-      // Execute strategy logic using the saved strategy settings
-      const signals = await this.executeStrategyLogic(strategyToUse, marketData);
+      // Fetch live market data from OANDA
+      const marketData = await this.fetchLiveMarketData(oandaSymbol);
+      
+      if (!marketData || marketData.close.length === 0) {
+        console.warn('No market data received, skipping execution');
+        return;
+      }
+
+      // Execute strategy logic using live data
+      const signals = await this.executeStrategyLogic(this.strategySettings, marketData);
 
       // Process signals and execute trades
       for (const signal of signals) {
@@ -98,60 +105,58 @@ export class ForwardTestingService {
       }
 
     } catch (error) {
-      console.error('Forward testing execution error:', error);
+      console.error('Live forward testing execution error:', error);
+      
+      // Store error log
+      const errorLog = {
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error',
+        strategy: this.strategySettings?.strategy_name || 'Unknown',
+        type: 'execution_error'
+      };
+      
+      const existingLogs = JSON.parse(localStorage.getItem('forward_testing_errors') || '[]');
+      existingLogs.push(errorLog);
+      localStorage.setItem('forward_testing_errors', JSON.stringify(existingLogs.slice(-50))); // Keep last 50 errors
     }
   }
 
-  private async fetchMarketData(symbol: string) {
-    // For demo purposes, always use mock data
-    // In production, this would connect to a real market data feed
-    return this.generateMockMarketData();
-  }
+  private async fetchLiveMarketData(symbol: string) {
+    if (!this.config) return null;
 
-  private generateMockMarketData() {
-    const length = 100;
-    const basePrice = 1.1000;
-    const data = {
-      open: [],
-      high: [],
-      low: [],
-      close: [],
-      volume: [],
-      Open: [],
-      High: [],
-      Low: [],
-      Close: [],
-      Volume: []
-    };
-
-    for (let i = 0; i < length; i++) {
-      const price = basePrice + (Math.random() - 0.5) * 0.01;
-      const high = price + Math.random() * 0.002;
-      const low = price - Math.random() * 0.002;
-      const close = price + (Math.random() - 0.5) * 0.001;
-      const volume = Math.random() * 1000000;
-      
-      // Both lowercase and uppercase for compatibility
-      data.open.push(price);
-      data.high.push(high);
-      data.low.push(low);
-      data.close.push(close);
-      data.volume.push(volume);
-      
-      data.Open.push(price);
-      data.High.push(high);
-      data.Low.push(low);
-      data.Close.push(close);
-      data.Volume.push(volume);
-    }
-
-    return data;
-  }
-
-  private async executeStrategyLogic(strategy: any, marketData: any) {
     try {
-      // Use the StrategyExecutor to run the strategy code
-      const strategyCode = strategy.strategy_code || strategy.code || 'Smart Momentum Strategy';
+      // Map timeframe to OANDA granularity
+      const timeframeMap: Record<string, string> = {
+        '1m': 'M1',
+        '5m': 'M5',
+        '15m': 'M15',
+        '30m': 'M30',
+        '1h': 'H1',
+        '4h': 'H4',
+        '1d': 'D',
+        'daily': 'D'
+      };
+
+      const granularity = timeframeMap[this.strategySettings?.timeframe || '1h'] || 'H1';
+      
+      return await OANDAMarketDataService.fetchLiveMarketData(
+        this.config.oandaAccountId,
+        this.config.oandaApiKey,
+        this.config.environment,
+        symbol,
+        granularity,
+        100 // Last 100 candles for analysis
+      );
+    } catch (error) {
+      console.error('Failed to fetch live market data:', error);
+      throw error;
+    }
+  }
+
+  private async executeStrategyLogic(strategy: StrategySettings, marketData: any) {
+    try {
+      // Use the StrategyExecutor to run the strategy code with live data
+      const strategyCode = strategy.strategy_code || 'Smart Momentum Strategy';
       const signals = StrategyExecutor.executeStrategy(strategyCode, marketData);
 
       // Convert strategy signals to trading signals
@@ -160,22 +165,40 @@ export class ForwardTestingService {
       if (signals.entry && signals.entry.length > 0) {
         const lastIndex = signals.entry.length - 1;
         
+        // Check if we have a new signal (last entry is true)
         if (signals.entry[lastIndex]) {
           // Calculate position size based on strategy settings
           const positionSize = this.calculatePositionSize();
           
           // Apply reverse signals if configured
-          const shouldReverse = this.strategySettings?.reverse_signals || false;
+          const shouldReverse = strategy.reverse_signals || false;
           
+          // Use current market price for stop loss and take profit calculations
+          const currentPrice = marketData.close[marketData.close.length - 1];
+          const stopLossPips = strategy.stop_loss || 40;
+          const takeProfitPips = strategy.take_profit || 80;
+          
+          // Calculate stop loss and take profit prices
+          const pipValue = 0.0001; // For most major pairs
+          const stopLossPrice = shouldReverse ? 
+            (currentPrice + (stopLossPips * pipValue)).toFixed(5) :
+            (currentPrice - (stopLossPips * pipValue)).toFixed(5);
+          const takeProfitPrice = shouldReverse ?
+            (currentPrice - (takeProfitPips * pipValue)).toFixed(5) :
+            (currentPrice + (takeProfitPips * pipValue)).toFixed(5);
+
           tradingSignals.push({
-            action: shouldReverse ? 'sell' : 'buy',
-            symbol: strategy.symbol || 'EUR_USD',
+            action: shouldReverse ? 'SELL' : 'BUY',
+            symbol: OANDAMarketDataService.convertSymbolToOANDA(strategy.symbol),
             units: positionSize,
-            stopLoss: this.strategySettings?.stop_loss || 40,
-            takeProfit: this.strategySettings?.take_profit || 80,
+            stopLoss: stopLossPrice,
+            takeProfit: takeProfitPrice,
             strategyId: this.config?.strategyId,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            currentPrice: currentPrice
           });
+
+          console.log('Generated trading signal:', tradingSignals[0]);
         }
       }
 
@@ -200,17 +223,38 @@ export class ForwardTestingService {
     
     // Ensure position size doesn't exceed max
     const maxPosition = this.strategySettings.max_position_size || 100000;
-    return Math.min(positionSize, maxPosition);
+    return Math.min(Math.max(positionSize, 100), maxPosition); // Minimum 100 units
   }
 
   private async executeTrade(signal: any) {
     if (!this.config) return;
 
     try {
-      console.log('Executing trade signal:', signal);
+      console.log('Executing LIVE trade signal:', signal);
 
-      // In a real implementation, this would call the OANDA trade executor
-      // For now, we'll just log the trade and store it
+      // Call the OANDA trade executor for real execution
+      const response = await supabase.functions.invoke('oanda-trade-executor', {
+        body: {
+          signal: {
+            action: signal.action,
+            symbol: signal.symbol,
+            units: signal.units,
+            stopLoss: signal.stopLoss,
+            takeProfit: signal.takeProfit,
+            strategyId: signal.strategyId,
+            userId: 'forward-testing'
+          },
+          config: {
+            accountId: this.config.oandaAccountId,
+            apiKey: this.config.oandaApiKey,
+            environment: this.config.environment
+          },
+          testMode: false
+        }
+      });
+
+      console.log('OANDA trade response:', response);
+
       const tradeLog = {
         timestamp: signal.timestamp,
         action: signal.action,
@@ -218,14 +262,17 @@ export class ForwardTestingService {
         units: signal.units,
         stopLoss: signal.stopLoss,
         takeProfit: signal.takeProfit,
-        strategyName: this.strategySettings?.strategy_name || 'Default Strategy',
+        currentPrice: signal.currentPrice,
+        strategyName: this.strategySettings?.strategy_name || 'Unknown Strategy',
         environment: this.config.environment,
-        status: 'executed'
+        status: response.error ? 'failed' : 'executed',
+        response: response.data || response.error,
+        executionType: 'live_forward_testing'
       };
 
-      console.log('Trade executed:', tradeLog);
+      console.log('Live trade executed:', tradeLog);
 
-      // Store trade log in localStorage for demo purposes
+      // Store trade log in localStorage
       const existingLogs = JSON.parse(localStorage.getItem('forward_testing_trades') || '[]');
       existingLogs.push(tradeLog);
       
@@ -237,7 +284,23 @@ export class ForwardTestingService {
       localStorage.setItem('forward_testing_trades', JSON.stringify(existingLogs));
       
     } catch (error) {
-      console.error('Trade execution error:', error);
+      console.error('Live trade execution error:', error);
+      
+      // Log the failed trade
+      const failedTradeLog = {
+        timestamp: signal.timestamp,
+        action: signal.action,
+        symbol: signal.symbol,
+        units: signal.units,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        strategyName: this.strategySettings?.strategy_name || 'Unknown Strategy',
+        status: 'failed',
+        executionType: 'live_forward_testing'
+      };
+
+      const existingLogs = JSON.parse(localStorage.getItem('forward_testing_trades') || '[]');
+      existingLogs.push(failedTradeLog);
+      localStorage.setItem('forward_testing_trades', JSON.stringify(existingLogs.slice(-100)));
     }
   }
 
@@ -247,5 +310,20 @@ export class ForwardTestingService {
 
   getCurrentStrategy(): StrategySettings | null {
     return this.strategySettings || null;
+  }
+
+  // Get live trading statistics
+  getForwardTestingStats() {
+    const trades = JSON.parse(localStorage.getItem('forward_testing_trades') || '[]');
+    const errors = JSON.parse(localStorage.getItem('forward_testing_errors') || '[]');
+    
+    return {
+      totalTrades: trades.length,
+      successfulTrades: trades.filter((t: any) => t.status === 'executed').length,
+      failedTrades: trades.filter((t: any) => t.status === 'failed').length,
+      totalErrors: errors.length,
+      lastExecution: trades.length > 0 ? trades[trades.length - 1].timestamp : null,
+      isUseLiveData: true
+    };
   }
 }
