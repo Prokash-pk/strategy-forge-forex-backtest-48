@@ -33,6 +33,7 @@ export const useOANDAConfig = () => {
     };
 
     loadConfigFromStorage();
+    loadSavedConfigs();
   }, []);
 
   const handleConfigChange = (field: keyof OANDAConfig, value: any) => {
@@ -86,23 +87,56 @@ export const useOANDAConfig = () => {
 
       const configName = `${config.environment.toUpperCase()} - ${config.accountId.slice(-8)}`;
 
-      const { error } = await supabase
+      // Check if config already exists
+      const { data: existingConfigs } = await supabase
         .from('oanda_configs')
-        .insert({
-          user_id: user.id,
-          config_name: configName,
-          account_id: config.accountId,
-          api_key: config.apiKey,
-          environment: config.environment,
-          enabled: config.enabled
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('account_id', config.accountId)
+        .eq('environment', config.environment);
+
+      if (existingConfigs && existingConfigs.length > 0) {
+        // Update existing config
+        const { error } = await supabase
+          .from('oanda_configs')
+          .update({
+            api_key: config.apiKey,
+            enabled: config.enabled,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingConfigs[0].id);
+
+        if (error) throw error;
+
+        toast({
+          title: "Configuration Updated",
+          description: `OANDA configuration "${configName}" has been updated`,
         });
+      } else {
+        // Insert new config
+        const { error } = await supabase
+          .from('oanda_configs')
+          .insert({
+            user_id: user.id,
+            config_name: configName,
+            account_id: config.accountId,
+            api_key: config.apiKey,
+            environment: config.environment,
+            enabled: config.enabled
+          });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast({
-        title: "Configuration Saved",
-        description: `OANDA configuration "${configName}" has been saved`,
-      });
+        toast({
+          title: "Configuration Saved",
+          description: `OANDA configuration "${configName}" has been saved`,
+        });
+      }
+
+      // Mark config as enabled after successful save
+      const updatedConfig = { ...config, enabled: true };
+      setConfig(updatedConfig);
+      localStorage.setItem('oanda_config', JSON.stringify(updatedConfig));
 
       loadSavedConfigs();
 

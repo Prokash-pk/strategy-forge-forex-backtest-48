@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Settings, AlertTriangle, Save, TestTube, Loader2 } from 'lucide-react';
+import { Settings, AlertTriangle, Save, TestTube, Loader2, Wifi } from 'lucide-react';
 
 interface OANDAConfig {
   accountId: string;
@@ -47,15 +47,35 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
 }) => {
   const isConfigured = config.accountId && config.apiKey;
 
+  const handleConnectOANDA = async () => {
+    // First test the connection
+    await onTestConnection();
+    
+    // If connection is successful, save the config
+    if (connectionStatus === 'success' || isConfigured) {
+      await onSaveConfig();
+    }
+  };
+
   return (
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white">
           <Settings className="h-5 w-5" />
-          API Configuration
+          Connect OANDA
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Connection Status */}
+        {connectionStatus === 'success' && (
+          <div className="flex items-center gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
+            <CheckCircle className="h-4 w-4 text-emerald-400" />
+            <span className="text-emerald-300 text-sm">
+              Connected to OANDA {config.environment} account: {config.accountId}
+            </span>
+          </div>
+        )}
+
         {/* Environment Selection */}
         <div className="space-y-2">
           <Label htmlFor="environment" className="text-slate-300">Environment</Label>
@@ -119,53 +139,68 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
           />
         </div>
 
-        {/* Action Buttons */}
+        {/* Main Connect Button */}
+        <div className="flex items-center gap-3 pt-4">
+          <Button
+            onClick={handleConnectOANDA}
+            disabled={!isConfigured || connectionStatus === 'testing' || isLoading}
+            className="bg-emerald-600 hover:bg-emerald-700 flex-1"
+          >
+            {connectionStatus === 'testing' || isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Connecting...
+              </>
+            ) : connectionStatus === 'success' ? (
+              <>
+                <Wifi className="h-4 w-4 mr-2" />
+                Connected
+              </>
+            ) : (
+              <>
+                <Wifi className="h-4 w-4 mr-2" />
+                Connect OANDA
+              </>
+            )}
+          </Button>
+
+          {connectionStatusIcon}
+        </div>
+
+        {/* Secondary Action Buttons */}
         <div className="flex items-center gap-3">
           <Button
             onClick={onTestConnection}
-            disabled={!config.accountId || !config.apiKey || connectionStatus === 'testing'}
+            disabled={!isConfigured || connectionStatus === 'testing'}
             variant="outline"
+            size="sm"
             className="border-slate-600 text-slate-300 hover:text-white"
           >
-            {connectionStatus === 'testing' ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Testing...
-              </>
-            ) : (
-              'Test Connection'
-            )}
+            Test Connection
           </Button>
 
           <Button
             onClick={onSaveConfig}
             disabled={!isConfigured || isLoading}
             variant="outline"
+            size="sm"
             className="border-slate-600 text-slate-300 hover:text-white"
           >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Config
-              </>
-            )}
+            <Save className="h-4 w-4 mr-2" />
+            Save Config
           </Button>
 
           <Button
             onClick={onTestTrade}
             disabled={!canStartTesting || isTestingTrade || isForwardTestingActive}
             variant="outline"
+            size="sm"
             className="border-blue-600 text-blue-300 hover:text-blue-200 disabled:opacity-50"
           >
             {isTestingTrade ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Testing Trade...
+                Testing...
               </>
             ) : (
               <>
@@ -174,16 +209,6 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
               </>
             )}
           </Button>
-          
-          {connectionStatusIcon}
-          
-          {connectionStatus === 'success' && (
-            <span className="text-emerald-400 text-sm">Connection verified</span>
-          )}
-          
-          {connectionStatus === 'error' && (
-            <span className="text-red-400 text-sm">Connection failed</span>
-          )}
         </div>
 
         {connectionError && (
