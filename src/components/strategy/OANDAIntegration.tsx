@@ -134,10 +134,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
 
         <TabsContent value="config">
           <OANDAConfigForm
-            config={{
-              ...config,
-              enabled: Boolean(config.enabled)
-            }}
+            config={config}
             onConfigChange={handleConfigChange}
             onTestConnection={handleTestConnection}
             onSaveConfig={handleSaveConfig}
