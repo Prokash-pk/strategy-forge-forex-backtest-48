@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Play, Square, AlertTriangle, CheckCircle, Globe } from 'lucide-react';
+import { Play, Square, AlertTriangle, CheckCircle, Globe, Zap } from 'lucide-react';
 
 interface StrategySettings {
   id: string;
@@ -42,13 +42,13 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
         <CardTitle className="flex items-center gap-2 text-white">
           {isForwardTestingActive ? (
             <>
-              <Globe className="h-5 w-5 text-emerald-400" />
-              Server-Side Forward Testing
+              <Zap className="h-5 w-5 text-emerald-400" />
+              Autonomous Trading System
             </>
           ) : (
             <>
               <Square className="h-5 w-5" />
-              Forward Testing Control
+              Autonomous Trading Control
             </>
           )}
         </CardTitle>
@@ -70,8 +70,8 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
             >
               {isForwardTestingActive ? (
                 <>
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Server Active
+                  <Zap className="h-3 w-3 mr-1" />
+                  Autonomous
                 </>
               ) : (
                 "Inactive"
@@ -85,23 +85,23 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-white font-medium mb-1">
-              {isForwardTestingActive ? "Server-Side Trading Status" : "Forward Testing Status"}
+              {isForwardTestingActive ? "Autonomous Trading Status" : "Trading Control"}
             </h4>
             <p className="text-slate-400 text-sm">
               {isForwardTestingActive ? (
                 <>
-                  ✅ Running continuously on server with {selectedStrategy?.strategy_name}
+                  ✅ Running autonomously 24/7 with {selectedStrategy?.strategy_name}
                   <br />
                   <span className="text-emerald-400 text-xs">
-                    🌐 Trading continues even when browser is closed
+                    🤖 Operates independently - computer can be shut down
                   </span>
                 </>
               ) : (
-                "Forward testing is currently stopped"
+                "Autonomous trading is currently stopped"
               )}
             </p>
             {canStartTesting && !isForwardTestingActive && (
-              <p className="text-emerald-400 text-sm mt-1">✅ Ready to start server-side forward testing</p>
+              <p className="text-emerald-400 text-sm mt-1">✅ Ready to start autonomous trading</p>
             )}
           </div>
           <Button
@@ -115,12 +115,12 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
             {isForwardTestingActive ? (
               <>
                 <Square className="h-4 w-4 mr-2" />
-                Stop Server Trading
+                Stop Autonomous Trading
               </>
             ) : (
               <>
-                <Globe className="h-4 w-4 mr-2" />
-                Start Server Trading
+                <Zap className="h-4 w-4 mr-2" />
+                Start Autonomous Trading
               </>
             )}
           </Button>
@@ -128,16 +128,17 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
 
         {isForwardTestingActive && (
           <div className="flex items-start gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5" />
+            <Zap className="h-4 w-4 text-emerald-400 mt-0.5" />
             <div>
               <p className="text-emerald-300 text-sm font-medium">
-                Server-Side Trading Active
+                Autonomous Trading Active
               </p>
               <p className="text-emerald-400 text-xs mt-1">
-                • Your strategy is running on our servers 24/7<br />
-                • Trading continues even when you're offline<br />
-                • OANDA credentials are securely stored<br />
-                • Trades execute automatically via cron job every 5 minutes
+                • Strategy runs autonomously on our servers 24/7<br />
+                • Trading continues when you close browser/shut down computer<br />
+                • OANDA credentials securely stored server-side<br />
+                • Trades execute automatically every 5 minutes via cron job<br />
+                • Zero dependency on your internet connection or device
               </p>
             </div>
           </div>
@@ -154,7 +155,7 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
                   ? "Please test your connection first to verify credentials."
                   : !selectedStrategy
                   ? "Please select a strategy with saved settings above."
-                  : "Ready to start server-side forward testing!"
+                  : "Ready to start autonomous trading!"
                 }
               </p>
               {!isConfigured && (

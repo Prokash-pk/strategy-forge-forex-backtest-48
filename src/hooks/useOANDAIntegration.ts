@@ -49,39 +49,40 @@ export const useOANDAIntegration = () => {
     loadSelectedStrategy();
   }, []);
 
-  // Check server-side forward testing status on mount and periodically
+  // Check autonomous server-side trading status on mount and periodically
   useEffect(() => {
-    const checkForwardTestingStatus = async () => {
+    const checkAutonomousTradingStatus = async () => {
       try {
-        // Check server-side status - this is the primary source of truth
+        // Check server-side autonomous trading sessions - completely independent of client
         const activeSessions = await ServerForwardTestingService.getActiveSessions();
-        const serverSideActive = activeSessions.length > 0;
+        const isAutonomousActive = activeSessions.length > 0;
         
-        // Update state based on server-side status
-        setIsForwardTestingActive(serverSideActive);
+        // Update UI state to reflect autonomous trading status
+        setIsForwardTestingActive(isAutonomousActive);
         
-        console.log('📊 Forward testing status check:', {
-          serverSideActive: activeSessions.length > 0,
+        console.log('🤖 Autonomous trading status check:', {
+          autonomousActive: isAutonomousActive,
           totalActiveSessions: activeSessions.length,
-          finalStatus: serverSideActive
+          status: isAutonomousActive ? 'RUNNING AUTONOMOUSLY' : 'INACTIVE'
         });
 
-        if (serverSideActive) {
-          console.log('✅ Server-side forward testing is ACTIVE');
-          console.log('🔄 Trading sessions are running independently on the server');
+        if (isAutonomousActive) {
+          console.log('✅ AUTONOMOUS TRADING IS ACTIVE');
+          console.log('🚀 Trading operations running independently on server 24/7');
+          console.log('💻 No client connection required - fully autonomous');
         } else {
-          console.log('⏸️ No active server-side trading sessions found');
+          console.log('⏸️ No autonomous trading sessions detected');
         }
       } catch (error) {
-        console.error('Failed to check forward testing status:', error);
+        console.error('Failed to check autonomous trading status:', error);
         setIsForwardTestingActive(false);
       }
     };
 
-    checkForwardTestingStatus();
+    checkAutonomousTradingStatus();
     
-    // Check status every 30 seconds to stay in sync with server
-    const interval = setInterval(checkForwardTestingStatus, 30000);
+    // Check autonomous status every 30 seconds to stay in sync with server
+    const interval = setInterval(checkAutonomousTradingStatus, 30000);
     
     return () => clearInterval(interval);
   }, []);
@@ -98,12 +99,12 @@ export const useOANDAIntegration = () => {
     const service = ForwardTestingService.getInstance();
     
     if (isForwardTestingActive) {
-      // Stop forward testing
+      // Stop autonomous trading
       await service.stopForwardTesting();
       setIsForwardTestingActive(false);
-      console.log('🛑 Forward testing stopped');
+      console.log('🛑 Autonomous trading stopped');
     } else {
-      // Start forward testing
+      // Start autonomous trading
       if (canStartTesting && selectedStrategy) {
         try {
           await service.startForwardTesting({
@@ -115,9 +116,10 @@ export const useOANDAIntegration = () => {
           }, selectedStrategy);
           
           setIsForwardTestingActive(true);
-          console.log('🚀 Forward testing started - will continue running on server');
+          console.log('🚀 AUTONOMOUS TRADING ACTIVATED - operates 24/7 independently');
+          console.log('💻 You can now close your browser/computer safely');
         } catch (error) {
-          console.error('Failed to start forward testing:', error);
+          console.error('Failed to start autonomous trading:', error);
           // Keep the state as false if starting failed
         }
       }

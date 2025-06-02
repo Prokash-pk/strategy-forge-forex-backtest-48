@@ -32,7 +32,6 @@ interface StrategySettings {
 
 export class ForwardTestingService {
   private static instance: ForwardTestingService;
-  private isClientSideRunning = false;
   private config?: ForwardTestingConfig;
   private strategySettings?: StrategySettings;
 
@@ -45,26 +44,26 @@ export class ForwardTestingService {
 
   async startForwardTesting(config: ForwardTestingConfig, strategy: any) {
     this.config = config;
-    this.isClientSideRunning = true;
 
     // Load the selected strategy settings from localStorage
     const savedStrategySettings = localStorage.getItem('selected_strategy_settings');
     if (savedStrategySettings) {
       this.strategySettings = JSON.parse(savedStrategySettings);
-      console.log('Using strategy settings:', this.strategySettings?.strategy_name);
+      console.log('🚀 Starting FULLY AUTONOMOUS server-side forward testing for strategy:', this.strategySettings?.strategy_name);
     } else {
       console.log('No strategy settings found, using default strategy');
       throw new Error('No strategy settings found. Please select a strategy first.');
     }
 
-    console.log('🚀 Starting SERVER-SIDE forward testing for strategy:', this.strategySettings.strategy_name);
-    console.log('✅ This will continue running even when you close the browser!');
+    console.log('✅ AUTONOMOUS TRADING MODE: Trading will run 24/7 independently on our servers');
+    console.log('🌐 Your computer can be shut down - trading continues automatically');
+    console.log('🔒 OANDA credentials securely stored on server for continuous operation');
     
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Create server-side session that will persist independently
+      // Create completely independent server-side session
       const session: ServerTradingSession = {
         user_id: user.id,
         strategy_id: this.strategySettings.id,
@@ -83,21 +82,19 @@ export class ForwardTestingService {
 
       await ServerForwardTestingService.startServerSideForwardTesting(session);
       
-      console.log('✅ Server-side forward testing started successfully');
-      console.log('📊 Trading will continue automatically every 5 minutes via cron job');
-      console.log('🔒 Your OANDA credentials are securely stored on the server');
-      console.log('🌐 You can safely close your browser - trading will continue');
+      console.log('✅ AUTONOMOUS TRADING ACTIVATED');
+      console.log('📊 Server will execute trades automatically every 5 minutes via cron job');
+      console.log('🔄 Trading continues 24/7 regardless of browser status');
+      console.log('💻 You can safely shut down your computer - trading persists');
+      console.log('🔐 All credentials securely stored and managed server-side');
       
     } catch (error) {
-      console.error('Failed to start server-side forward testing:', error);
-      this.isClientSideRunning = false;
+      console.error('Failed to start autonomous server-side forward testing:', error);
       throw error;
     }
   }
 
   async stopForwardTesting() {
-    this.isClientSideRunning = false;
-
     if (this.strategySettings && this.config) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -108,26 +105,27 @@ export class ForwardTestingService {
           this.strategySettings.id
         );
         
-        console.log('✅ Server-side forward testing stopped successfully');
-        console.log('🛑 All trading sessions have been deactivated');
+        console.log('✅ Autonomous trading stopped successfully');
+        console.log('🛑 All server-side trading sessions deactivated');
         
       } catch (error) {
-        console.error('Failed to stop server-side forward testing:', error);
+        console.error('Failed to stop autonomous trading:', error);
       }
     }
     
-    console.log('Forward testing stopped');
+    console.log('Autonomous forward testing stopped');
   }
 
   isActive(): boolean {
-    return this.isClientSideRunning;
+    // This is now determined by server-side sessions, not client state
+    return false; // Client state is irrelevant for autonomous trading
   }
 
   getCurrentStrategy(): StrategySettings | null {
     return this.strategySettings || null;
   }
 
-  // Get trading statistics from server-side logs
+  // Get trading statistics from autonomous server-side operations
   async getForwardTestingStats() {
     try {
       const logs: TradingLog[] = await ServerForwardTestingService.getTradingLogs();
@@ -140,32 +138,32 @@ export class ForwardTestingService {
         failedTrades: tradeLogs.filter(log => !log.trade_data?.success).length,
         totalErrors: errorLogs.length,
         lastExecution: tradeLogs.length > 0 ? tradeLogs[0].timestamp : null,
-        isUsingServerSide: true,
+        isAutonomous: true,
         message: tradeLogs.length > 0 
-          ? `Running server-side with ${tradeLogs.length} trades executed`
-          : 'Server-side forward testing active - waiting for trading signals'
+          ? `Autonomous trading active with ${tradeLogs.length} trades executed`
+          : 'Autonomous trading active - monitoring markets for signals'
       };
     } catch (error) {
-      console.error('Failed to get server-side stats:', error);
+      console.error('Failed to get autonomous trading stats:', error);
       return {
         totalTrades: 0,
         successfulTrades: 0,
         failedTrades: 0,
         totalErrors: 0,
         lastExecution: null,
-        isUsingServerSide: true,
-        message: 'Server-side forward testing active'
+        isAutonomous: true,
+        message: 'Autonomous trading active - operating independently'
       };
     }
   }
 
-  // Check if there are active server-side sessions
-  async hasActiveServerSessions(): Promise<boolean> {
+  // Check if autonomous trading sessions are running on server
+  async hasActiveAutonomousSessions(): Promise<boolean> {
     try {
       const sessions = await ServerForwardTestingService.getActiveSessions();
       return sessions.length > 0;
     } catch (error) {
-      console.error('Failed to check active sessions:', error);
+      console.error('Failed to check autonomous sessions:', error);
       return false;
     }
   }
