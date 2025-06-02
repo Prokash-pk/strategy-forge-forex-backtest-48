@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { StrategyExecutor } from '@/utils/strategyExecutor';
 
@@ -87,8 +86,8 @@ export class ForwardTestingService {
         code: 'Smart Momentum Strategy'
       };
 
-      // Fetch latest market data for the strategy's symbol
-      const marketData = await this.fetchMarketData(strategyToUse.symbol || 'EURUSD=X');
+      // Use mock data for demo purposes since the API endpoint doesn't exist
+      const marketData = this.generateMockMarketData();
       
       // Execute strategy logic using the saved strategy settings
       const signals = await this.executeStrategyLogic(strategyToUse, marketData);
@@ -104,18 +103,9 @@ export class ForwardTestingService {
   }
 
   private async fetchMarketData(symbol: string) {
-    try {
-      // Use the existing market data service
-      const response = await fetch(`/api/market-data/${symbol}`);
-      if (!response.ok) {
-        // Fallback to generating mock data for demo purposes
-        return this.generateMockMarketData();
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Market data fetch error:', error);
-      return this.generateMockMarketData();
-    }
+    // For demo purposes, always use mock data
+    // In production, this would connect to a real market data feed
+    return this.generateMockMarketData();
   }
 
   private generateMockMarketData() {
@@ -126,19 +116,33 @@ export class ForwardTestingService {
       high: [],
       low: [],
       close: [],
-      volume: []
+      volume: [],
+      Open: [],
+      High: [],
+      Low: [],
+      Close: [],
+      Volume: []
     };
 
     for (let i = 0; i < length; i++) {
       const price = basePrice + (Math.random() - 0.5) * 0.01;
       const high = price + Math.random() * 0.002;
       const low = price - Math.random() * 0.002;
+      const close = price + (Math.random() - 0.5) * 0.001;
+      const volume = Math.random() * 1000000;
       
+      // Both lowercase and uppercase for compatibility
       data.open.push(price);
       data.high.push(high);
       data.low.push(low);
-      data.close.push(price + (Math.random() - 0.5) * 0.001);
-      data.volume.push(Math.random() * 1000000);
+      data.close.push(close);
+      data.volume.push(volume);
+      
+      data.Open.push(price);
+      data.High.push(high);
+      data.Low.push(low);
+      data.Close.push(close);
+      data.Volume.push(volume);
     }
 
     return data;
@@ -206,7 +210,7 @@ export class ForwardTestingService {
       console.log('Executing trade signal:', signal);
 
       // In a real implementation, this would call the OANDA trade executor
-      // For now, we'll just log the trade
+      // For now, we'll just log the trade and store it
       const tradeLog = {
         timestamp: signal.timestamp,
         action: signal.action,
@@ -215,7 +219,8 @@ export class ForwardTestingService {
         stopLoss: signal.stopLoss,
         takeProfit: signal.takeProfit,
         strategyName: this.strategySettings?.strategy_name || 'Default Strategy',
-        environment: this.config.environment
+        environment: this.config.environment,
+        status: 'executed'
       };
 
       console.log('Trade executed:', tradeLog);
@@ -223,6 +228,12 @@ export class ForwardTestingService {
       // Store trade log in localStorage for demo purposes
       const existingLogs = JSON.parse(localStorage.getItem('forward_testing_trades') || '[]');
       existingLogs.push(tradeLog);
+      
+      // Keep only the last 100 trades to prevent storage from growing too large
+      if (existingLogs.length > 100) {
+        existingLogs.splice(0, existingLogs.length - 100);
+      }
+      
       localStorage.setItem('forward_testing_trades', JSON.stringify(existingLogs));
       
     } catch (error) {
