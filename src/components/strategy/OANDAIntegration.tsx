@@ -105,7 +105,7 @@ const OANDAIntegration: React.FC = () => {
                 isTestingTrade={isTestingTrade}
                 canStartTesting={canStartTesting}
                 isForwardTestingActive={isForwardTestingActive}
-                connectionStatusIcon={<ConnectionStatusIcon className="h-4 w-4" />}
+                connectionStatusIcon={ConnectionStatusIcon ? <ConnectionStatusIcon className="h-4 w-4" /> : null}
               />
             </TabsContent>
 
