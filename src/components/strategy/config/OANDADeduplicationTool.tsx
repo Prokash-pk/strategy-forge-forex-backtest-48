@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -107,11 +108,12 @@ const OANDADeduplicationTool: React.FC<OANDADeduplicationToolProps> = ({
       let removedCount = 0;
 
       for (const group of duplicateGroups) {
-        // Keep the most recent one, remove the rest - fix the sorting issue
+        // Sort by created_at timestamp properly - use the actual created_at field if available
         const sortedGroup = group.sort((a, b) => {
-          const dateA = new Date(a.id);
-          const dateB = new Date(b.id);
-          return dateB.getTime() - dateA.getTime();
+          // Try to use created_at field first, fallback to parsing ID as timestamp
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : new Date(a.id).getTime();
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : new Date(b.id).getTime();
+          return dateB - dateA; // Most recent first
         });
         
         const toRemove = sortedGroup.slice(1); // Keep first (most recent), remove rest
@@ -140,6 +142,33 @@ const OANDADeduplicationTool: React.FC<OANDADeduplicationToolProps> = ({
       toast({
         title: "Cleanup Failed",
         description: "Could not remove duplicate strategies",
+        variant: "destructive",
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const removeAllDuplicates = async () => {
+    if (!user) return;
+
+    setIsProcessing(true);
+    try {
+      // Remove duplicate configs first
+      await removeDuplicateConfigs();
+      
+      // Then remove duplicate strategies
+      await removeDuplicateStrategies();
+      
+      toast({
+        title: "All Duplicates Removed",
+        description: "Successfully cleaned up all duplicate configurations and strategies",
+      });
+    } catch (error) {
+      console.error('Failed to remove all duplicates:', error);
+      toast({
+        title: "Cleanup Failed",
+        description: "Could not remove all duplicates",
         variant: "destructive",
       });
     } finally {
@@ -177,6 +206,19 @@ const OANDADeduplicationTool: React.FC<OANDADeduplicationToolProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {(totalDuplicateConfigs > 0 || totalDuplicateStrategies > 0) && (
+          <div className="flex gap-2 mb-4">
+            <Button
+              onClick={removeAllDuplicates}
+              disabled={isProcessing}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Remove All Duplicates
+            </Button>
+          </div>
+        )}
+
         {totalDuplicateConfigs > 0 && (
           <div className="p-4 bg-slate-700/50 border border-slate-600 rounded-lg">
             <div className="flex items-center justify-between mb-3">
@@ -204,7 +246,7 @@ const OANDADeduplicationTool: React.FC<OANDADeduplicationToolProps> = ({
               className="bg-red-600 hover:bg-red-700"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Remove Duplicate Configs
+              Remove Duplicate Configs Only
             </Button>
           </div>
         )}
@@ -236,7 +278,7 @@ const OANDADeduplicationTool: React.FC<OANDADeduplicationToolProps> = ({
               className="bg-red-600 hover:bg-red-700"
             >
               <Trash2 className="h-4 w-4 mr-2" />
-              Remove Duplicate Strategies
+              Remove Duplicate Strategies Only
             </Button>
           </div>
         )}
