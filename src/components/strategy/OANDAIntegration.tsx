@@ -136,7 +136,7 @@ const OANDAIntegration: React.FC<OANDAIntegrationProps> = ({
           <OANDAConfigForm
             config={{
               ...config,
-              enabled: config.enabled ?? false
+              enabled: Boolean(config.enabled)
             }}
             onConfigChange={handleConfigChange}
             onTestConnection={handleTestConnection}
