@@ -45,7 +45,7 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
   isForwardTestingActive,
   connectionStatusIcon
 }) => {
-  const isConfigured = config.accountId && config.apiKey;
+  const isConfigured = !!(config.accountId && config.apiKey);
 
   const handleConnectOANDA = async () => {
     // First test the connection

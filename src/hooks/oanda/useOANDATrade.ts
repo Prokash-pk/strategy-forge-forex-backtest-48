@@ -39,10 +39,11 @@ export const useOANDATrade = () => {
     setIsTestingTrade(true);
 
     try {
+      // Create a minimal test trade signal - just testing the connection
       const testSignal = {
         action: 'BUY' as const,
         symbol: selectedStrategy.symbol.replace('=X', '').replace('/', '_'),
-        units: 100,
+        units: 1, // Minimal trade size for testing
         stopLoss: undefined,
         takeProfit: undefined,
         strategyId: selectedStrategy.id,
@@ -56,26 +57,36 @@ export const useOANDATrade = () => {
       };
 
       console.log('Executing test trade:', testSignal);
+      console.log('Using OANDA config:', { 
+        accountId: oandaConfig.accountId, 
+        environment: oandaConfig.environment,
+        apiKeyLength: oandaConfig.apiKey?.length 
+      });
       
       const response = await supabase.functions.invoke('oanda-trade-executor', {
         body: {
           signal: testSignal,
-          config: oandaConfig
+          config: oandaConfig,
+          testMode: true // Add test mode flag
         }
       });
 
+      console.log('Trade response:', response);
+
       if (response.error) {
+        console.error('Supabase function error:', response.error);
         throw new Error(response.error.message || 'Trade execution failed');
       }
 
       if (response.data?.success) {
         toast({
           title: "Test Trade Successful! ✅",
-          description: `Test ${testSignal.action} order for ${testSignal.units} units of ${testSignal.symbol} executed successfully`,
+          description: `Test ${testSignal.action} order for ${testSignal.units} units of ${testSignal.symbol} executed successfully. Transaction ID: ${response.data.result?.transactionID || 'N/A'}`,
         });
         
         console.log('Test trade result:', response.data.result);
       } else {
+        console.error('Trade execution failed:', response.data);
         throw new Error(response.data?.error || 'Trade execution failed');
       }
 
@@ -85,7 +96,7 @@ export const useOANDATrade = () => {
       
       toast({
         title: "Test Trade Failed ❌",
-        description: errorMessage,
+        description: `Error: ${errorMessage}. Please check your OANDA credentials and account permissions.`,
         variant: "destructive",
       });
     } finally {
