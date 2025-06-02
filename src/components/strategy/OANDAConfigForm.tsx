@@ -9,6 +9,7 @@ import OANDACredentialsForm from './config/OANDACredentialsForm';
 import OANDAActionButtons from './config/OANDAActionButtons';
 import OANDAErrorDisplay from './config/OANDAErrorDisplay';
 import OANDAMultiAccountManager from './config/OANDAMultiAccountManager';
+import OANDAConnectionTester from './OANDAConnectionTester';
 import { OANDAConfig, SavedOANDAConfig } from '@/types/oanda';
 
 interface OANDAConfigFormProps {
@@ -122,6 +123,11 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
           <OANDAErrorDisplay connectionError={connectionError} />
         </CardContent>
       </Card>
+
+      {/* Connection Diagnostics Tool */}
+      {isConfigured && (
+        <OANDAConnectionTester config={config} />
+      )}
     </div>
   );
 };
