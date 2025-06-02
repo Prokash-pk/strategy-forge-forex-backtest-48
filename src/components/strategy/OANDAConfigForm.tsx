@@ -10,7 +10,9 @@ import OANDAActionButtons from './config/OANDAActionButtons';
 import OANDAErrorDisplay from './config/OANDAErrorDisplay';
 import OANDAMultiAccountManager from './config/OANDAMultiAccountManager';
 import OANDAConnectionTester from './OANDAConnectionTester';
+import OANDADeduplicationTool from './config/OANDADeduplicationTool';
 import { OANDAConfig, SavedOANDAConfig } from '@/types/oanda';
+import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
 
 interface OANDAConfigFormProps {
   config: OANDAConfig;
@@ -49,20 +51,35 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
   isForwardTestingActive,
   connectionStatusIcon
 }) => {
-  const isConfigured = !!(config.accountId && config.apiKey);
+  const { savedStrategies, loadSavedStrategies } = useOANDAStrategies();
+  
+  // Fix: The test connection button should be enabled when account ID and API key are provided
+  const isConfiguredForTesting = !!(config.accountId && config.apiKey);
 
   const handleConnectOANDA = async () => {
     // First test the connection
     await onTestConnection();
     
     // If connection is successful, save the config
-    if (connectionStatus === 'success' || isConfigured) {
+    if (connectionStatus === 'success' || isConfiguredForTesting) {
       await onSaveConfig();
     }
   };
 
+  const handleRefreshAll = () => {
+    loadSavedStrategies();
+    // Trigger refresh of configs from parent
+  };
+
   return (
     <div className="space-y-6">
+      {/* Deduplication Tool */}
+      <OANDADeduplicationTool
+        savedConfigs={savedConfigs}
+        savedStrategies={savedStrategies}
+        onRefresh={handleRefreshAll}
+      />
+
       {/* Multi-Account Manager */}
       <OANDAMultiAccountManager
         savedConfigs={savedConfigs}
@@ -104,9 +121,9 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
             onApiKeyChange={(value) => onConfigChange('apiKey', value)}
           />
 
-          {/* Action Buttons */}
+          {/* Action Buttons - Fixed: Use isConfiguredForTesting instead of isConfigured */}
           <OANDAActionButtons
-            isConfigured={isConfigured}
+            isConfigured={isConfiguredForTesting}
             connectionStatus={connectionStatus}
             isLoading={isLoading}
             isTestingTrade={isTestingTrade}
@@ -125,7 +142,7 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
       </Card>
 
       {/* Connection Diagnostics Tool */}
-      {isConfigured && (
+      {isConfiguredForTesting && (
         <OANDAConnectionTester config={config} />
       )}
     </div>
