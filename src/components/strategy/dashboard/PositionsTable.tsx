@@ -32,24 +32,24 @@ const PositionsTable: React.FC<PositionsTableProps> = ({
   }
 
   return (
-    <Card className="bg-slate-800 border-slate-700">
+    <Card className="bg-slate-800 border-slate-700 w-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-white">
-          <Activity className="h-5 w-5" />
+        <CardTitle className="flex items-center gap-2 text-white text-sm sm:text-base">
+          <Activity className="h-4 w-4 sm:h-5 sm:w-5" />
           Open Positions
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-2 sm:p-4">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-slate-700">
-                <TableHead className="text-slate-400">Instrument</TableHead>
-                <TableHead className="text-slate-400">Side</TableHead>
-                <TableHead className="text-slate-400">Units</TableHead>
-                <TableHead className="text-slate-400">Avg Price</TableHead>
-                <TableHead className="text-slate-400">Unrealized P&L</TableHead>
-                <TableHead className="text-slate-400">Actions</TableHead>
+                <TableHead className="text-slate-400 text-xs sm:text-sm">Instrument</TableHead>
+                <TableHead className="text-slate-400 text-xs sm:text-sm">Side</TableHead>
+                <TableHead className="text-slate-400 text-xs sm:text-sm hidden sm:table-cell">Units</TableHead>
+                <TableHead className="text-slate-400 text-xs sm:text-sm hidden md:table-cell">Avg Price</TableHead>
+                <TableHead className="text-slate-400 text-xs sm:text-sm">P&L</TableHead>
+                <TableHead className="text-slate-400 text-xs sm:text-sm">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -58,45 +58,45 @@ const PositionsTable: React.FC<PositionsTableProps> = ({
                 
                 return (
                   <TableRow key={position.id} className="border-slate-700">
-                    <TableCell className="text-white font-medium">
+                    <TableCell className="text-white font-medium text-xs sm:text-sm p-2">
                       {position.instrument}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="p-2">
                       <Badge 
-                        className={position.side === 'BUY' 
+                        className={`text-xs ${position.side === 'BUY' 
                           ? 'bg-emerald-500/10 text-emerald-400' 
                           : 'bg-red-500/10 text-red-400'
-                        }
+                        }`}
                       >
                         {position.side}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-slate-300">
+                    <TableCell className="text-slate-300 text-xs sm:text-sm p-2 hidden sm:table-cell">
                       {Math.abs(position.units).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-slate-300">
+                    <TableCell className="text-slate-300 text-xs sm:text-sm p-2 hidden md:table-cell">
                       {position.price.toFixed(5)}
                     </TableCell>
-                    <TableCell className={position.unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                    <TableCell className={`text-xs sm:text-sm p-2 ${position.unrealizedPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {position.unrealizedPL >= 0 ? '+' : ''}${position.unrealizedPL.toFixed(2)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="p-2">
                       <Button
                         onClick={() => onClosePosition(position)}
                         disabled={isClosing}
                         variant="outline"
                         size="sm"
-                        className="border-red-600 text-red-300 hover:text-red-200 disabled:opacity-50"
+                        className="border-red-600 text-red-300 hover:text-red-200 disabled:opacity-50 text-xs px-2 py-1"
                       >
                         {isClosing ? (
                           <>
                             <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                            Closing...
+                            <span className="hidden sm:inline">Closing...</span>
                           </>
                         ) : (
                           <>
                             <X className="h-3 w-3 mr-1" />
-                            Close
+                            <span className="hidden sm:inline">Close</span>
                           </>
                         )}
                       </Button>
