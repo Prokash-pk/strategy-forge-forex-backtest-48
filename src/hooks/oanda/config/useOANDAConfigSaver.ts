@@ -66,7 +66,7 @@ export const useOANDAConfigSaver = (
     }
   };
 
-  const handleSaveNewConfig = async (configWithName: OANDAConfig & { configName: string }): Promise<void> => {
+  const handleSaveNewConfig = async (configWithName: OANDAConfig & { configName: string }) => {
     if (!user) {
       throw new Error('User not authenticated');
     }

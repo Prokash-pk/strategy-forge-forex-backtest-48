@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
@@ -19,9 +18,9 @@ export const useOANDAIntegration = () => {
     isLoading,
     handleConfigChange,
     handleSaveConfig,
-    handleSaveNewConfig,
+    handleSaveNewConfig: handleSaveNewConfigBase,
     handleLoadConfig,
-    handleDeleteConfig,
+    handleDeleteConfig: handleDeleteConfigBase,
     loadSavedConfigs
   } = useOANDAConfig();
 
@@ -73,7 +72,7 @@ export const useOANDAIntegration = () => {
     handleConfigChange,
     resetConnectionStatus,
     handleTestConnection,
-    handleSaveNewConfig,
+    handleSaveNewConfigBase,
     setPersistentConnectionStatus
   );
 
@@ -107,9 +106,9 @@ export const useOANDAIntegration = () => {
     handleConfigChange: handleConfigChangeWithReset,
     handleTestConnection: () => handleTestConnection(config),
     handleSaveConfig: handlePersistentSaveConfig,
-    handleSaveNewConfig,
+    handleSaveNewConfig: handleSaveNewConfigBase,
     handleLoadConfig,
-    handleDeleteConfig,
+    handleDeleteConfig: handleDeleteConfigBase,
     handleLoadStrategy,
     handleTestTrade: () => handleTestTrade(config, selectedStrategy, connectionStatus),
     handleDeleteStrategy,
