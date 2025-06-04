@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TestTube } from 'lucide-react';
 import OANDAMultiAccountManager from './config/OANDAMultiAccountManager';
 import OANDAConnectionTester from './OANDAConnectionTester';
+import OANDADeduplicationTool from './config/OANDADeduplicationTool';
 import { OANDAConfig, SavedOANDAConfig } from '@/types/oanda';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
 
@@ -50,11 +51,26 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = memo(({
   persistentConnectionStatus,
   loadSavedConfigs
 }) => {
+  const { savedStrategies, loadSavedStrategies } = useOANDAStrategies();
+  
   const isConfiguredForTesting = persistentConnectionStatus === 'connected' || 
                                 Boolean(config.accountId?.trim() && config.apiKey?.trim());
 
+  const handleRefreshAll = () => {
+    loadSavedStrategies();
+    if (loadSavedConfigs) {
+      loadSavedConfigs();
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <OANDADeduplicationTool
+        savedConfigs={savedConfigs}
+        savedStrategies={savedStrategies}
+        onRefresh={handleRefreshAll}
+      />
+
       <OANDAMultiAccountManager
         savedConfigs={savedConfigs}
         currentConfig={config}

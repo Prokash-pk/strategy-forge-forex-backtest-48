@@ -54,8 +54,7 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
     currentConfig,
     onSaveNewConfig,
     onDeleteConfig,
-    loadSavedConfigs,
-    savedConfigs
+    loadSavedConfigs
   });
 
   return (
@@ -97,29 +96,22 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
           </>
         )}
 
-        {/* Connected Accounts List */}
+        {/* Saved Configurations List */}
         <div className="space-y-3">
           {savedConfigs.length === 0 && !isAddingNew ? (
             <EmptyStateDisplay />
           ) : (
-            <>
-              {savedConfigs.length > 0 && (
-                <div className="text-sm text-slate-300 mb-2">
-                  Connected Accounts ({savedConfigs.length})
-                </div>
-              )}
-              {savedConfigs.map((config) => (
-                <AccountConfigCard
-                  key={config.id}
-                  config={config}
-                  onLoad={onLoadConfig}
-                  onDelete={handleDeleteConfig}
-                  onTestTrade={() => {
-                    console.log('Test trade for config:', config.id);
-                  }}
-                />
-              ))}
-            </>
+            savedConfigs.map((config) => (
+              <AccountConfigCard
+                key={config.id}
+                config={config}
+                onLoad={onLoadConfig}
+                onDelete={handleDeleteConfig}
+                onTestTrade={() => {
+                  console.log('Test trade for config:', config.id);
+                }}
+              />
+            ))
           )}
         </div>
 

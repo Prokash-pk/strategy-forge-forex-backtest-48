@@ -35,14 +35,13 @@ export const useOANDAConfig = () => {
     handleDeleteConfig
   } = useOANDAConfigManager(setConfig, resetConfig, savedConfigs, loadSavedConfigs);
 
-  // Load configs to ensure they persist across tab navigation
+  // Auto-load saved config on mount
   useEffect(() => {
     if (user) {
-      console.log('Loading OANDA configs and last used config...');
+      loadSavedConfigs();
       loadLastUsedConfig();
-      loadSavedConfigs(); // Load configs to show in manager
     }
-  }, [user, loadLastUsedConfig, loadSavedConfigs]);
+  }, [user]);
 
   return {
     config,
