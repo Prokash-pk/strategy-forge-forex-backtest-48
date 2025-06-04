@@ -77,7 +77,7 @@ export const useOANDAConfigSaver = (
         api_key: configWithName.apiKey,
         environment: configWithName.environment,
         config_name: configWithName.configName,
-        enabled: false // Don't make it active by default
+        enabled: false // Don't make it active by default - preserve existing active config
       };
 
       const { error } = await supabase
@@ -85,6 +85,11 @@ export const useOANDAConfigSaver = (
         .insert(configToSave);
 
       if (error) throw error;
+
+      toast({
+        title: "✅ Account Added",
+        description: `"${configWithName.configName}" has been added to your saved configurations.`,
+      });
 
       // Reload saved configs to show the new one
       await loadSavedConfigs();

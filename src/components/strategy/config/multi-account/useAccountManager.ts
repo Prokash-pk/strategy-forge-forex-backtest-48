@@ -18,7 +18,7 @@ export const useAccountManager = ({
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newConfigName, setNewConfigName] = useState('');
 
-  const handleSaveCurrentConfig = () => {
+  const handleSaveCurrentConfig = async () => {
     if (!newConfigName.trim()) {
       toast({
         title: "Configuration Name Required",
@@ -37,18 +37,27 @@ export const useAccountManager = ({
       return;
     }
 
-    onSaveNewConfig({
-      ...currentConfig,
-      configName: newConfigName.trim()
-    });
+    try {
+      await onSaveNewConfig({
+        ...currentConfig,
+        configName: newConfigName.trim()
+      });
 
-    setNewConfigName('');
-    setIsAddingNew(false);
+      setNewConfigName('');
+      setIsAddingNew(false);
 
-    toast({
-      title: "Configuration Saved",
-      description: `"${newConfigName}" has been saved successfully`,
-    });
+      toast({
+        title: "Account Added Successfully",
+        description: `"${newConfigName}" has been added to your saved configurations`,
+      });
+    } catch (error) {
+      console.error('Failed to save config:', error);
+      toast({
+        title: "Save Failed",
+        description: "Could not save the account configuration. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDeleteConfig = (configId: string, configName: string) => {
@@ -61,6 +70,10 @@ export const useAccountManager = ({
 
   const handleAddAccount = () => {
     setIsAddingNew(!isAddingNew);
+    if (!isAddingNew) {
+      // When opening the form, clear any previous input
+      setNewConfigName('');
+    }
   };
 
   const handleCancel = () => {
