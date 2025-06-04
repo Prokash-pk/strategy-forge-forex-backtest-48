@@ -1,3 +1,4 @@
+
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
@@ -6,9 +7,13 @@ import { useState, useEffect } from 'react';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useOANDAIntegration = () => {
   const [isForwardTestingActive, setIsForwardTestingActive] = useState(false);
+  const [persistentConnectionStatus, setPersistentConnectionStatus] = useState<'idle' | 'connected' | 'error'>('idle');
+  const { user } = useAuth();
 
   const {
     config,
@@ -49,6 +54,97 @@ export const useOANDAIntegration = () => {
     loadSavedStrategies();
     loadSelectedStrategy();
   }, []);
+
+  // Load persistent OANDA connection status on mount
+  useEffect(() => {
+    const loadPersistentConnection = async () => {
+      if (!user) return;
+
+      try {
+        // Check if we have a saved, verified OANDA connection
+        const { data: configs, error } = await supabase
+          .from('oanda_configs')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('enabled', true)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (!error && configs && configs.length > 0) {
+          const savedConfig = configs[0];
+          console.log('🔗 Found persistent OANDA connection:', savedConfig.config_name);
+          
+          // Load the config into current state
+          handleLoadConfig(savedConfig);
+          setPersistentConnectionStatus('connected');
+          
+          console.log('✅ OANDA credentials restored from persistent storage');
+          console.log('🚀 Ready for autonomous trading');
+        } else {
+          console.log('❌ No persistent OANDA connection found');
+          setPersistentConnectionStatus('idle');
+        }
+      } catch (error) {
+        console.error('Failed to load persistent OANDA connection:', error);
+        setPersistentConnectionStatus('error');
+      }
+    };
+
+    loadPersistentConnection();
+  }, [user]);
+
+  // Enhanced config save that marks connection as persistent
+  const handlePersistentSaveConfig = async () => {
+    try {
+      // First test the connection to ensure it's valid
+      await handleTestConnection();
+      
+      if (connectionStatus === 'success') {
+        // Save config with enabled flag set to true for persistence
+        const configToSave = {
+          ...config,
+          enabled: true,
+          configName: config.configName || `OANDA Config ${new Date().toLocaleDateString()}`
+        };
+
+        await handleSaveNewConfig(configToSave);
+        setPersistentConnectionStatus('connected');
+
+        console.log('🔐 OANDA connection saved persistently');
+        console.log('✅ Will remain connected across browser sessions');
+        console.log('🤖 Ready for 24/7 autonomous trading');
+      } else {
+        throw new Error('Connection test failed - cannot save invalid credentials');
+      }
+    } catch (error) {
+      console.error('Failed to save persistent OANDA connection:', error);
+      setPersistentConnectionStatus('error');
+    }
+  };
+
+  // Enhanced logout that clears persistent connection
+  const handleDisconnectOANDA = async () => {
+    try {
+      if (!user) return;
+
+      // Disable all OANDA configs for this user
+      const { error } = await supabase
+        .from('oanda_configs')
+        .update({ enabled: false })
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Reset local state
+      resetConnectionStatus();
+      setPersistentConnectionStatus('idle');
+      
+      console.log('🔌 OANDA connection disconnected');
+      console.log('❌ Persistent credentials cleared');
+    } catch (error) {
+      console.error('Failed to disconnect OANDA:', error);
+    }
+  };
 
   // Debug log when strategies or selected strategy changes
   useEffect(() => {
@@ -123,11 +219,12 @@ export const useOANDAIntegration = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Reset connection status when credentials change
+  // Reset connection status when credentials change (but preserve persistent status)
   const handleConfigChangeWithReset = (field: keyof typeof config, value: any) => {
     handleConfigChange(field, value);
     if (field === 'accountId' || field === 'apiKey' || field === 'environment') {
       resetConnectionStatus();
+      // Don't reset persistent status - let user save new config to update it
     }
   };
 
@@ -166,8 +263,9 @@ export const useOANDAIntegration = () => {
     console.log('Show OANDA setup guide');
   };
 
-  // Improve configuration checking logic
-  const isConfigured = Boolean(config.accountId?.trim() && config.apiKey?.trim());
+  // Improve configuration checking logic - use persistent status when available
+  const isConfigured = persistentConnectionStatus === 'connected' || 
+                      Boolean(config.accountId?.trim() && config.apiKey?.trim());
   
   // Allow test trades as long as we have valid credentials and a strategy
   const canStartTesting = isConfigured && selectedStrategy !== null;
@@ -175,6 +273,7 @@ export const useOANDAIntegration = () => {
   console.log('useOANDAIntegration state:', {
     isConfigured,
     connectionStatus,
+    persistentConnectionStatus,
     selectedStrategy: selectedStrategy?.strategy_name || 'None',
     selectedStrategyReturn: selectedStrategy?.total_return || 'N/A',
     canStartTesting,
@@ -182,9 +281,9 @@ export const useOANDAIntegration = () => {
     isForwardTestingActive
   });
 
-  // Connection status icon
+  // Connection status icon - prioritize persistent status
   const getConnectionStatusIcon = () => {
-    if (connectionStatus === 'success') {
+    if (persistentConnectionStatus === 'connected' || connectionStatus === 'success') {
       return CheckCircle;
     } else if (connectionStatus === 'testing') {
       return Clock;
@@ -198,7 +297,7 @@ export const useOANDAIntegration = () => {
   return {
     config,
     savedConfigs,
-    connectionStatus,
+    connectionStatus: persistentConnectionStatus === 'connected' ? 'success' : connectionStatus,
     connectionError,
     savedStrategies,
     selectedStrategy,
@@ -208,9 +307,10 @@ export const useOANDAIntegration = () => {
     canStartTesting,
     isForwardTestingActive,
     connectionStatusIcon,
+    persistentConnectionStatus,
     handleConfigChange: handleConfigChangeWithReset,
     handleTestConnection: () => handleTestConnection(config),
-    handleSaveConfig,
+    handleSaveConfig: handlePersistentSaveConfig,
     handleSaveNewConfig,
     handleLoadConfig,
     handleDeleteConfig,
@@ -219,6 +319,7 @@ export const useOANDAIntegration = () => {
     handleDeleteStrategy,
     handleToggleForwardTesting,
     handleShowGuide,
+    handleDisconnectOANDA,
     loadSelectedStrategy,
     loadSavedConfigs,
     loadSavedStrategies

@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle, Settings, TrendingUp } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Settings, TrendingUp, Shield } from 'lucide-react';
 import OANDAConfigForm from './OANDAConfigForm';
 import OANDAStrategySettings from './OANDAStrategySettings';
 import OANDAForwardTestingControl from './OANDAForwardTestingControl';
@@ -24,6 +24,7 @@ const OANDAIntegration: React.FC = () => {
     canStartTesting,
     isForwardTestingActive,
     connectionStatusIcon: ConnectionStatusIcon,
+    persistentConnectionStatus,
     handleConfigChange,
     handleTestConnection,
     handleSaveConfig,
@@ -35,6 +36,7 @@ const OANDAIntegration: React.FC = () => {
     handleDeleteStrategy,
     handleToggleForwardTesting,
     handleShowGuide,
+    handleDisconnectOANDA,
     loadSelectedStrategy,
     loadSavedConfigs,
     loadSavedStrategies
@@ -50,6 +52,12 @@ const OANDAIntegration: React.FC = () => {
               OANDA Live Trading Integration
             </div>
             <div className="flex items-center gap-2">
+              {persistentConnectionStatus === 'connected' && (
+                <Badge variant="default" className="bg-emerald-600">
+                  <Shield className="h-3 w-3 mr-1" />
+                  Persistent
+                </Badge>
+              )}
               {connectionStatus === 'success' && (
                 <Badge variant="default" className="bg-emerald-600">
                   <CheckCircle className="h-3 w-3 mr-1" />
@@ -99,6 +107,7 @@ const OANDAIntegration: React.FC = () => {
                 onLoadConfig={handleLoadConfig}
                 onDeleteConfig={handleDeleteConfig}
                 onTestTrade={handleTestTrade}
+                onDisconnectOANDA={handleDisconnectOANDA}
                 connectionStatus={connectionStatus}
                 connectionError={connectionError || ''}
                 isLoading={Boolean(isLoading)}
@@ -106,6 +115,7 @@ const OANDAIntegration: React.FC = () => {
                 canStartTesting={Boolean(canStartTesting)}
                 isForwardTestingActive={Boolean(isForwardTestingActive)}
                 connectionStatusIcon={ConnectionStatusIcon ? <ConnectionStatusIcon className="h-4 w-4" /> : null}
+                persistentConnectionStatus={persistentConnectionStatus}
               />
             </TabsContent>
 
