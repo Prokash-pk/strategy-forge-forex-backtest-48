@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -26,16 +27,16 @@ const StrategyCodeEditor: React.FC<StrategyCodeEditorProps> = ({
   };
 
   const loadCleanStrategy = () => {
-    const cleanCode = `# Fixed Smart Momentum Strategy with Proper Directional Signals
-# Enhanced for forward testing with proper BUY/SELL signal generation
+    const cleanCode = `# Smart Momentum Strategy with Proper BUY/SELL Signals
+# This strategy defines clear directional signals for forward testing
 
 def strategy_logic(data, reverse_signals=False):
     """
-    Fixed momentum strategy with proper directional signals:
+    Enhanced momentum strategy with proper BUY/SELL directional signals:
     - EMA trend filtering
     - RSI momentum confirmation
     - Volatility-based entry timing
-    - PROPER BUY/SELL signal generation for forward testing
+    - EXPLICIT BUY/SELL signal generation for forward testing
     - Reverse signal capability for testing both directions
     """
     
@@ -84,7 +85,7 @@ def strategy_logic(data, reverse_signals=False):
                 actual_long = long_signal
                 actual_short = short_signal
             
-            # Generate PROPER directional signals for forward testing
+            # Generate EXPLICIT directional signals for forward testing
             if actual_long:
                 entry.append(True)
                 trade_direction.append('BUY')  # EXPLICIT BUY signal
@@ -110,12 +111,12 @@ def strategy_logic(data, reverse_signals=False):
         'rsi': rsi,
         'atr': atr,
         'reverse_signals_applied': reverse_signals,
-        'note': 'Strategy fixed with proper BUY/SELL directional signals'
+        'note': 'Strategy with proper BUY/SELL directional signals for forward testing'
     }`;
 
     onCodeChange(cleanCode);
     toast({
-      title: "Fixed Strategy Loaded",
+      title: "Strategy Updated! ✅",
       description: "Loaded strategy with proper BUY/SELL directional signals for forward testing",
     });
   };
@@ -137,10 +138,10 @@ def strategy_logic(data, reverse_signals=False):
             variant="secondary"
             size="sm"
             onClick={loadCleanStrategy}
-            className="bg-slate-700 text-slate-200 border-slate-600 hover:bg-slate-600"
+            className="bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Load Fixed Strategy
+            Load Strategy with BUY/SELL Signals
           </Button>
         </div>
         {codeChanged && (
