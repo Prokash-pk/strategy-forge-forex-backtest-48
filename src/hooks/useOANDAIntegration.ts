@@ -3,7 +3,7 @@ import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
 import { useOANDATrade } from '@/hooks/oanda/useOANDATrade';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -15,6 +15,8 @@ export const useOANDAIntegration = () => {
   const [persistentConnectionStatus, setPersistentConnectionStatus] = useState<'idle' | 'connected' | 'error'>('idle');
   const { user } = useAuth();
   const hasLoadedPersistentConnection = useRef(false);
+  const lastStatusCheck = useRef(0);
+  const statusCheckInterval = useRef<NodeJS.Timeout>();
 
   const {
     config,
@@ -49,20 +51,44 @@ export const useOANDAIntegration = () => {
     handleTestTrade
   } = useOANDATrade();
 
-  // Load saved strategies on mount and log the process
-  useEffect(() => {
-    console.log('useOANDAIntegration: Loading strategies on mount');
-    loadSavedStrategies();
-    loadSelectedStrategy();
+  // Debounced status check to prevent excessive API calls
+  const checkAutonomousStatus = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastStatusCheck.current < 30000) return; // Minimum 30 seconds between checks
+    
+    lastStatusCheck.current = now;
+    
+    try {
+      const activeSessions = await ServerForwardTestingService.getActiveSessions();
+      const isAutonomousActive = activeSessions.length > 0;
+      
+      setIsForwardTestingActive(prev => {
+        if (prev !== isAutonomousActive) {
+          console.log('🤖 Autonomous trading status:', isAutonomousActive ? 'ACTIVE' : 'INACTIVE');
+        }
+        return isAutonomousActive;
+      });
+    } catch (error) {
+      console.error('Failed to check autonomous trading status:', error);
+      setIsForwardTestingActive(false);
+    }
   }, []);
 
-  // Load persistent OANDA connection status on mount - ONLY ONCE
+  // Load strategies only once on mount
+  useEffect(() => {
+    if (!user) return;
+    
+    console.log('Loading OANDA strategies...');
+    loadSavedStrategies();
+    loadSelectedStrategy();
+  }, [user]);
+
+  // Load persistent connection only once per user session
   useEffect(() => {
     if (!user || hasLoadedPersistentConnection.current) return;
 
     const loadPersistentConnection = async () => {
       try {
-        // Check if we have a saved, verified OANDA connection
         const { data: configs, error } = await supabase
           .from('oanda_configs')
           .select('*')
@@ -73,9 +99,7 @@ export const useOANDAIntegration = () => {
 
         if (!error && configs && configs.length > 0) {
           const savedConfig = configs[0];
-          console.log('🔗 Found persistent OANDA connection:', savedConfig.config_name);
           
-          // Map database schema to SavedOANDAConfig interface
           const mappedConfig = {
             id: savedConfig.id,
             accountId: savedConfig.account_id,
@@ -86,14 +110,10 @@ export const useOANDAIntegration = () => {
             createdAt: savedConfig.created_at
           };
           
-          // Load the config into current state
           handleLoadConfig(mappedConfig);
           setPersistentConnectionStatus('connected');
-          
           console.log('✅ OANDA credentials restored from persistent storage');
-          console.log('🚀 Ready for autonomous trading');
         } else {
-          console.log('❌ No persistent OANDA connection found');
           setPersistentConnectionStatus('idle');
         }
         
@@ -108,14 +128,29 @@ export const useOANDAIntegration = () => {
     loadPersistentConnection();
   }, [user, handleLoadConfig]);
 
-  // Enhanced config save that marks connection as persistent
-  const handlePersistentSaveConfig = async () => {
+  // Check autonomous status periodically but less frequently
+  useEffect(() => {
+    if (!user) return;
+
+    // Initial check
+    checkAutonomousStatus();
+    
+    // Set up interval for periodic checks (every 2 minutes instead of 1 minute)
+    statusCheckInterval.current = setInterval(checkAutonomousStatus, 120000);
+    
+    return () => {
+      if (statusCheckInterval.current) {
+        clearInterval(statusCheckInterval.current);
+      }
+    };
+  }, [user, checkAutonomousStatus]);
+
+  // Memoized config save handler
+  const handlePersistentSaveConfig = useCallback(async () => {
     try {
-      // First test the connection to ensure it's valid
       await handleTestConnection(config);
       
       if (connectionStatus === 'success') {
-        // Save config with enabled flag set to true for persistence
         const configToSave = {
           ...config,
           enabled: true,
@@ -124,10 +159,7 @@ export const useOANDAIntegration = () => {
 
         await handleSaveNewConfig(configToSave);
         setPersistentConnectionStatus('connected');
-
         console.log('🔐 OANDA connection saved persistently');
-        console.log('✅ Will remain connected across browser sessions');
-        console.log('🤖 Ready for 24/7 autonomous trading');
       } else {
         throw new Error('Connection test failed - cannot save invalid credentials');
       }
@@ -135,14 +167,13 @@ export const useOANDAIntegration = () => {
       console.error('Failed to save persistent OANDA connection:', error);
       setPersistentConnectionStatus('error');
     }
-  };
+  }, [config, connectionStatus, handleTestConnection, handleSaveNewConfig]);
 
-  // Enhanced logout that clears persistent connection
-  const handleDisconnectOANDA = async () => {
+  // Memoized disconnect handler
+  const handleDisconnectOANDA = useCallback(async () => {
     try {
       if (!user) return;
 
-      // Disable all OANDA configs for this user
       const { error } = await supabase
         .from('oanda_configs')
         .update({ enabled: false })
@@ -150,115 +181,33 @@ export const useOANDAIntegration = () => {
 
       if (error) throw error;
 
-      // Reset local state
       resetConnectionStatus();
       setPersistentConnectionStatus('idle');
       hasLoadedPersistentConnection.current = false;
       
       console.log('🔌 OANDA connection disconnected');
-      console.log('❌ Persistent credentials cleared');
     } catch (error) {
       console.error('Failed to disconnect OANDA:', error);
     }
-  };
+  }, [user, resetConnectionStatus]);
 
-  // Debug log when strategies or selected strategy changes
-  useEffect(() => {
-    console.log('Strategies updated:', {
-      totalStrategies: savedStrategies.length,
-      selectedStrategy: selectedStrategy?.strategy_name || 'None',
-      strategies: savedStrategies.map(s => s.strategy_name)
-    });
-    
-    // Look for Smart Momentum Strategy with high return
-    const smartMomentumStrategies = savedStrategies.filter(s => 
-      s.strategy_name?.toLowerCase().includes('smart momentum')
-    );
-    
-    console.log('Smart Momentum Strategies found:', smartMomentumStrategies.map(s => ({
-      name: s.strategy_name,
-      return: s.total_return,
-      winRate: s.win_rate,
-      id: s.id
-    })));
-    
-    // Find the one with ~62% return
-    const highReturnStrategy = smartMomentumStrategies.find(s => 
-      s.total_return && s.total_return > 60 && s.total_return < 65
-    );
-    
-    if (highReturnStrategy) {
-      console.log('Found Smart Momentum Strategy with 62% return:', {
-        name: highReturnStrategy.strategy_name,
-        return: highReturnStrategy.total_return,
-        winRate: highReturnStrategy.win_rate,
-        id: highReturnStrategy.id
-      });
-    }
-  }, [savedStrategies, selectedStrategy]);
-
-  // Check autonomous server-side trading status on mount and periodically - but less frequently
-  useEffect(() => {
-    const checkAutonomousTradingStatus = async () => {
-      try {
-        // Check server-side autonomous trading sessions - completely independent of client
-        const activeSessions = await ServerForwardTestingService.getActiveSessions();
-        const isAutonomousActive = activeSessions.length > 0;
-        
-        // Only update state if it actually changed to prevent unnecessary re-renders
-        setIsForwardTestingActive(prev => {
-          if (prev !== isAutonomousActive) {
-            console.log('🤖 Autonomous trading status changed:', {
-              autonomousActive: isAutonomousActive,
-              totalActiveSessions: activeSessions.length,
-              status: isAutonomousActive ? 'RUNNING AUTONOMOUSLY' : 'INACTIVE'
-            });
-
-            if (isAutonomousActive) {
-              console.log('✅ AUTONOMOUS TRADING IS ACTIVE');
-              console.log('🚀 Trading operations running independently on server 24/7');
-              console.log('💻 No client connection required - fully autonomous');
-            } else {
-              console.log('⏸️ No autonomous trading sessions detected');
-            }
-            
-            return isAutonomousActive;
-          }
-          return prev;
-        });
-      } catch (error) {
-        console.error('Failed to check autonomous trading status:', error);
-        setIsForwardTestingActive(false);
-      }
-    };
-
-    checkAutonomousTradingStatus();
-    
-    // Check autonomous status every 60 seconds instead of 30 to reduce noise
-    const interval = setInterval(checkAutonomousTradingStatus, 60000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  // Reset connection status when credentials change (but preserve persistent status)
-  const handleConfigChangeWithReset = (field: keyof typeof config, value: any) => {
+  // Memoized config change handler
+  const handleConfigChangeWithReset = useCallback((field: keyof typeof config, value: any) => {
     handleConfigChange(field, value);
     if (field === 'accountId' || field === 'apiKey' || field === 'environment') {
       resetConnectionStatus();
-      // Don't reset persistent status - let user save new config to update it
     }
-  };
+  }, [handleConfigChange, resetConnectionStatus]);
 
-  const handleToggleForwardTesting = async () => {
+  // Memoized forward testing toggle
+  const handleToggleForwardTesting = useCallback(async () => {
     const service = ForwardTestingService.getInstance();
     
     if (isForwardTestingActive) {
-      // Stop autonomous trading
       await service.stopForwardTesting();
       setIsForwardTestingActive(false);
       console.log('🛑 Autonomous trading stopped');
     } else {
-      // Start autonomous trading
       if (canStartTesting && selectedStrategy) {
         try {
           await service.startForwardTesting({
@@ -270,40 +219,25 @@ export const useOANDAIntegration = () => {
           }, selectedStrategy);
           
           setIsForwardTestingActive(true);
-          console.log('🚀 AUTONOMOUS TRADING ACTIVATED - operates 24/7 independently');
-          console.log('💻 You can now close your browser/computer safely');
+          console.log('🚀 AUTONOMOUS TRADING ACTIVATED');
         } catch (error) {
           console.error('Failed to start autonomous trading:', error);
-          // Keep the state as false if starting failed
         }
       }
     }
-  };
+  }, [isForwardTestingActive, canStartTesting, selectedStrategy, config]);
 
-  const handleShowGuide = () => {
-    console.log('Show OANDA setup guide');
-  };
-
-  // Improve configuration checking logic - use persistent status when available
-  const isConfigured = persistentConnectionStatus === 'connected' || 
-                      Boolean(config.accountId?.trim() && config.apiKey?.trim());
+  // Memoized computed values to prevent unnecessary re-renders
+  const isConfigured = useMemo(() => 
+    persistentConnectionStatus === 'connected' || 
+    Boolean(config.accountId?.trim() && config.apiKey?.trim())
+  , [persistentConnectionStatus, config.accountId, config.apiKey]);
   
-  // Allow test trades as long as we have valid credentials and a strategy
-  const canStartTesting = isConfigured && selectedStrategy !== null;
+  const canStartTesting = useMemo(() => 
+    isConfigured && selectedStrategy !== null
+  , [isConfigured, selectedStrategy]);
 
-  console.log('useOANDAIntegration state:', {
-    isConfigured,
-    connectionStatus,
-    persistentConnectionStatus,
-    selectedStrategy: selectedStrategy?.strategy_name || 'None',
-    selectedStrategyReturn: selectedStrategy?.total_return || 'N/A',
-    canStartTesting,
-    isTestingTrade,
-    isForwardTestingActive
-  });
-
-  // Connection status icon - prioritize persistent status with stable logic
-  const getConnectionStatusIcon = () => {
+  const connectionStatusIcon = useMemo(() => {
     if (persistentConnectionStatus === 'connected' || connectionStatus === 'success') {
       return CheckCircle;
     } else if (connectionStatus === 'testing') {
@@ -311,9 +245,11 @@ export const useOANDAIntegration = () => {
     } else {
       return XCircle;
     }
-  };
+  }, [persistentConnectionStatus, connectionStatus]);
 
-  const connectionStatusIcon = getConnectionStatusIcon();
+  const handleShowGuide = useCallback(() => {
+    console.log('Show OANDA setup guide');
+  }, []);
 
   return {
     config,
