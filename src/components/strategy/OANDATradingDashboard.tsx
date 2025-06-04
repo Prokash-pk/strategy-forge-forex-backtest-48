@@ -30,7 +30,38 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
   oandaConfig
 }) => {
   const [tradingStats, setTradingStats] = useState<any>(null);
+  const [accountData, setAccountData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const fetchAccountData = async () => {
+    if (!isActive || !oandaConfig.accountId || !oandaConfig.apiKey) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const baseUrl = oandaConfig.environment === 'practice' 
+        ? 'https://api-fxpractice.oanda.com'
+        : 'https://api-fxtrade.oanda.com';
+
+      const response = await fetch(`${baseUrl}/v3/accounts/${oandaConfig.accountId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${oandaConfig.apiKey}`,
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAccountData(data.account);
+      } else {
+        console.error('Failed to fetch account data:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error fetching account data:', error);
+    }
+  };
 
   useEffect(() => {
     const loadTradingStats = async () => {
@@ -47,18 +78,28 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
     };
 
     loadTradingStats();
+    fetchAccountData();
     
     // Refresh stats every 30 seconds if active
-    const interval = isActive ? setInterval(loadTradingStats, 30000) : null;
+    const interval = isActive ? setInterval(() => {
+      loadTradingStats();
+      fetchAccountData();
+    }, 30000) : null;
     
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isActive]);
+  }, [isActive, oandaConfig]);
 
   if (!isActive) {
     return <InactiveStateCard />;
   }
+
+  // Calculate safe values with defaults
+  const accountBalance = accountData?.balance ? parseFloat(accountData.balance) : 0;
+  const positionsCount = accountData?.openPositionCount ? parseInt(accountData.openPositionCount) : 0;
+  const totalPL = accountData?.unrealizedPL ? parseFloat(accountData.unrealizedPL) : 0;
+  const strategyName = strategy?.strategy_name || 'No Strategy Selected';
 
   return (
     <div className="space-y-6">
@@ -93,9 +134,14 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
             <TabsContent value="overview" className="mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AccountSummaryCard 
+                  strategyName={strategyName}
+                  accountBalance={accountBalance}
+                  positionsCount={positionsCount}
+                  totalPL={totalPL}
                   environment={environment}
                   accountId={oandaConfig.accountId}
                   isLoading={isLoading}
+                  onRefresh={fetchAccountData}
                 />
                 
                 {tradingStats && (
@@ -106,15 +152,15 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
                     <CardContent className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-slate-400">Total Trades:</span>
-                        <span className="text-white">{tradingStats.totalTrades}</span>
+                        <span className="text-white">{tradingStats.totalTrades || 0}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Successful:</span>
-                        <span className="text-emerald-400">{tradingStats.successfulTrades}</span>
+                        <span className="text-emerald-400">{tradingStats.successfulTrades || 0}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Failed:</span>
-                        <span className="text-red-400">{tradingStats.failedTrades}</span>
+                        <span className="text-red-400">{tradingStats.failedTrades || 0}</span>
                       </div>
                       {tradingStats.lastExecution && (
                         <div className="flex justify-between">
@@ -158,15 +204,17 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
 
             <TabsContent value="positions" className="mt-6">
               <PositionsTable 
-                oandaConfig={oandaConfig}
-                isActive={isActive}
+                positions={[]}
+                closingPositions={new Set()}
+                onClosePosition={() => {}}
               />
             </TabsContent>
 
             <TabsContent value="logs" className="mt-6">
               <TradeLogCard 
-                strategy={strategy}
-                isActive={isActive}
+                tradeLog={[]}
+                timezoneAbbr="UTC"
+                formatDateTime={(timestamp: string) => new Date(timestamp).toLocaleString()}
               />
             </TabsContent>
 

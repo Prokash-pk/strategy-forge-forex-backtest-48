@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Activity, TrendingUp, AlertCircle, Search } from 'lucide-react';
-import AccountSummaryCard from './dashboard/AccountSummaryCard';
-import PositionsTable from './dashboard/PositionsTable';
-import TradeLogCard from './dashboard/TradeLogCard';
-import InactiveStateCard from './dashboard/InactiveStateCard';
-import TradingDiagnostics from './dashboard/TradingDiagnostics';
-import ComprehensiveDiagnostics from './dashboard/ComprehensiveDiagnostics';
+import AccountSummaryCard from './AccountSummaryCard';
+import PositionsTable from './PositionsTable';
+import TradeLogCard from './TradeLogCard';
+import InactiveStateCard from './InactiveStateCard';
+import TradingDiagnostics from './TradingDiagnostics';
+import ComprehensiveDiagnostics from './ComprehensiveDiagnostics';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 
 interface OANDATradingDashboardProps {
@@ -203,11 +203,19 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
             </TabsContent>
 
             <TabsContent value="positions" className="mt-6">
-              <PositionsTable />
+              <PositionsTable 
+                positions={[]}
+                closingPositions={new Set()}
+                onClosePosition={() => {}}
+              />
             </TabsContent>
 
             <TabsContent value="logs" className="mt-6">
-              <TradeLogCard />
+              <TradeLogCard 
+                tradeLog={[]}
+                timezoneAbbr="UTC"
+                formatDateTime={(timestamp: string) => new Date(timestamp).toLocaleString()}
+              />
             </TabsContent>
 
             <TabsContent value="diagnostics" className="mt-6">
