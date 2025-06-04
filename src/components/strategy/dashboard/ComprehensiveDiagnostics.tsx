@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { XCircle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { DiagnosticResult, DiagnosticStats } from './diagnostics/types';
 import DiagnosticHeader from './diagnostics/DiagnosticHeader';
@@ -67,7 +66,7 @@ const ComprehensiveDiagnostics: React.FC = () => {
         status: 'ERROR',
         message: `Diagnostics failed: ${error.message}`,
         details: { error: error.message },
-        icon: <XCircle className="h-4 w-4" />,
+        iconType: 'settings',
         category: 'config'
       });
       setDiagnostics(results);
