@@ -34,6 +34,15 @@ export const useConnectionTester = () => {
   const [connectionResult, setConnectionResult] = useState<ConnectionResult | null>(null);
   const [lastTestTime, setLastTestTime] = useState<string>('');
 
+  const detectAccountEnvironment = (accountId: string): 'practice' | 'live' => {
+    // Practice accounts typically start with 101-003 or have specific patterns
+    if (accountId.startsWith('101-003') || accountId.includes('demo') || accountId.includes('practice')) {
+      return 'practice';
+    }
+    // Live accounts typically start with 001 or other patterns
+    return 'live';
+  };
+
   const testOANDAConnection = async (config: OANDAConfig) => {
     if (!config.accountId || !config.apiKey) {
       toast({
@@ -48,14 +57,25 @@ export const useConnectionTester = () => {
     setConnectionResult(null);
 
     try {
-      const baseUrl = config.environment === 'practice' 
+      // Auto-detect correct environment based on account ID
+      const detectedEnvironment = detectAccountEnvironment(config.accountId);
+      const environmentToUse = detectedEnvironment;
+
+      const baseUrl = environmentToUse === 'practice' 
         ? 'https://api-fxpractice.oanda.com'
         : 'https://api-fxtrade.oanda.com';
 
       console.log('🔍 Testing OANDA connection with detailed diagnostics...');
-      console.log('Environment:', config.environment);
-      console.log('Base URL:', baseUrl);
       console.log('Account ID:', config.accountId);
+      console.log('Detected Environment:', detectedEnvironment);
+      console.log('Configured Environment:', config.environment);
+      console.log('Using Environment:', environmentToUse);
+      console.log('Base URL:', baseUrl);
+
+      // Warn if environments don't match
+      if (config.environment !== detectedEnvironment) {
+        console.warn(`⚠️ Environment mismatch: Account appears to be ${detectedEnvironment} but ${config.environment} was configured. Using ${detectedEnvironment}.`);
+      }
 
       const response = await fetch(`${baseUrl}/v3/accounts/${config.accountId}`, {
         method: 'GET',
@@ -91,24 +111,37 @@ export const useConnectionTester = () => {
           details: data
         });
 
+        const environmentNote = config.environment !== detectedEnvironment 
+          ? ` (auto-detected ${detectedEnvironment} environment)`
+          : '';
+
         toast({
           title: "✅ Connection Successful!",
-          description: `Connected to ${config.environment} account: ${accountInfo.alias} (Balance: ${accountInfo.balance} ${accountInfo.currency})`,
+          description: `Connected to ${detectedEnvironment} account: ${accountInfo.alias} (Balance: ${accountInfo.balance} ${accountInfo.currency})${environmentNote}`,
         });
 
       } else {
         const errorData = await response.json();
         console.error('❌ OANDA API Error:', errorData);
         
+        let errorMessage = errorData.errorMessage || `HTTP ${response.status}`;
+        
+        // Provide specific guidance for common errors
+        if (response.status === 401) {
+          errorMessage = `Authentication failed. Your account ${config.accountId} appears to be a ${detectedEnvironment} account. Ensure your API token is for the ${detectedEnvironment} environment.`;
+        } else if (response.status === 403 && errorData.errorMessage?.includes('Insufficient authorization')) {
+          errorMessage = `Account ${config.accountId} is a ${detectedEnvironment} account. Your API token may not have access to this account or you may be using the wrong environment token.`;
+        }
+        
         setConnectionResult({
           success: false,
-          error: errorData.errorMessage || `HTTP ${response.status}`,
+          error: errorMessage,
           details: errorData
         });
 
         toast({
           title: "❌ Connection Failed",
-          description: errorData.errorMessage || `HTTP ${response.status}: ${response.statusText}`,
+          description: errorMessage,
           variant: "destructive",
         });
       }
