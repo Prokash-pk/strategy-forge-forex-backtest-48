@@ -44,6 +44,7 @@ export const useAccountManager = ({
         enabled: true // Enable the new config for 24/7 connection
       });
 
+      // Reset form state after successful save
       setNewConfigName('');
       setIsAddingNew(false);
 

@@ -59,35 +59,39 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
         <AccountManagerHeader onAddAccount={handleAddAccount} />
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* OANDA Configuration Section */}
-        <OANDAConfigurationSection
-          config={currentConfig}
-          onConfigChange={onConfigChange}
-          onTestConnection={onTestConnection}
-          connectionStatus={connectionStatus}
-          connectionError={connectionError}
-          isLoading={isLoading}
-          persistentConnectionStatus={persistentConnectionStatus}
-          onDisconnectOANDA={onDisconnectOANDA}
-        />
-
-        <Separator className="bg-slate-600" />
-
-        {/* Add New Configuration Form */}
+        {/* Only show OANDA Configuration Section when adding new account */}
         {isAddingNew && (
-          <AddAccountForm
-            configName={newConfigName}
-            onConfigNameChange={setNewConfigName}
-            onSave={handleSaveCurrentConfig}
-            onCancel={handleCancel}
-          />
-        )}
+          <>
+            <OANDAConfigurationSection
+              config={currentConfig}
+              onConfigChange={onConfigChange}
+              onTestConnection={onTestConnection}
+              connectionStatus={connectionStatus}
+              connectionError={connectionError}
+              isLoading={isLoading}
+              persistentConnectionStatus={persistentConnectionStatus}
+              onDisconnectOANDA={onDisconnectOANDA}
+            />
 
-        {savedConfigs.length > 0 && <Separator className="bg-slate-600" />}
+            <Separator className="bg-slate-600" />
+
+            {/* Add New Configuration Form - only show when connection is successful */}
+            {connectionStatus === 'success' && (
+              <AddAccountForm
+                configName={newConfigName}
+                onConfigNameChange={setNewConfigName}
+                onSave={handleSaveCurrentConfig}
+                onCancel={handleCancel}
+              />
+            )}
+
+            <Separator className="bg-slate-600" />
+          </>
+        )}
 
         {/* Saved Configurations List */}
         <div className="space-y-3">
-          {savedConfigs.length === 0 ? (
+          {savedConfigs.length === 0 && !isAddingNew ? (
             <EmptyStateDisplay />
           ) : (
             savedConfigs.map((config) => (
@@ -96,6 +100,10 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
                 config={config}
                 onLoad={onLoadConfig}
                 onDelete={handleDeleteConfig}
+                onTestTrade={() => {
+                  // TODO: Implement test trade functionality
+                  console.log('Test trade for config:', config.id);
+                }}
               />
             ))
           )}
