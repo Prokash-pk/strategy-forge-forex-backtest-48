@@ -1,5 +1,6 @@
 
 import { TechnicalAnalysis } from '../technical/TechnicalAnalysis';
+import { AdvancedTechnicalAnalysis } from '../advancedTechnicalAnalysis';
 import { StrategySignals, MarketData } from '../types/strategyTypes';
 
 export class SmartMomentumStrategy {
@@ -13,7 +14,7 @@ export class SmartMomentumStrategy {
     const longEma = TechnicalAnalysis.ema(close, 55);
     const dailyEma = TechnicalAnalysis.ema(close, 200);
     const rsi = TechnicalAnalysis.rsi(close, 14);
-    const atr = TechnicalAnalysis.atr(high, low, close, 14);
+    const atr = AdvancedTechnicalAnalysis.atr(high, low, close, 14);
     const avgAtr = TechnicalAnalysis.sma(atr, 20);
     
     const entry: boolean[] = [];
@@ -86,7 +87,7 @@ export class SmartMomentumStrategy {
     return {
       entry,
       exit,
-      tradeDirection, // Now properly included
+      tradeDirection,
       indicators: {
         shortEma,
         longEma,
