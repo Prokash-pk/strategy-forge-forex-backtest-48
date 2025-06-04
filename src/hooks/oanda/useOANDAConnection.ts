@@ -72,15 +72,17 @@ export const useOANDAConnection = () => {
         
         // Enhanced error handling for authorization issues
         if (response.status === 401) {
-          const errorMessage = "API key authorization failed. Please check:\n" +
-                              "1. Your API token is correct and active\n" +
-                              "2. The token has proper permissions\n" +
-                              "3. The account ID matches the token\n" +
-                              "4. Generate a new token if this one has expired";
+          const errorMessage = "🔑 Your OANDA API token has expired or is invalid.\n\n" +
+                              "Please generate a new token:\n" +
+                              "1. Log into your OANDA account\n" +
+                              "2. Go to 'Manage API Access'\n" +
+                              "3. Generate a new Personal Access Token\n" +
+                              "4. Copy the new token and update your configuration\n\n" +
+                              "⚠️ Note: OANDA tokens can expire and need periodic renewal.";
           setConnectionError(errorMessage);
           toast({
-            title: "Authorization Failed ❌",
-            description: "Your OANDA API token appears to be invalid or expired. Please generate a new token from your OANDA account.",
+            title: "🔑 API Token Expired/Invalid",
+            description: "Your OANDA API token needs to be renewed. Please generate a new token from your OANDA account.",
             variant: "destructive",
           });
         } else {
@@ -96,7 +98,7 @@ export const useOANDAConnection = () => {
       // Provide more specific error guidance
       let userFriendlyMessage = errorMessage;
       if (errorMessage.includes('Insufficient authorization') || errorMessage.includes('401')) {
-        userFriendlyMessage = 'API token is invalid, expired, or lacks permissions. Please generate a new token from your OANDA account settings.';
+        userFriendlyMessage = '🔑 API token is invalid, expired, or lacks permissions. Please generate a new token from your OANDA account settings.';
       } else if (errorMessage.includes('404')) {
         userFriendlyMessage = 'Account not found. Please verify your account ID is correct for the selected environment.';
       } else if (errorMessage.includes('fetch')) {
