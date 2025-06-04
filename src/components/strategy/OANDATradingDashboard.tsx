@@ -1,15 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Activity, TrendingUp, AlertCircle, Search } from 'lucide-react';
+import { Activity, TrendingUp, Search } from 'lucide-react';
 import AccountSummaryCard from './dashboard/AccountSummaryCard';
 import PositionsTable from './dashboard/PositionsTable';
 import TradeLogCard from './dashboard/TradeLogCard';
 import InactiveStateCard from './dashboard/InactiveStateCard';
 import TradingDiagnostics from './dashboard/TradingDiagnostics';
-import ComprehensiveDiagnostics from './dashboard/ComprehensiveDiagnostics';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 
 interface OANDATradingDashboardProps {
@@ -219,10 +217,7 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
             </TabsContent>
 
             <TabsContent value="diagnostics" className="mt-6">
-              <div className="space-y-6">
-                <ComprehensiveDiagnostics />
-                <TradingDiagnostics strategy={strategy} />
-              </div>
+              <TradingDiagnostics strategy={strategy} />
             </TabsContent>
           </Tabs>
         </CardContent>
