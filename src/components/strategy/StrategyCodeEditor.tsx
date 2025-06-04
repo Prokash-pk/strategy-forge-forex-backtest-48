@@ -148,7 +148,7 @@ def strategy_logic(data, reverse_signals=False):
         id="strategyCode"
         value={code}
         onChange={(e) => onCodeChange(e.target.value)}
-        className="min-h-[400px] font-mono text-sm bg-slate-50 border border-slate-200"
+        className="min-h-[400px] font-mono text-sm bg-slate-800 text-slate-100 border-slate-600"
         placeholder="Enter your Python strategy code here..."
       />
     </div>
