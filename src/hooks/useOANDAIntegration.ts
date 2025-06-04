@@ -19,9 +19,9 @@ export const useOANDAIntegration = () => {
     isLoading,
     handleConfigChange,
     handleSaveConfig,
-    handleSaveNewConfig: handleSaveNewConfigBase,
+    handleSaveNewConfig,
     handleLoadConfig,
-    handleDeleteConfig: handleDeleteConfigBase,
+    handleDeleteConfig,
     loadSavedConfigs
   } = useOANDAConfig();
 
@@ -73,7 +73,7 @@ export const useOANDAIntegration = () => {
     handleConfigChange,
     resetConnectionStatus,
     handleTestConnection,
-    handleSaveNewConfigBase,
+    handleSaveNewConfig,
     setPersistentConnectionStatus
   );
 
@@ -88,15 +88,6 @@ export const useOANDAIntegration = () => {
 
   const handleToggleForwardTesting = () => {
     handleToggleForwardTestingBase(canStartTesting, selectedStrategy, config);
-  };
-
-  // Create async wrapper functions to match expected Promise<void> signatures
-  const handleDeleteConfigWrapper = async (configId: string): Promise<void> => {
-    await handleDeleteConfigBase(configId);
-  };
-
-  const handleSaveNewConfigWrapper = async (config: any): Promise<void> => {
-    await handleSaveNewConfigBase(config);
   };
 
   return {
@@ -116,9 +107,9 @@ export const useOANDAIntegration = () => {
     handleConfigChange: handleConfigChangeWithReset,
     handleTestConnection: () => handleTestConnection(config),
     handleSaveConfig: handlePersistentSaveConfig,
-    handleSaveNewConfig: handleSaveNewConfigWrapper,
+    handleSaveNewConfig,
     handleLoadConfig,
-    handleDeleteConfig: handleDeleteConfigWrapper,
+    handleDeleteConfig,
     handleLoadStrategy,
     handleTestTrade: () => handleTestTrade(config, selectedStrategy, connectionStatus),
     handleDeleteStrategy,
