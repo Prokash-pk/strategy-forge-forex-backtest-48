@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ForwardTestingSessionFixerProps {
   selectedStrategy: any;
@@ -21,8 +22,11 @@ const ForwardTestingSessionFixer: React.FC<ForwardTestingSessionFixerProps> = ({
   const handleCleanOldSessions = async () => {
     setIsFixing(true);
     try {
-      // Stop all active sessions to clean up mismatched ones
-      await ServerForwardTestingService.stopForwardTesting();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Stop all active sessions by calling the server-side function
+      await ServerForwardTestingService.stopServerSideForwardTesting(user.id, 'all');
       
       toast({
         title: "Old Sessions Cleaned",
