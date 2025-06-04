@@ -61,19 +61,8 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
   const isConfiguredForTesting = persistentConnectionStatus === 'connected' || 
                                 Boolean(config.accountId?.trim() && config.apiKey?.trim());
 
-  console.log('OANDAConfigForm Debug:', {
-    accountId: config.accountId,
-    apiKey: config.apiKey ? 'SET' : 'NOT_SET',
-    isConfiguredForTesting,
-    persistentConnectionStatus,
-    connectionStatus,
-    canStartTesting,
-    isTestingTrade,
-    isForwardTestingActive
-  });
-
   const handleConnectOANDA = async () => {
-    // For persistent connections, just save the config
+    // For persistent connections, just save the config without extra notifications
     if (persistentConnectionStatus !== 'connected') {
       // First test the connection for new configurations
       await onTestConnection();
@@ -131,7 +120,7 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
                 </p>
                 <p className="text-emerald-400 text-xs mt-1">
                   Your OANDA credentials are securely stored and will remain connected across browser sessions.
-                  You can now close your browser and autonomous trading will continue.
+                  Autonomous trading will continue even when you close your browser.
                 </p>
               </div>
               {onDisconnectOANDA && (

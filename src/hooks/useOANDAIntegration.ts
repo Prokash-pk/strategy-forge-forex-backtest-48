@@ -3,7 +3,7 @@ import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
 import { useOANDATrade } from '@/hooks/oanda/useOANDATrade';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
@@ -14,6 +14,7 @@ export const useOANDAIntegration = () => {
   const [isForwardTestingActive, setIsForwardTestingActive] = useState(false);
   const [persistentConnectionStatus, setPersistentConnectionStatus] = useState<'idle' | 'connected' | 'error'>('idle');
   const { user } = useAuth();
+  const hasLoadedPersistentConnection = useRef(false);
 
   const {
     config,
@@ -55,11 +56,11 @@ export const useOANDAIntegration = () => {
     loadSelectedStrategy();
   }, []);
 
-  // Load persistent OANDA connection status on mount
+  // Load persistent OANDA connection status on mount - ONLY ONCE
   useEffect(() => {
-    const loadPersistentConnection = async () => {
-      if (!user) return;
+    if (!user || hasLoadedPersistentConnection.current) return;
 
+    const loadPersistentConnection = async () => {
       try {
         // Check if we have a saved, verified OANDA connection
         const { data: configs, error } = await supabase
@@ -95,9 +96,12 @@ export const useOANDAIntegration = () => {
           console.log('❌ No persistent OANDA connection found');
           setPersistentConnectionStatus('idle');
         }
+        
+        hasLoadedPersistentConnection.current = true;
       } catch (error) {
         console.error('Failed to load persistent OANDA connection:', error);
         setPersistentConnectionStatus('error');
+        hasLoadedPersistentConnection.current = true;
       }
     };
 
@@ -149,6 +153,7 @@ export const useOANDAIntegration = () => {
       // Reset local state
       resetConnectionStatus();
       setPersistentConnectionStatus('idle');
+      hasLoadedPersistentConnection.current = false;
       
       console.log('🔌 OANDA connection disconnected');
       console.log('❌ Persistent credentials cleared');
@@ -192,7 +197,7 @@ export const useOANDAIntegration = () => {
     }
   }, [savedStrategies, selectedStrategy]);
 
-  // Check autonomous server-side trading status on mount and periodically
+  // Check autonomous server-side trading status on mount and periodically - but less frequently
   useEffect(() => {
     const checkAutonomousTradingStatus = async () => {
       try {
@@ -200,22 +205,27 @@ export const useOANDAIntegration = () => {
         const activeSessions = await ServerForwardTestingService.getActiveSessions();
         const isAutonomousActive = activeSessions.length > 0;
         
-        // Update UI state to reflect autonomous trading status
-        setIsForwardTestingActive(isAutonomousActive);
-        
-        console.log('🤖 Autonomous trading status check:', {
-          autonomousActive: isAutonomousActive,
-          totalActiveSessions: activeSessions.length,
-          status: isAutonomousActive ? 'RUNNING AUTONOMOUSLY' : 'INACTIVE'
-        });
+        // Only update state if it actually changed to prevent unnecessary re-renders
+        setIsForwardTestingActive(prev => {
+          if (prev !== isAutonomousActive) {
+            console.log('🤖 Autonomous trading status changed:', {
+              autonomousActive: isAutonomousActive,
+              totalActiveSessions: activeSessions.length,
+              status: isAutonomousActive ? 'RUNNING AUTONOMOUSLY' : 'INACTIVE'
+            });
 
-        if (isAutonomousActive) {
-          console.log('✅ AUTONOMOUS TRADING IS ACTIVE');
-          console.log('🚀 Trading operations running independently on server 24/7');
-          console.log('💻 No client connection required - fully autonomous');
-        } else {
-          console.log('⏸️ No autonomous trading sessions detected');
-        }
+            if (isAutonomousActive) {
+              console.log('✅ AUTONOMOUS TRADING IS ACTIVE');
+              console.log('🚀 Trading operations running independently on server 24/7');
+              console.log('💻 No client connection required - fully autonomous');
+            } else {
+              console.log('⏸️ No autonomous trading sessions detected');
+            }
+            
+            return isAutonomousActive;
+          }
+          return prev;
+        });
       } catch (error) {
         console.error('Failed to check autonomous trading status:', error);
         setIsForwardTestingActive(false);
@@ -224,8 +234,8 @@ export const useOANDAIntegration = () => {
 
     checkAutonomousTradingStatus();
     
-    // Check autonomous status every 30 seconds to stay in sync with server
-    const interval = setInterval(checkAutonomousTradingStatus, 30000);
+    // Check autonomous status every 60 seconds instead of 30 to reduce noise
+    const interval = setInterval(checkAutonomousTradingStatus, 60000);
     
     return () => clearInterval(interval);
   }, []);
@@ -292,7 +302,7 @@ export const useOANDAIntegration = () => {
     isForwardTestingActive
   });
 
-  // Connection status icon - prioritize persistent status
+  // Connection status icon - prioritize persistent status with stable logic
   const getConnectionStatusIcon = () => {
     if (persistentConnectionStatus === 'connected' || connectionStatus === 'success') {
       return CheckCircle;
