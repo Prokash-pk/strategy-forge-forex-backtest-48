@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +6,7 @@ import AccountSummaryCard from './dashboard/AccountSummaryCard';
 import PositionsTable from './dashboard/PositionsTable';
 import TradeLogCard from './dashboard/TradeLogCard';
 import InactiveStateCard from './dashboard/InactiveStateCard';
+import TradingDiagnostics from './dashboard/TradingDiagnostics';
 
 interface Position {
   id: string;
@@ -90,7 +90,10 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
       const stored = localStorage.getItem('forward_testing_trades');
       if (stored) {
         const trades = JSON.parse(stored);
+        console.log('📊 Loaded trade log from localStorage:', trades);
         setTradeLog(trades.reverse()); // Show most recent first
+      } else {
+        console.log('📊 No trade log found in localStorage');
       }
     } catch (error) {
       console.error('Failed to load trade log:', error);
@@ -258,7 +261,12 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
   };
 
   if (!isActive) {
-    return <InactiveStateCard />;
+    return (
+      <div className="space-y-4 md:space-y-6">
+        <InactiveStateCard />
+        <TradingDiagnostics strategy={strategy} />
+      </div>
+    );
   }
 
   return (
@@ -285,6 +293,8 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
         timezoneAbbr={timezoneAbbr}
         formatDateTime={(timestamp) => formatDateTimeInTimezone(timestamp, userTimezone)}
       />
+
+      <TradingDiagnostics strategy={strategy} />
     </div>
   );
 };
