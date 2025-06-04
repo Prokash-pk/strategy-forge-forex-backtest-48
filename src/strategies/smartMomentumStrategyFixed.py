@@ -1,33 +1,5 @@
 
-import React from 'react';
-import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
-import { Copy, RefreshCw } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-
-interface StrategyCodeEditorProps {
-  code: string;
-  onCodeChange: (code: string) => void;
-  codeChanged: boolean;
-}
-
-const StrategyCodeEditor: React.FC<StrategyCodeEditorProps> = ({
-  code,
-  onCodeChange,
-  codeChanged
-}) => {
-  const { toast } = useToast();
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(code);
-    toast({
-      title: "Code Copied",
-      description: "Strategy code copied to clipboard",
-    });
-  };
-
-  const loadFixedStrategy = () => {
-    const fixedCode = `# Smart Momentum Strategy - Fixed for Forward Testing
+# Smart Momentum Strategy - Fixed for Forward Testing
 # Enhanced with proper signal direction and execution logic
 
 import math
@@ -130,50 +102,4 @@ def strategy_logic(data, reverse_signals=False):
         'avg_atr': avg_atr,
         'reverse_signals_applied': reverse_signals,
         'note': 'Fixed strategy with proper directional signals for forward testing'
-    }`;
-
-    onCodeChange(fixedCode);
-    toast({
-      title: "Strategy Fixed",
-      description: "Loaded fixed version with proper signal generation for forward testing",
-    });
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={copyToClipboard}
-          >
-            <Copy className="h-4 w-4 mr-2" />
-            Copy Code
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={loadFixedStrategy}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Load Fixed Strategy
-          </Button>
-        </div>
-        {codeChanged && (
-          <span className="text-sm text-amber-500">• Unsaved changes</span>
-        )}
-      </div>
-      
-      <Textarea
-        id="strategyCode"
-        value={code}
-        onChange={(e) => onCodeChange(e.target.value)}
-        className="min-h-[400px] font-mono text-sm bg-slate-50 border border-slate-200"
-        placeholder="Enter your Python strategy code here..."
-      />
-    </div>
-  );
-};
-
-export default StrategyCodeEditor;
+    }
