@@ -70,12 +70,12 @@ export const useAccountManager = ({
     }
   };
 
-  const handleDeleteConfig = async (configId: string) => {
+  const handleDeleteConfig = async (configId: string, configName: string) => {
     try {
       await onDeleteConfig(configId);
       toast({
         title: "Account Disconnected",
-        description: "Account has been disconnected and removed",
+        description: `"${configName}" has been disconnected and removed`,
       });
     } catch (error) {
       console.error('Failed to delete config:', error);

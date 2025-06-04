@@ -14,9 +14,9 @@ interface OANDAConfigFormProps {
   onConfigChange: (field: keyof OANDAConfig, value: any) => void;
   onTestConnection: () => void;
   onSaveConfig: () => void;
-  onSaveNewConfig: (config: OANDAConfig & { configName: string }) => Promise<void>;
+  onSaveNewConfig: (config: OANDAConfig & { configName: string }) => void;
   onLoadConfig: (config: SavedOANDAConfig) => void;
-  onDeleteConfig: (configId: string) => Promise<void>;
+  onDeleteConfig: (configId: string) => void;
   onTestTrade: () => void;
   onDisconnectOANDA?: () => void;
   connectionStatus: 'idle' | 'testing' | 'success' | 'error';
