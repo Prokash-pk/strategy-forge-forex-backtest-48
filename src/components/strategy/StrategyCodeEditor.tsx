@@ -123,24 +123,26 @@ def strategy_logic(data, reverse_signals=False):
       <div className="flex justify-between items-center">
         <div className="flex gap-2">
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={copyToClipboard}
+            className="bg-slate-700 text-slate-200 border-slate-600 hover:bg-slate-600"
           >
             <Copy className="h-4 w-4 mr-2" />
             Copy Code
           </Button>
           <Button
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={loadCleanStrategy}
+            className="bg-slate-700 text-slate-200 border-slate-600 hover:bg-slate-600"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Load Clean Strategy
           </Button>
         </div>
         {codeChanged && (
-          <span className="text-sm text-amber-500">• Unsaved changes</span>
+          <span className="text-sm text-amber-400">• Unsaved changes</span>
         )}
       </div>
       
