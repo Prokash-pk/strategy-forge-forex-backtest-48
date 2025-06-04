@@ -21,7 +21,11 @@ export const useOANDAConfigHandlers = (
   // Memoized config save handler
   const handlePersistentSaveConfig = useCallback(async () => {
     try {
+      // Test the connection first
       await handleTestConnection(config);
+      
+      // Wait a moment for the connection status to update
+      await new Promise(resolve => setTimeout(resolve, 500));
       
       if (connectionStatus === 'success') {
         const configToSave = {

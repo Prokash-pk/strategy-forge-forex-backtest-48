@@ -61,10 +61,14 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = memo(({
                                 Boolean(config.accountId?.trim() && config.apiKey?.trim());
 
   const handleConnectOANDA = async () => {
-    if (persistentConnectionStatus !== 'connected') {
-      await onTestConnection();
+    // For persistent connections, just save the config
+    if (persistentConnectionStatus === 'connected') {
+      await onSaveConfig();
+      return;
     }
-    await onSaveConfig();
+    
+    // For new connections, test first then save if successful
+    await onTestConnection();
   };
 
   const handleRefreshAll = () => {
