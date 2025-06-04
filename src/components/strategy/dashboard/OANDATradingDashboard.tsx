@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Activity, TrendingUp, AlertCircle, Search } from 'lucide-react';
-import AccountSummaryCard from './dashboard/AccountSummaryCard';
-import PositionsTable from './dashboard/PositionsTable';
-import TradeLogCard from './dashboard/TradeLogCard';
-import InactiveStateCard from './dashboard/InactiveStateCard';
-import TradingDiagnostics from './dashboard/TradingDiagnostics';
-import ComprehensiveDiagnostics from './dashboard/ComprehensiveDiagnostics';
+import AccountSummaryCard from './AccountSummaryCard';
+import PositionsTable from './PositionsTable';
+import TradeLogCard from './TradeLogCard';
+import InactiveStateCard from './InactiveStateCard';
+import TradingDiagnostics from './TradingDiagnostics';
+import ComprehensiveDiagnostics from './ComprehensiveDiagnostics';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 
 interface OANDATradingDashboardProps {
