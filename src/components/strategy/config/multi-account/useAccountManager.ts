@@ -50,6 +50,9 @@ export const useAccountManager = ({
         enabled: true // Enable the new config for 24/7 connection
       });
 
+      // Reload saved configs to show the new account
+      await loadSavedConfigs();
+
       // Reset form state after successful save
       setNewConfigName('');
       setIsAddingNew(false);
@@ -73,6 +76,8 @@ export const useAccountManager = ({
   const handleDeleteConfig = async (configId: string) => {
     try {
       await onDeleteConfig(configId);
+      // Reload saved configs to update the UI
+      await loadSavedConfigs();
       toast({
         title: "Account Disconnected",
         description: "Account has been disconnected and removed",
