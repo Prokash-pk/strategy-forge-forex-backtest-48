@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
@@ -89,6 +90,15 @@ export const useOANDAIntegration = () => {
     handleToggleForwardTestingBase(canStartTesting, selectedStrategy, config);
   };
 
+  // Create async wrapper functions to match expected Promise<void> signatures
+  const handleDeleteConfigWrapper = async (configId: string): Promise<void> => {
+    await handleDeleteConfigBase(configId);
+  };
+
+  const handleSaveNewConfigWrapper = async (config: any): Promise<void> => {
+    await handleSaveNewConfigBase(config);
+  };
+
   return {
     config,
     savedConfigs,
@@ -106,9 +116,9 @@ export const useOANDAIntegration = () => {
     handleConfigChange: handleConfigChangeWithReset,
     handleTestConnection: () => handleTestConnection(config),
     handleSaveConfig: handlePersistentSaveConfig,
-    handleSaveNewConfig: handleSaveNewConfigBase,
+    handleSaveNewConfig: handleSaveNewConfigWrapper,
     handleLoadConfig,
-    handleDeleteConfig: handleDeleteConfigBase,
+    handleDeleteConfig: handleDeleteConfigWrapper,
     handleLoadStrategy,
     handleTestTrade: () => handleTestTrade(config, selectedStrategy, connectionStatus),
     handleDeleteStrategy,
