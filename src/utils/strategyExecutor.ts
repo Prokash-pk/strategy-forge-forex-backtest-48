@@ -15,9 +15,9 @@ import { StrategySignals, MarketData } from './types/strategyTypes';
 export { TechnicalAnalysis };
 
 export class StrategyExecutor {
-  static executeStrategy(code: string, marketData: MarketData): StrategySignals {
+  static executeStrategy(code: string, marketData: MarketData, reverseSignals: boolean = false): StrategySignals {
     try {
-      console.log('Executing strategy code:', code);
+      console.log('Executing strategy code with reverse signals:', reverseSignals);
       
       const data = {
         open: marketData.open,
@@ -29,7 +29,7 @@ export class StrategyExecutor {
 
       // Route to appropriate strategy based on code content
       if (code.toLowerCase().includes('smart momentum') || code.toLowerCase().includes('enhanced momentum')) {
-        return SmartMomentumStrategy.execute(data);
+        return SmartMomentumStrategy.execute(data, reverseSignals);
       } else if (code.toLowerCase().includes('momentum') && code.toLowerCase().includes('quality')) {
         return EnhancedMomentumStrategy.execute(data);
       } else if (code.toLowerCase().includes('williams') || code.toLowerCase().includes('%r')) {

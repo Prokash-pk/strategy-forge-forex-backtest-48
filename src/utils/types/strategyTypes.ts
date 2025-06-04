@@ -2,7 +2,8 @@
 export interface StrategySignals {
   entry: boolean[];
   exit: boolean[];
-  indicators?: Record<string, any>; // Changed from Record<string, number[]> to Record<string, any> for flexibility
+  tradeDirection?: string[]; // Add trade direction as optional
+  indicators?: Record<string, any>;
 }
 
 export interface MarketData {
