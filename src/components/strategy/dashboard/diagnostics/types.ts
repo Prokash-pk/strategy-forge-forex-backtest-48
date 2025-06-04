@@ -6,7 +6,7 @@ export interface DiagnosticResult {
   status: 'SUCCESS' | 'ERROR' | 'WARNING';
   message: string;
   details?: any;
-  icon: React.ReactNode;
+  iconType: 'user' | 'settings' | 'wifi' | 'zap' | 'server' | 'database' | 'activity';
   category: 'auth' | 'config' | 'connectivity' | 'forward_testing';
 }
 

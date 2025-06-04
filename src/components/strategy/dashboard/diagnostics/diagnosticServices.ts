@@ -1,6 +1,5 @@
 
 import { DiagnosticResult } from './types';
-import { User, Settings, Wifi, Zap, Server, Database, Activity } from 'lucide-react';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -12,7 +11,7 @@ export const runAuthenticationCheck = (user: any): DiagnosticResult => {
       status: 'SUCCESS',
       message: `Authenticated as ${user.email}`,
       details: { userId: user.id, email: user.email },
-      icon: <User className="h-4 w-4" />,
+      iconType: 'user',
       category: 'auth'
     };
   } else {
@@ -20,7 +19,7 @@ export const runAuthenticationCheck = (user: any): DiagnosticResult => {
       name: 'Authentication',
       status: 'ERROR',
       message: 'User not authenticated',
-      icon: <User className="h-4 w-4" />,
+      iconType: 'user',
       category: 'auth'
     };
   }
@@ -36,7 +35,7 @@ export const runStrategyConfigCheck = (): DiagnosticResult => {
       status: 'SUCCESS',
       message: `Strategy selected: ${parsedStrategy.strategy_name}`,
       details: parsedStrategy,
-      icon: <Settings className="h-4 w-4" />,
+      iconType: 'settings',
       category: 'config'
     };
   } else {
@@ -44,7 +43,7 @@ export const runStrategyConfigCheck = (): DiagnosticResult => {
       name: 'Strategy Config',
       status: 'ERROR',
       message: 'No strategy selected',
-      icon: <Settings className="h-4 w-4" />,
+      iconType: 'settings',
       category: 'config'
     };
   }
@@ -65,7 +64,7 @@ export const runOandaConfigCheck = (): DiagnosticResult => {
           environment: parsedConfig.environment,
           hasApiKey: !!parsedConfig.apiKey 
         },
-        icon: <Settings className="h-4 w-4" />,
+        iconType: 'settings',
         category: 'config'
       };
     } else {
@@ -74,7 +73,7 @@ export const runOandaConfigCheck = (): DiagnosticResult => {
         status: 'ERROR',
         message: 'OANDA config incomplete (missing credentials)',
         details: parsedConfig,
-        icon: <Settings className="h-4 w-4" />,
+        iconType: 'settings',
         category: 'config'
       };
     }
@@ -83,7 +82,7 @@ export const runOandaConfigCheck = (): DiagnosticResult => {
       name: 'Oanda Config',
       status: 'ERROR',
       message: 'No OANDA config found',
-      icon: <Settings className="h-4 w-4" />,
+      iconType: 'settings',
       category: 'config'
     };
   }
@@ -116,7 +115,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
             status: 'SUCCESS',
             message: `OANDA connection successful - Account: ${data.account?.alias || parsedConfig.accountId}`,
             details: { accountData: data.account },
-            icon: <Wifi className="h-4 w-4" />,
+            iconType: 'wifi',
             category: 'connectivity'
           };
         } else {
@@ -126,7 +125,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
             status: 'ERROR',
             message: `OANDA connection failed: ${response.status} - ${errorData.errorMessage || response.statusText}`,
             details: { status: response.status, error: errorData },
-            icon: <Wifi className="h-4 w-4" />,
+            iconType: 'wifi',
             category: 'connectivity'
           };
         }
@@ -136,7 +135,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
           status: 'ERROR',
           message: `OANDA connectivity test failed: ${error.message}`,
           details: { error: error.message },
-          icon: <Wifi className="h-4 w-4" />,
+          iconType: 'wifi',
           category: 'connectivity'
         };
       }
@@ -145,7 +144,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
         name: 'Oanda Connectivity',
         status: 'ERROR',
         message: 'No OANDA credentials to test',
-        icon: <Wifi className="h-4 w-4" />,
+        iconType: 'wifi',
         category: 'connectivity'
       };
     }
@@ -154,7 +153,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
       name: 'Oanda Connectivity',
       status: 'ERROR',
       message: 'No OANDA config found for connectivity test',
-      icon: <Wifi className="h-4 w-4" />,
+      iconType: 'wifi',
       category: 'connectivity'
     };
   }
@@ -169,7 +168,7 @@ export const runForwardTestingFlagCheck = (): DiagnosticResult => {
       status: 'SUCCESS',
       message: 'Local flag: active',
       details: { flag: forwardTestingFlag },
-      icon: <Zap className="h-4 w-4" />,
+      iconType: 'zap',
       category: 'forward_testing'
     };
   } else if (forwardTestingFlag === 'false') {
@@ -178,7 +177,7 @@ export const runForwardTestingFlagCheck = (): DiagnosticResult => {
       status: 'WARNING',
       message: 'Local flag: inactive',
       details: { flag: forwardTestingFlag },
-      icon: <Zap className="h-4 w-4" />,
+      iconType: 'zap',
       category: 'forward_testing'
     };
   } else {
@@ -187,7 +186,7 @@ export const runForwardTestingFlagCheck = (): DiagnosticResult => {
       status: 'WARNING',
       message: 'Local flag: null',
       details: { flag: forwardTestingFlag },
-      icon: <Zap className="h-4 w-4" />,
+      iconType: 'zap',
       category: 'forward_testing'
     };
   }
@@ -203,7 +202,7 @@ export const runServerSessionsCheck = async (): Promise<DiagnosticResult> => {
         status: 'SUCCESS',
         message: `Found ${activeSessions.length} active server sessions`,
         details: activeSessions,
-        icon: <Server className="h-4 w-4" />,
+        iconType: 'server',
         category: 'forward_testing'
       };
     } else {
@@ -212,7 +211,7 @@ export const runServerSessionsCheck = async (): Promise<DiagnosticResult> => {
         status: 'WARNING',
         message: 'No active server sessions found',
         details: activeSessions,
-        icon: <Server className="h-4 w-4" />,
+        iconType: 'server',
         category: 'forward_testing'
       };
     }
@@ -222,7 +221,7 @@ export const runServerSessionsCheck = async (): Promise<DiagnosticResult> => {
       status: 'ERROR',
       message: `Failed to check server sessions: ${error.message}`,
       details: { error: error.message },
-      icon: <Server className="h-4 w-4" />,
+      iconType: 'server',
       category: 'forward_testing'
     };
   }
@@ -238,7 +237,7 @@ export const runServerLogsCheck = async (): Promise<DiagnosticResult> => {
         status: 'SUCCESS',
         message: `Found ${tradingLogs.length} server trading logs`,
         details: tradingLogs.slice(0, 5),
-        icon: <Database className="h-4 w-4" />,
+        iconType: 'database',
         category: 'forward_testing'
       };
     } else {
@@ -247,7 +246,7 @@ export const runServerLogsCheck = async (): Promise<DiagnosticResult> => {
         status: 'WARNING',
         message: 'Found 0 server trading logs',
         details: [],
-        icon: <Database className="h-4 w-4" />,
+        iconType: 'database',
         category: 'forward_testing'
       };
     }
@@ -257,7 +256,7 @@ export const runServerLogsCheck = async (): Promise<DiagnosticResult> => {
       status: 'ERROR',
       message: `Failed to check server logs: ${error.message}`,
       details: { error: error.message },
-      icon: <Database className="h-4 w-4" />,
+      iconType: 'database',
       category: 'forward_testing'
     };
   }
@@ -281,7 +280,7 @@ export const runDatabaseSessionsCheck = async (user: any): Promise<DiagnosticRes
           status: 'SUCCESS',
           message: `Found ${dbSessions.length} active database sessions`,
           details: dbSessions,
-          icon: <Database className="h-4 w-4" />,
+          iconType: 'database',
           category: 'forward_testing'
         };
       } else {
@@ -290,7 +289,7 @@ export const runDatabaseSessionsCheck = async (user: any): Promise<DiagnosticRes
           status: 'WARNING',
           message: 'No active database sessions found',
           details: [],
-          icon: <Database className="h-4 w-4" />,
+          iconType: 'database',
           category: 'forward_testing'
         };
       }
@@ -300,7 +299,7 @@ export const runDatabaseSessionsCheck = async (user: any): Promise<DiagnosticRes
         status: 'ERROR',
         message: `Database query failed: ${error.message}`,
         details: { error: error.message },
-        icon: <Database className="h-4 w-4" />,
+        iconType: 'database',
         category: 'forward_testing'
       };
     }
@@ -309,7 +308,7 @@ export const runDatabaseSessionsCheck = async (user: any): Promise<DiagnosticRes
       name: 'Database Sessions',
       status: 'ERROR',
       message: 'Cannot check database sessions - user not authenticated',
-      icon: <Database className="h-4 w-4" />,
+      iconType: 'database',
       category: 'forward_testing'
     };
   }
@@ -328,7 +327,7 @@ export const runEdgeFunctionsCheck = async (): Promise<DiagnosticResult> => {
         status: 'ERROR',
         message: `Edge function error: ${error.message}`,
         details: { error: error.message },
-        icon: <Activity className="h-4 w-4" />,
+        iconType: 'activity',
         category: 'forward_testing'
       };
     } else {
@@ -337,7 +336,7 @@ export const runEdgeFunctionsCheck = async (): Promise<DiagnosticResult> => {
         status: 'SUCCESS',
         message: 'Edge functions responding correctly',
         details: data,
-        icon: <Activity className="h-4 w-4" />,
+        iconType: 'activity',
         category: 'forward_testing'
       };
     }
@@ -347,7 +346,7 @@ export const runEdgeFunctionsCheck = async (): Promise<DiagnosticResult> => {
       status: 'ERROR',
       message: `Edge function error: ${error.message}`,
       details: { error: error.message },
-      icon: <Activity className="h-4 w-4" />,
+      iconType: 'activity',
       category: 'forward_testing'
     };
   }

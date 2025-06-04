@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { CheckCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { User, Settings, Wifi, Zap, Server, Database, Activity } from 'lucide-react';
 import { DiagnosticResult } from './types';
 
 interface DiagnosticItemProps {
@@ -8,45 +9,53 @@ interface DiagnosticItemProps {
 }
 
 const DiagnosticItem: React.FC<DiagnosticItemProps> = ({ diagnostic }) => {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'SUCCESS': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      case 'WARNING': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-      case 'ERROR': return 'bg-red-500/10 text-red-400 border-red-500/20';
-      default: return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+  const getIcon = (iconType: string) => {
+    const iconProps = { className: "h-4 w-4" };
+    switch (iconType) {
+      case 'user': return <User {...iconProps} />;
+      case 'settings': return <Settings {...iconProps} />;
+      case 'wifi': return <Wifi {...iconProps} />;
+      case 'zap': return <Zap {...iconProps} />;
+      case 'server': return <Server {...iconProps} />;
+      case 'database': return <Database {...iconProps} />;
+      case 'activity': return <Activity {...iconProps} />;
+      default: return <Settings {...iconProps} />;
     }
   };
 
-  const getStatusIcon = (status: string) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case 'SUCCESS': return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-      case 'WARNING': return <AlertTriangle className="h-4 w-4 text-yellow-400" />;
-      case 'ERROR': return <XCircle className="h-4 w-4 text-red-400" />;
-      default: return <Clock className="h-4 w-4 text-slate-400" />;
+      case 'SUCCESS': return 'bg-emerald-600';
+      case 'ERROR': return 'bg-red-600';
+      case 'WARNING': return 'bg-yellow-600';
+      default: return 'bg-slate-600';
     }
   };
 
   return (
-    <div className={`p-4 rounded-lg border ${getStatusColor(diagnostic.status)}`}>
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          {diagnostic.icon}
-          <span className="font-medium">{diagnostic.name}</span>
-        </div>
-        {getStatusIcon(diagnostic.status)}
+    <div className="flex items-start gap-3 p-3 bg-slate-700/30 rounded-lg border border-slate-600">
+      <div className="flex-shrink-0 mt-0.5">
+        {getIcon(diagnostic.iconType)}
       </div>
-      <p className="text-sm mb-2">{diagnostic.message}</p>
-      
-      {diagnostic.details && (
-        <details className="text-xs">
-          <summary className="cursor-pointer text-slate-400 hover:text-slate-300">
-            View Details
-          </summary>
-          <pre className="mt-2 p-2 bg-slate-800/50 rounded text-xs overflow-auto">
-            {JSON.stringify(diagnostic.details, null, 2)}
-          </pre>
-        </details>
-      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between mb-1">
+          <h4 className="text-sm font-medium text-white">{diagnostic.name}</h4>
+          <Badge variant="secondary" className={getStatusColor(diagnostic.status)}>
+            {diagnostic.status}
+          </Badge>
+        </div>
+        <p className="text-sm text-slate-300">{diagnostic.message}</p>
+        {diagnostic.details && (
+          <details className="mt-2">
+            <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300">
+              View Details
+            </summary>
+            <pre className="text-xs text-slate-400 mt-1 bg-slate-800 p-2 rounded overflow-x-auto">
+              {JSON.stringify(diagnostic.details, null, 2)}
+            </pre>
+          </details>
+        )}
+      </div>
     </div>
   );
 };
