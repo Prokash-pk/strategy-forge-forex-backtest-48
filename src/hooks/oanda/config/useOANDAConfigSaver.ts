@@ -67,16 +67,23 @@ export const useOANDAConfigSaver = (
   };
 
   const handleSaveNewConfig = async (configWithName: OANDAConfig & { configName: string }) => {
-    if (!user) return;
+    if (!user) {
+      throw new Error('User not authenticated');
+    }
 
-    setIsLoading(true);
+    console.log('Saving new config to database:', configWithName);
+
     try {
       // If this config should be enabled, disable all others first
       if (configWithName.enabled) {
-        await supabase
+        const { error: updateError } = await supabase
           .from('oanda_configs')
           .update({ enabled: false })
           .eq('user_id', user.id);
+
+        if (updateError) {
+          console.error('Error disabling existing configs:', updateError);
+        }
       }
 
       const configToSave = {
@@ -88,36 +95,26 @@ export const useOANDAConfigSaver = (
         enabled: configWithName.enabled || false
       };
 
-      const { error } = await supabase
+      console.log('Inserting config:', configToSave);
+
+      const { data, error } = await supabase
         .from('oanda_configs')
-        .insert(configToSave);
+        .insert(configToSave)
+        .select();
 
-      if (error) throw error;
-
-      if (configWithName.enabled) {
-        toast({
-          title: "✅ Account Connected 24/7",
-          description: `"${configWithName.configName}" is now connected and will stay active until you disconnect it.`,
-        });
-      } else {
-        toast({
-          title: "✅ Account Added",
-          description: `"${configWithName.configName}" has been added to your saved configurations.`,
-        });
+      if (error) {
+        console.error('Database insert error:', error);
+        throw error;
       }
+
+      console.log('Config saved successfully:', data);
 
       // Reload saved configs to show the new one
       await loadSavedConfigs();
 
     } catch (error) {
       console.error('Failed to save new config:', error);
-      toast({
-        title: "Save Failed",
-        description: "Could not save OANDA configuration. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      throw error;
     }
   };
 

@@ -3,20 +3,22 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Wifi } from 'lucide-react';
+import { Wifi, Loader2 } from 'lucide-react';
 
 interface AddAccountFormProps {
   configName: string;
   onConfigNameChange: (value: string) => void;
   onSave: () => void;
   onCancel: () => void;
+  isSaving?: boolean;
 }
 
 const AddAccountForm: React.FC<AddAccountFormProps> = ({
   configName,
   onConfigNameChange,
   onSave,
-  onCancel
+  onCancel,
+  isSaving = false
 }) => {
   return (
     <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg space-y-4">
@@ -33,6 +35,7 @@ const AddAccountForm: React.FC<AddAccountFormProps> = ({
           value={configName}
           onChange={(e) => onConfigNameChange(e.target.value)}
           className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+          disabled={isSaving}
         />
       </div>
       
@@ -41,14 +44,23 @@ const AddAccountForm: React.FC<AddAccountFormProps> = ({
           onClick={onSave}
           size="sm"
           className="bg-emerald-600 hover:bg-emerald-700"
+          disabled={isSaving || !configName.trim()}
         >
-          Save & Connect 24/7
+          {isSaving ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            'Save & Connect 24/7'
+          )}
         </Button>
         <Button
           onClick={onCancel}
           size="sm"
           variant="outline"
           className="border-slate-600 text-slate-300"
+          disabled={isSaving}
         >
           Cancel
         </Button>

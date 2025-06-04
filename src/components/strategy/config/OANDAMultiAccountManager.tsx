@@ -14,8 +14,8 @@ interface OANDAMultiAccountManagerProps {
   savedConfigs: SavedOANDAConfig[];
   currentConfig: OANDAConfig;
   onLoadConfig: (config: SavedOANDAConfig) => void;
-  onDeleteConfig: (configId: string) => void;
-  onSaveNewConfig: (config: OANDAConfig & { configName: string }) => void;
+  onDeleteConfig: (configId: string) => Promise<void>;
+  onSaveNewConfig: (config: OANDAConfig & { configName: string }) => Promise<void>;
   onConfigChange: (field: keyof OANDAConfig, value: any) => void;
   onTestConnection: () => void;
   connectionStatus: 'idle' | 'testing' | 'success' | 'error';
@@ -48,7 +48,8 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
     handleSaveCurrentConfig,
     handleDeleteConfig,
     handleAddAccount,
-    handleCancel
+    handleCancel,
+    isSaving
   } = useAccountManager({
     currentConfig,
     onSaveNewConfig,
@@ -86,6 +87,7 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
                   onConfigNameChange={setNewConfigName}
                   onSave={handleSaveCurrentConfig}
                   onCancel={handleCancel}
+                  isSaving={isSaving}
                 />
 
                 <Separator className="bg-slate-600" />
