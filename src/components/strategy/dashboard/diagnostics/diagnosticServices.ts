@@ -1,4 +1,3 @@
-
 import { DiagnosticResult } from './types';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
 import { supabase } from '@/integrations/supabase/client';
@@ -100,6 +99,13 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
           ? 'https://api-fxpractice.oanda.com'
           : 'https://api-fxtrade.oanda.com';
 
+        console.log('Testing OANDA connection:', {
+          baseUrl,
+          accountId: parsedConfig.accountId,
+          environment: parsedConfig.environment,
+          apiKeyLength: parsedConfig.apiKey.length
+        });
+
         const response = await fetch(`${baseUrl}/v3/accounts/${parsedConfig.accountId}`, {
           method: 'GET',
           headers: {
@@ -120,20 +126,29 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
           };
         } else {
           const errorData = await response.json();
+          console.error('OANDA API Error:', errorData);
+          
+          // Provide specific guidance based on error type
+          let userMessage = `OANDA connection failed: ${response.status} - ${errorData.errorMessage || response.statusText}`;
+          if (response.status === 401) {
+            userMessage += '. This usually means your API token is invalid, expired, or doesn\'t have access to this account. Please check your OANDA credentials in the Configuration tab.';
+          }
+          
           return {
             name: 'Oanda Connectivity',
             status: 'ERROR',
-            message: `OANDA connection failed: ${response.status} - ${errorData.errorMessage || response.statusText}`,
+            message: userMessage,
             details: { status: response.status, error: errorData },
             iconType: 'wifi',
             category: 'connectivity'
           };
         }
       } catch (error) {
+        console.error('OANDA connectivity error:', error);
         return {
           name: 'Oanda Connectivity',
           status: 'ERROR',
-          message: `OANDA connectivity test failed: ${error.message}`,
+          message: `OANDA connectivity test failed: ${error.message}. Please check your internet connection and OANDA credentials.`,
           details: { error: error.message },
           iconType: 'wifi',
           category: 'connectivity'
@@ -143,7 +158,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
       return {
         name: 'Oanda Connectivity',
         status: 'ERROR',
-        message: 'No OANDA credentials to test',
+        message: 'No OANDA credentials to test - Please configure your Account ID and API Token in the Configuration tab',
         iconType: 'wifi',
         category: 'connectivity'
       };
@@ -152,7 +167,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
     return {
       name: 'Oanda Connectivity',
       status: 'ERROR',
-      message: 'No OANDA config found for connectivity test',
+      message: 'No OANDA config found for connectivity test - Please set up OANDA configuration first',
       iconType: 'wifi',
       category: 'connectivity'
     };
@@ -322,29 +337,32 @@ export const runEdgeFunctionsCheck = async (): Promise<DiagnosticResult> => {
     });
 
     if (error) {
+      console.error('Edge function error:', error);
       return {
         name: 'Edge Functions',
         status: 'ERROR',
-        message: `Edge function error: ${error.message}`,
+        message: `Edge function error: ${error.message}. The server-side trading system may not be available.`,
         details: { error: error.message },
         iconType: 'activity',
         category: 'forward_testing'
       };
     } else {
+      console.log('Edge function response:', data);
       return {
         name: 'Edge Functions',
         status: 'SUCCESS',
-        message: 'Edge functions responding correctly',
+        message: 'Edge functions responding correctly - Server-side trading system is operational',
         details: data,
         iconType: 'activity',
         category: 'forward_testing'
       };
     }
   } catch (error) {
+    console.error('Edge function test error:', error);
     return {
       name: 'Edge Functions',
       status: 'ERROR',
-      message: `Edge function error: ${error.message}`,
+      message: `Edge function test failed: ${error.message}. Server-side autonomous trading may not be available.`,
       details: { error: error.message },
       iconType: 'activity',
       category: 'forward_testing'

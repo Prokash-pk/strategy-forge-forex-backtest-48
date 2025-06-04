@@ -34,9 +34,33 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // Handle ping requests for diagnostics
     if (req.method === 'POST') {
-      // Start or stop a trading session
-      const { action, session } = await req.json()
+      let body;
+      try {
+        body = await req.json()
+      } catch (e) {
+        console.error('Failed to parse request body:', e)
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Invalid JSON in request body'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      const { action, session } = body
+
+      if (action === 'ping') {
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Edge function is working correctly',
+          timestamp: new Date().toISOString()
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
       
       if (action === 'start') {
         const { data, error } = await supabase
@@ -145,13 +169,21 @@ serve(async (req) => {
       })
     }
 
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Method not allowed'
+    }), {
+      status: 405,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    })
+
   } catch (error) {
     console.error('Forward testing error:', error)
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error.message || 'Unknown error occurred'
     }), {
-      status: 400,
+      status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   }
