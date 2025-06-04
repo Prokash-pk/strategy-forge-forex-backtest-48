@@ -26,84 +26,65 @@ const StrategyCodeEditor: React.FC<StrategyCodeEditorProps> = ({
     });
   };
 
-  const loadFixedStrategy = () => {
-    const fixedCode = `# Smart Momentum Strategy - Fixed for Forward Testing
-# Enhanced with proper signal direction and execution logic
-
-import math
+  const loadCleanStrategy = () => {
+    const cleanCode = `# Clean Smart Momentum Strategy
+# Simple and effective momentum trading with proper directional signals
 
 def strategy_logic(data, reverse_signals=False):
     """
-    Enhanced momentum strategy that generates proper directional signals:
-    - Multiple timeframe trend filtering
-    - Volatility filtering
-    - Proper signal direction for forward testing
-    - Reverse signal testing capability
+    Clean momentum strategy with directional signals:
+    - EMA trend filtering
+    - RSI momentum confirmation
+    - Volatility-based entry timing
+    - Proper BUY/SELL signal generation
     """
     
     close = data['Close'].tolist()
     high = data['High'].tolist()
     low = data['Low'].tolist()
     
-    # Calculate all technical indicators
-    short_ema = TechnicalAnalysis.ema(close, 21)
-    long_ema = TechnicalAnalysis.ema(close, 55)
-    daily_ema = TechnicalAnalysis.ema(close, 200)  # Higher timeframe trend
+    # Technical indicators
+    ema_fast = TechnicalAnalysis.ema(close, 21)
+    ema_slow = TechnicalAnalysis.ema(close, 55)
+    ema_trend = TechnicalAnalysis.ema(close, 200)
     rsi = TechnicalAnalysis.rsi(close, 14)
-    
-    # Volatility filter using ATR
     atr = TechnicalAnalysis.atr(high, low, close, 14)
-    avg_atr = TechnicalAnalysis.sma(atr, 20)
+    atr_avg = TechnicalAnalysis.sma(atr, 20)
     
     entry = []
     exit = []
-    trade_direction = []  # Track whether signal is BUY or SELL
+    trade_direction = []
     
     for i in range(len(close)):
-        if i < 200:  # Need enough data for all indicators
+        if i < 200:
             entry.append(False)
             exit.append(False)
             trade_direction.append('NONE')
         else:
-            # Higher timeframe trend filter
-            weekly_trend_up = close[i] > daily_ema[i]
-            weekly_trend_down = close[i] < daily_ema[i]
+            # Trend conditions
+            uptrend = ema_fast[i] > ema_slow[i] and close[i] > ema_trend[i]
+            downtrend = ema_fast[i] < ema_slow[i] and close[i] < ema_trend[i]
             
-            # Volatility filter - only trade during high volatility
-            high_volatility = atr[i] > avg_atr[i] * 1.2 if not math.isnan(atr[i]) and not math.isnan(avg_atr[i]) else False
+            # Momentum conditions
+            momentum_up = close[i] > ema_fast[i] and rsi[i] > 50 and rsi[i] < 75
+            momentum_down = close[i] < ema_fast[i] and rsi[i] < 50 and rsi[i] > 25
             
-            # Enhanced momentum conditions
-            trend_up = short_ema[i] > long_ema[i] and short_ema[i-1] > short_ema[i-5]
-            trend_down = short_ema[i] < long_ema[i] and short_ema[i-1] < short_ema[i-5]
-            momentum_strong_up = close[i] > short_ema[i] * 1.001
-            momentum_strong_down = close[i] < short_ema[i] * 0.999
-            rsi_good_long = 45 < rsi[i] < 75
-            rsi_good_short = 25 < rsi[i] < 55
+            # Volatility filter
+            high_vol = atr[i] > atr_avg[i] * 1.2
             
-            # LONG ENTRY CONDITIONS
-            long_entry_conditions = (trend_up and 
-                                   momentum_strong_up and 
-                                   rsi_good_long and
-                                   weekly_trend_up and
-                                   high_volatility)
-            
-            # SHORT ENTRY CONDITIONS
-            short_entry_conditions = (trend_down and 
-                                    momentum_strong_down and 
-                                    rsi_good_short and
-                                    weekly_trend_down and
-                                    high_volatility)
+            # Entry conditions
+            long_signal = uptrend and momentum_up and high_vol
+            short_signal = downtrend and momentum_down and high_vol
             
             # Apply reverse signals if enabled
             if reverse_signals:
-                # Swap the signals
-                actual_long = short_entry_conditions
-                actual_short = long_entry_conditions
+                actual_long = short_signal
+                actual_short = long_signal
             else:
-                actual_long = long_entry_conditions
-                actual_short = short_entry_conditions
+                actual_long = long_signal
+                actual_short = short_signal
             
-            # Determine entry signal and direction
+            # Generate signals
             if actual_long:
                 entry.append(True)
                 trade_direction.append('BUY')
@@ -114,28 +95,26 @@ def strategy_logic(data, reverse_signals=False):
                 entry.append(False)
                 trade_direction.append('NONE')
             
-            # Conservative exit conditions
-            exit_signal = (rsi[i] > 80 or rsi[i] < 20 or not high_volatility)
+            # Exit conditions
+            exit_signal = rsi[i] > 80 or rsi[i] < 20 or not high_vol
             exit.append(exit_signal)
     
     return {
         'entry': entry,
         'exit': exit,
         'trade_direction': trade_direction,
-        'short_ema': short_ema,
-        'long_ema': long_ema,
-        'daily_ema': daily_ema,
+        'ema_fast': ema_fast,
+        'ema_slow': ema_slow,
+        'ema_trend': ema_trend,
         'rsi': rsi,
         'atr': atr,
-        'avg_atr': avg_atr,
-        'reverse_signals_applied': reverse_signals,
-        'note': 'Fixed strategy with proper directional signals for forward testing'
+        'reverse_signals_applied': reverse_signals
     }`;
 
-    onCodeChange(fixedCode);
+    onCodeChange(cleanCode);
     toast({
-      title: "Strategy Fixed",
-      description: "Loaded fixed version with proper signal generation for forward testing",
+      title: "Clean Strategy Loaded",
+      description: "Loaded a cleaner, more readable version of the momentum strategy",
     });
   };
 
@@ -154,10 +133,10 @@ def strategy_logic(data, reverse_signals=False):
           <Button
             variant="outline"
             size="sm"
-            onClick={loadFixedStrategy}
+            onClick={loadCleanStrategy}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Load Fixed Strategy
+            Load Clean Strategy
           </Button>
         </div>
         {codeChanged && (
