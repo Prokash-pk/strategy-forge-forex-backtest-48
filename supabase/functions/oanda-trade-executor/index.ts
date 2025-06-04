@@ -79,8 +79,48 @@ serve(async (req) => {
       const closeResult = await closeResponse.json()
       console.log('Position close response:', closeResult)
 
+      // Check for specific OANDA error conditions
+      if (!closeResponse.ok) {
+        // Handle specific OANDA errors more gracefully
+        if (closeResult.errorCode === 'CLOSEOUT_POSITION_DOESNT_EXIST') {
+          return new Response(JSON.stringify({
+            success: false,
+            action: 'CLOSE',
+            result: closeResult,
+            userMessage: 'Position does not exist or has already been closed'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          })
+        }
+        
+        return new Response(JSON.stringify({
+          success: false,
+          action: 'CLOSE',
+          result: closeResult,
+          userMessage: closeResult.errorMessage || 'Failed to close position'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      // Check if both long and short orders were rejected
+      const longRejected = closeResult.longOrderRejectTransaction?.rejectReason === 'CLOSEOUT_POSITION_DOESNT_EXIST'
+      const shortRejected = closeResult.shortOrderRejectTransaction?.rejectReason === 'CLOSEOUT_POSITION_DOESNT_EXIST'
+      
+      if (longRejected && shortRejected) {
+        return new Response(JSON.stringify({
+          success: false,
+          action: 'CLOSE',
+          result: closeResult,
+          userMessage: 'No positions found to close for this instrument'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      // If we get here, the close was successful (at least partially)
       return new Response(JSON.stringify({
-        success: closeResponse.ok,
+        success: true,
         action: 'CLOSE',
         result: closeResult
       }), {

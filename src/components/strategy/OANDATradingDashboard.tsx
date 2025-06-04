@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -185,6 +186,20 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
     setClosingPositions(prev => new Set(prev).add(position.id));
     
     try {
+      // First, let's check if the position actually exists by refreshing account data
+      console.log('🔍 Checking current positions before closing...');
+      await fetchOANDAAccountData();
+      
+      // Check if position still exists after refresh
+      const updatedPositions = positions.find(p => p.id === position.id);
+      if (!updatedPositions) {
+        toast({
+          title: "ℹ️ Position Already Closed",
+          description: `The ${position.instrument} position appears to have been closed already. Refreshing your account data.`,
+        });
+        return;
+      }
+
       const closeSignal = {
         action: 'CLOSE' as const,
         symbol: position.instrument,
@@ -216,15 +231,46 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
         throw new Error(response.error.message || 'Position close failed');
       }
 
+      // Handle OANDA's specific error responses
+      if (response.data && !response.data.success) {
+        const result = response.data.result;
+        
+        // Check for specific OANDA error codes
+        if (result?.errorCode === 'CLOSEOUT_POSITION_DOESNT_EXIST') {
+          toast({
+            title: "ℹ️ Position Not Found",
+            description: `The ${position.instrument} position doesn't exist in your OANDA account. It may have been closed manually or by stop loss/take profit. Refreshing your account data.`,
+          });
+          
+          // Refresh account data to get current state
+          setTimeout(() => {
+            fetchOANDAAccountData();
+          }, 1000);
+          return;
+        }
+        
+        if (result?.longOrderRejectTransaction?.rejectReason === 'CLOSEOUT_POSITION_REJECT') {
+          toast({
+            title: "❌ Position Close Rejected",
+            description: `OANDA rejected the close request for ${position.instrument}. The position may have insufficient units or other restrictions.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Generic OANDA error
+        throw new Error(result?.errorMessage || 'OANDA rejected the close request');
+      }
+
       if (response.data?.success) {
         const result = response.data.result;
         
         toast({
-          title: "✅ Position Closed Successfully!",
-          description: `Closed ${position.instrument} position. Check your OANDA platform for confirmation.`,
+          title: "✅ Position Close Request Sent",
+          description: `Close request for ${position.instrument} sent to OANDA. Refreshing account data to confirm closure.`,
         });
         
-        console.log('✅ Position closed successfully:', result);
+        console.log('✅ Position close request processed:', result);
         
         // Refresh account data to update positions
         setTimeout(() => {
@@ -232,17 +278,25 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
         }, 2000); // Give OANDA a moment to process
         
       } else {
-        console.error('❌ Position close failed:', response.data);
-        throw new Error(response.data?.error || 'Position close failed');
+        console.error('❌ Unexpected response format:', response.data);
+        throw new Error('Unexpected response from trading system');
       }
 
     } catch (error) {
       console.error('❌ Close position error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
+      // Provide more specific guidance based on the error
+      let userGuidance = "Please check your OANDA connection and try again.";
+      if (errorMessage.includes('CLOSEOUT_POSITION_DOESNT_EXIST')) {
+        userGuidance = "The position may have been closed already. Check your OANDA platform directly.";
+      } else if (errorMessage.includes('authentication') || errorMessage.includes('401')) {
+        userGuidance = "Your OANDA API credentials may have expired. Please check the Configuration tab.";
+      }
+      
       toast({
         title: "❌ Failed to Close Position",
-        description: `Error: ${errorMessage}. Please check your OANDA connection and try again.`,
+        description: `Error: ${errorMessage}. ${userGuidance}`,
         variant: "destructive",
       });
     } finally {
