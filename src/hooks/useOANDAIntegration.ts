@@ -74,8 +74,19 @@ export const useOANDAIntegration = () => {
           const savedConfig = configs[0];
           console.log('🔗 Found persistent OANDA connection:', savedConfig.config_name);
           
+          // Map database schema to SavedOANDAConfig interface
+          const mappedConfig = {
+            id: savedConfig.id,
+            accountId: savedConfig.account_id,
+            apiKey: savedConfig.api_key,
+            environment: savedConfig.environment as 'practice' | 'live',
+            enabled: savedConfig.enabled,
+            configName: savedConfig.config_name,
+            createdAt: savedConfig.created_at
+          };
+          
           // Load the config into current state
-          handleLoadConfig(savedConfig);
+          handleLoadConfig(mappedConfig);
           setPersistentConnectionStatus('connected');
           
           console.log('✅ OANDA credentials restored from persistent storage');
@@ -91,13 +102,13 @@ export const useOANDAIntegration = () => {
     };
 
     loadPersistentConnection();
-  }, [user]);
+  }, [user, handleLoadConfig]);
 
   // Enhanced config save that marks connection as persistent
   const handlePersistentSaveConfig = async () => {
     try {
       // First test the connection to ensure it's valid
-      await handleTestConnection();
+      await handleTestConnection(config);
       
       if (connectionStatus === 'success') {
         // Save config with enabled flag set to true for persistence
