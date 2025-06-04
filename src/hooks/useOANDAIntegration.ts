@@ -1,3 +1,4 @@
+
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
@@ -5,6 +6,7 @@ import { useOANDATrade } from '@/hooks/oanda/useOANDATrade';
 import { useState, useEffect } from 'react';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
+import { AutoStrategyService } from '@/services/autoStrategyService';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 
 export const useOANDAIntegration = () => {

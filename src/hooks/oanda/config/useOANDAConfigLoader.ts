@@ -1,70 +1,77 @@
 
+import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { OANDAConfig, SavedOANDAConfig } from '@/types/oanda';
+import { OANDAConfig } from '@/types/oanda';
 
 export const useOANDAConfigLoader = (
   setConfig: (config: OANDAConfig) => void,
-  setSavedConfigs: (configs: SavedOANDAConfig[]) => void
+  setSavedConfigs: (configs: any[]) => void
 ) => {
-  const { user } = useAuth();
-
-  const loadLastUsedConfig = async () => {
-    if (!user) return;
-
+  const loadLastUsedConfig = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // First try to load from Supabase
+      const { data: configs } = await supabase
         .from('oanda_configs')
         .select('*')
         .eq('user_id', user.id)
         .eq('enabled', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .order('updated_at', { ascending: false })
+        .limit(1);
 
-      if (data && !error) {
-        setConfig({
-          accountId: data.account_id,
-          apiKey: data.api_key,
-          environment: data.environment as 'practice' | 'live',
-          enabled: data.enabled,
-          configName: data.config_name
-        });
+      if (configs && configs.length > 0) {
+        const config = configs[0];
+        const oandaConfig: OANDAConfig = {
+          accountId: config.account_id,
+          apiKey: config.api_key,
+          environment: config.environment as 'practice' | 'live'
+        };
         
-        console.log('Auto-loaded OANDA config for user');
+        setConfig(oandaConfig);
+        console.log('✅ Auto-loaded OANDA config from Supabase');
+        return;
+      }
+
+      // Fallback to localStorage if no Supabase config
+      const saved = localStorage.getItem('oanda_config');
+      if (saved) {
+        try {
+          const config = JSON.parse(saved);
+          setConfig(config);
+          console.log('✅ Loaded OANDA config from localStorage');
+        } catch (error) {
+          console.error('Failed to parse saved OANDA config:', error);
+        }
       }
     } catch (error) {
-      console.log('No saved config found, using defaults');
+      console.error('Failed to load OANDA config:', error);
     }
-  };
+  }, [setConfig]);
 
-  const loadSavedConfigs = async () => {
-    if (!user) return;
-
+  const loadSavedConfigs = useCallback(async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('oanda_configs')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
 
-      if (error) throw error;
-      
-      const formattedConfigs: SavedOANDAConfig[] = (data || []).map(item => ({
-        id: item.id,
-        accountId: item.account_id,
-        apiKey: item.api_key,
-        environment: item.environment as 'practice' | 'live',
-        enabled: item.enabled,
-        configName: item.config_name,
-        createdAt: item.created_at
-      }));
-      
-      setSavedConfigs(formattedConfigs);
+      if (error) {
+        console.error('Error loading saved configs:', error);
+        return;
+      }
+
+      setSavedConfigs(data || []);
+      console.log(`✅ Loaded ${data?.length || 0} saved OANDA configs from Supabase`);
     } catch (error) {
       console.error('Failed to load saved configs:', error);
     }
-  };
+  }, [setSavedConfigs]);
 
   return {
     loadLastUsedConfig,
