@@ -3,21 +3,67 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Search, Database, Activity, Clock, Server } from 'lucide-react';
+import { AlertTriangle, Search, Database, Activity, Clock, Server, Settings, FileSearch } from 'lucide-react';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
+import {
+  runAuthenticationCheck,
+  runStrategyConfigCheck,
+  runOandaConfigCheck,
+  runOandaConnectivityCheck,
+  runForwardTestingFlagCheck,
+  runServerSessionsCheck,
+  runServerLogsCheck,
+  runDatabaseSessionsCheck,
+  runEdgeFunctionsCheck
+} from './diagnostics/diagnosticServices';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TradingDiagnosticsProps {
   strategy: any;
 }
 
 const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => {
+  const { user } = useAuth();
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
+  const [comprehensiveDiagnostics, setComprehensiveDiagnostics] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const runDiagnostics = async () => {
+  const runFullDiagnostics = async () => {
     setIsLoading(true);
     try {
       console.log('🔍 Running Comprehensive Forward Testing Diagnostics...');
+      
+      // Run comprehensive diagnostics
+      const results: any[] = [];
+
+      // Authentication Check
+      results.push(runAuthenticationCheck(user));
+
+      // Strategy Config Check
+      results.push(runStrategyConfigCheck());
+
+      // OANDA Config Check
+      results.push(runOandaConfigCheck());
+
+      // OANDA Connectivity Check
+      results.push(await runOandaConnectivityCheck());
+
+      // Forward Testing Flag Check
+      results.push(runForwardTestingFlagCheck());
+
+      // Server Sessions Check
+      results.push(await runServerSessionsCheck());
+
+      // Server Logs Check
+      results.push(await runServerLogsCheck());
+
+      // Database Sessions Check
+      results.push(await runDatabaseSessionsCheck(user));
+
+      // Edge Functions Check
+      results.push(await runEdgeFunctionsCheck());
+
+      setComprehensiveDiagnostics(results);
       
       // Check for active sessions
       const activeSessions = await ServerForwardTestingService.getActiveSessions();
@@ -81,7 +127,7 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
 
   // Auto-run diagnostics on mount
   useEffect(() => {
-    runDiagnostics();
+    runFullDiagnostics();
   }, []);
 
   const getDiagnosisMessage = () => {
@@ -130,23 +176,63 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
     };
   };
 
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'SUCCESS':
+        return {
+          label: 'Success',
+          bgColor: 'bg-emerald-500',
+          textColor: 'text-white',
+          iconColor: 'text-emerald-500'
+        };
+      case 'WARNING':
+        return {
+          label: 'Warning',
+          bgColor: 'bg-yellow-500',
+          textColor: 'text-white',
+          iconColor: 'text-yellow-500'
+        };
+      case 'ERROR':
+        return {
+          label: 'Error',
+          bgColor: 'bg-red-500',
+          textColor: 'text-white',
+          iconColor: 'text-red-500'
+        };
+      default:
+        return {
+          label: 'Unknown',
+          bgColor: 'bg-slate-500',
+          textColor: 'text-white',
+          iconColor: 'text-slate-500'
+        };
+    }
+  };
+
   const diagnosis = getDiagnosisMessage();
+
+  // Calculate comprehensive stats
+  const comprehensiveStats = {
+    successCount: comprehensiveDiagnostics.filter(d => d.status === 'SUCCESS').length,
+    warningCount: comprehensiveDiagnostics.filter(d => d.status === 'WARNING').length,
+    errorCount: comprehensiveDiagnostics.filter(d => d.status === 'ERROR').length
+  };
 
   return (
     <Card className="bg-slate-800 border-slate-700 w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white text-sm sm:text-base">
           <Search className="h-4 w-4 sm:h-5 sm:w-5" />
-          Forward Testing Investigation
+          Forward Testing Investigation & System Diagnostics
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6">
         <div className="flex items-center justify-between">
           <p className="text-slate-400 text-sm">
-            Investigating why Smart Momentum Strategy trades aren't visible
+            Comprehensive system analysis and forward testing investigation
           </p>
           <Button
-            onClick={runDiagnostics}
+            onClick={runFullDiagnostics}
             disabled={isLoading}
             variant="outline"
             size="sm"
@@ -156,6 +242,24 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
             {isLoading ? 'Analyzing...' : 'Re-run Diagnostics'}
           </Button>
         </div>
+
+        {/* Summary Stats */}
+        {comprehensiveDiagnostics.length > 0 && (
+          <div className="flex gap-4 text-sm">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+              <span className="text-emerald-400">{comprehensiveStats.successCount} Success</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span className="text-yellow-400">{comprehensiveStats.warningCount} Warning</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span className="text-red-400">{comprehensiveStats.errorCount} Error</span>
+            </div>
+          </div>
+        )}
 
         {diagnosis && (
           <div className={`p-3 rounded-lg border ${
@@ -175,19 +279,31 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
           </div>
         )}
 
+        {/* Modern Status Cards */}
         {diagnosticData && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Server Sessions */}
-              <div className="p-3 bg-slate-700/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Server className="h-4 w-4 text-blue-400" />
-                  <span className="text-white text-sm font-medium">Server Sessions</span>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Server Sessions Card */}
+              <div className="bg-slate-700/30 border border-slate-600 rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 hover:border-slate-500 min-h-[120px] flex flex-col">
+                <div className="flex items-center gap-3 mb-3">
+                  <Server className={`h-8 w-8 ${diagnosticData.hasServerSessions ? 'text-emerald-500' : 'text-red-500'}`} />
+                  <div className="flex-1">
+                    <h3 className="text-white font-semibold text-base">Server Sessions</h3>
+                    <p className="text-slate-400 text-sm">{diagnosticData.activeSessions?.length || 0} Active</p>
+                  </div>
                 </div>
-                <Badge variant={diagnosticData.hasServerSessions ? "default" : "destructive"}>
-                  {diagnosticData.activeSessions?.length || 0} Active
-                </Badge>
-                <p className="text-xs text-slate-400 mt-1">
+                <div className="flex items-center justify-between mt-auto">
+                  <Badge 
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      diagnosticData.hasServerSessions 
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-red-500 text-white'
+                    }`}
+                  >
+                    {diagnosticData.hasServerSessions ? 'Success' : 'Error'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
                   {diagnosticData.hasServerSessions 
                     ? '✅ Autonomous trading running server-side'
                     : '❌ No server-side trading sessions'
@@ -195,40 +311,112 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
                 </p>
               </div>
 
-              {/* Server Trading Logs */}
-              <div className="p-3 bg-slate-700/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Database className="h-4 w-4 text-emerald-400" />
-                  <span className="text-white text-sm font-medium">Server Logs</span>
+              {/* Server Logs Card */}
+              <div className="bg-slate-700/30 border border-slate-600 rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 hover:border-slate-500 min-h-[120px] flex flex-col">
+                <div className="flex items-center gap-3 mb-3">
+                  <FileSearch className={`h-8 w-8 ${diagnosticData.hasServerLogs ? 'text-emerald-500' : 'text-yellow-500'}`} />
+                  <div className="flex-1">
+                    <h3 className="text-white font-semibold text-base">Server Logs</h3>
+                    <p className="text-slate-400 text-sm">{diagnosticData.tradingLogs?.length || 0} Records</p>
+                  </div>
                 </div>
-                <Badge variant={diagnosticData.hasServerLogs ? "default" : "secondary"}>
-                  {diagnosticData.tradingLogs?.length || 0} Records
-                </Badge>
-                <p className="text-xs text-slate-400 mt-1">
+                <div className="flex items-center justify-between mt-auto">
+                  <Badge 
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      diagnosticData.hasServerLogs 
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-yellow-500 text-white'
+                    }`}
+                  >
+                    {diagnosticData.hasServerLogs ? 'Success' : 'Warning'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
                   Server-side trade execution logs
                 </p>
               </div>
 
-              {/* Configuration Status */}
-              <div className="p-3 bg-slate-700/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Activity className="h-4 w-4 text-purple-400" />
-                  <span className="text-white text-sm font-medium">Configuration</span>
+              {/* Configuration Card */}
+              <div className="bg-slate-700/30 border border-slate-600 rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 hover:border-slate-500 min-h-[120px] flex flex-col">
+                <div className="flex items-center gap-3 mb-3">
+                  <Settings className={`h-8 w-8 ${diagnosticData.isConfigured ? 'text-emerald-500' : 'text-red-500'}`} />
+                  <div className="flex-1">
+                    <h3 className="text-white font-semibold text-base">Configuration</h3>
+                    <p className="text-slate-400 text-sm">OANDA API Setup</p>
+                  </div>
                 </div>
-                <Badge variant={diagnosticData.isConfigured ? "default" : "destructive"}>
-                  {diagnosticData.isConfigured ? 'Configured' : 'Incomplete'}
-                </Badge>
-                <p className="text-xs text-slate-400 mt-1">
+                <div className="flex items-center justify-between mt-auto">
+                  <Badge 
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${
+                      diagnosticData.isConfigured 
+                        ? 'bg-emerald-500 text-white' 
+                        : 'bg-red-500 text-white'
+                    }`}
+                  >
+                    {diagnosticData.isConfigured ? 'Success' : 'Incomplete'}
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-400 mt-2">
                   OANDA API credentials status
                 </p>
               </div>
             </div>
 
+            {/* Comprehensive Diagnostics Results */}
+            {comprehensiveDiagnostics.length > 0 && (
+              <div className="space-y-4">
+                <h4 className="text-white font-semibold text-base border-b border-slate-600 pb-2">
+                  Detailed System Diagnostics
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {comprehensiveDiagnostics.map((diagnostic, index) => {
+                    const statusConfig = getStatusConfig(diagnostic.status);
+                    const IconComponent = diagnostic.iconType === 'user' ? Activity :
+                                        diagnostic.iconType === 'settings' ? Settings :
+                                        diagnostic.iconType === 'wifi' ? Activity :
+                                        diagnostic.iconType === 'server' ? Server :
+                                        diagnostic.iconType === 'database' ? Database :
+                                        diagnostic.iconType === 'activity' ? Activity :
+                                        Settings;
+
+                    return (
+                      <div key={index} className="bg-slate-700/20 border border-slate-600 rounded-lg p-4 hover:bg-slate-700/30 transition-colors">
+                        <div className="flex items-start gap-3">
+                          <IconComponent className={`h-5 w-5 mt-0.5 ${statusConfig.iconColor}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="text-white font-medium text-sm">{diagnostic.name}</h5>
+                              <Badge 
+                                className={`rounded-full px-2 py-0.5 text-xs ${statusConfig.bgColor} ${statusConfig.textColor}`}
+                              >
+                                {statusConfig.label}
+                              </Badge>
+                            </div>
+                            <p className="text-slate-300 text-sm">{diagnostic.message}</p>
+                            {diagnostic.details && (
+                              <details className="mt-2">
+                                <summary className="text-xs text-slate-400 cursor-pointer hover:text-slate-300">
+                                  View Details
+                                </summary>
+                                <pre className="text-xs text-slate-400 mt-1 bg-slate-800 p-2 rounded overflow-x-auto">
+                                  {JSON.stringify(diagnostic.details, null, 2)}
+                                </pre>
+                              </details>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Detailed Analysis */}
-            <div className="p-3 bg-slate-700/30 rounded-lg">
-              <h4 className="text-white text-sm font-medium mb-2 flex items-center gap-2">
+            <div className="p-4 bg-slate-700/20 rounded-lg border border-slate-600">
+              <h4 className="text-white text-sm font-medium mb-3 flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Detailed Analysis
+                Analysis Summary
               </h4>
               <div className="space-y-2 text-xs">
                 {diagnosticData.error ? (
@@ -270,15 +458,15 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
 
             {/* Server Trading Logs Preview */}
             {diagnosticData.tradingLogs?.length > 0 && (
-              <div className="p-3 bg-slate-700/30 rounded-lg">
-                <h4 className="text-white text-sm font-medium mb-2">Recent Server Trading Activity</h4>
-                <div className="space-y-1">
+              <div className="p-4 bg-slate-700/20 rounded-lg border border-slate-600">
+                <h4 className="text-white text-sm font-medium mb-3">Recent Server Trading Activity</h4>
+                <div className="space-y-2">
                   {diagnosticData.tradingLogs.slice(0, 3).map((log: any, index: number) => (
-                    <div key={index} className="text-xs p-2 bg-slate-600/50 rounded">
+                    <div key={index} className="text-xs p-3 bg-slate-600/50 rounded border border-slate-500">
                       <span className="text-slate-400">{new Date(log.timestamp).toLocaleString()}:</span>
                       <span className="text-slate-300 ml-2">{log.message}</span>
                       {log.log_type === 'trade' && (
-                        <Badge variant="default" className="ml-2 text-xs">Trade</Badge>
+                        <Badge variant="default" className="ml-2 text-xs bg-emerald-600">Trade</Badge>
                       )}
                     </div>
                   ))}
