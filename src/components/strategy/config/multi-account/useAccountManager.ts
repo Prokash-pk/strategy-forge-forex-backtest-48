@@ -50,7 +50,8 @@ export const useAccountManager = ({
         enabled: true // Enable the new config for 24/7 connection
       });
 
-      // Reload saved configs to show the new account
+      // Force reload saved configs to show the new account immediately
+      console.log('Reloading saved configs after save...');
       await loadSavedConfigs();
 
       // Reset form state after successful save
@@ -76,7 +77,8 @@ export const useAccountManager = ({
   const handleDeleteConfig = async (configId: string) => {
     try {
       await onDeleteConfig(configId);
-      // Reload saved configs to update the UI
+      // Force reload saved configs to update the UI immediately
+      console.log('Reloading saved configs after delete...');
       await loadSavedConfigs();
       toast({
         title: "Account Disconnected",

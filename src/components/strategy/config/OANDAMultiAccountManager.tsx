@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SavedOANDAConfig, OANDAConfig } from '@/types/oanda';
@@ -57,6 +57,14 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
     loadSavedConfigs
   });
 
+  // Debug logging to track config changes
+  useEffect(() => {
+    console.log('OANDAMultiAccountManager: savedConfigs updated', {
+      count: savedConfigs.length,
+      configs: savedConfigs.map(c => ({ id: c.id, name: c.configName, enabled: c.enabled }))
+    });
+  }, [savedConfigs]);
+
   return (
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
@@ -101,17 +109,24 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
           {savedConfigs.length === 0 && !isAddingNew ? (
             <EmptyStateDisplay />
           ) : (
-            savedConfigs.map((config) => (
-              <AccountConfigCard
-                key={config.id}
-                config={config}
-                onLoad={onLoadConfig}
-                onDelete={handleDeleteConfig}
-                onTestTrade={() => {
-                  console.log('Test trade for config:', config.id);
-                }}
-              />
-            ))
+            <>
+              {savedConfigs.length > 0 && (
+                <div className="text-sm text-slate-300 mb-2">
+                  Connected Accounts ({savedConfigs.length})
+                </div>
+              )}
+              {savedConfigs.map((config) => (
+                <AccountConfigCard
+                  key={config.id}
+                  config={config}
+                  onLoad={onLoadConfig}
+                  onDelete={handleDeleteConfig}
+                  onTestTrade={() => {
+                    console.log('Test trade for config:', config.id);
+                  }}
+                />
+              ))}
+            </>
           )}
         </div>
 
