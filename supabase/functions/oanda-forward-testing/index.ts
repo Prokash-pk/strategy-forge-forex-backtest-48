@@ -24,6 +24,7 @@ interface TradingSession {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -34,9 +35,11 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    const body = await req.json().catch(() => ({}))
+    const { action, session } = body
+
     if (req.method === 'POST') {
       // Start or stop a trading session
-      const { action, session } = await req.json()
       
       if (action === 'start') {
         const { data, error } = await supabase
@@ -88,6 +91,15 @@ serve(async (req) => {
         return new Response(JSON.stringify({
           success: true,
           message: 'Trading session stopped'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+
+      if (action === 'test') {
+        return new Response(JSON.stringify({
+          success: true,
+          message: 'Edge function is working correctly'
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
