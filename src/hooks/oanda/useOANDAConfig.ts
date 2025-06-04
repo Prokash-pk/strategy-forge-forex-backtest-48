@@ -35,15 +35,14 @@ export const useOANDAConfig = () => {
     handleDeleteConfig
   } = useOANDAConfigManager(setConfig, resetConfig, savedConfigs, loadSavedConfigs);
 
-  // Don't auto-load configs on mount - user should explicitly add accounts
-  // This ensures only manually added accounts appear in the manager
+  // Load configs to ensure they persist across tab navigation
   useEffect(() => {
     if (user) {
-      // Only load the last used config, not all saved configs
+      console.log('Loading OANDA configs and last used config...');
       loadLastUsedConfig();
-      // Removed loadSavedConfigs() - configs will only load when user adds them
+      loadSavedConfigs(); // Load configs to show in manager
     }
-  }, [user]);
+  }, [user, loadLastUsedConfig, loadSavedConfigs]);
 
   return {
     config,

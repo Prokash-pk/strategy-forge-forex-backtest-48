@@ -8,13 +8,15 @@ interface UseAccountManagerProps {
   onSaveNewConfig: (config: OANDAConfig & { configName: string }) => Promise<void>;
   onDeleteConfig: (configId: string) => Promise<void>;
   loadSavedConfigs: () => Promise<void>;
+  savedConfigs: SavedOANDAConfig[];
 }
 
 export const useAccountManager = ({
   currentConfig,
   onSaveNewConfig,
   onDeleteConfig,
-  loadSavedConfigs
+  loadSavedConfigs,
+  savedConfigs
 }: UseAccountManagerProps) => {
   const { toast } = useToast();
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -40,6 +42,17 @@ export const useAccountManager = ({
       return;
     }
 
+    // Check for duplicate account ID
+    const existingConfig = savedConfigs.find(config => config.accountId === currentConfig.accountId);
+    if (existingConfig) {
+      toast({
+        title: "Account Already Connected",
+        description: `Account ${currentConfig.accountId} is already connected as "${existingConfig.configName}"`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
       console.log('Saving config:', { ...currentConfig, configName: newConfigName.trim() });
@@ -47,7 +60,7 @@ export const useAccountManager = ({
       await onSaveNewConfig({
         ...currentConfig,
         configName: newConfigName.trim(),
-        enabled: true // Enable the new config for 24/7 connection
+        enabled: true
       });
 
       // Force reload saved configs to show the new account immediately
@@ -76,18 +89,21 @@ export const useAccountManager = ({
 
   const handleDeleteConfig = async (configId: string) => {
     try {
+      console.log('Disconnecting account:', configId);
       await onDeleteConfig(configId);
+      
       // Force reload saved configs to update the UI immediately
-      console.log('Reloading saved configs after delete...');
+      console.log('Reloading saved configs after disconnect...');
       await loadSavedConfigs();
+      
       toast({
         title: "Account Disconnected",
-        description: "Account has been disconnected and removed",
+        description: "Account has been disconnected and removed from the manager",
       });
     } catch (error) {
-      console.error('Failed to delete config:', error);
+      console.error('Failed to disconnect config:', error);
       toast({
-        title: "Delete Failed",
+        title: "Disconnect Failed",
         description: "Could not disconnect account. Please try again.",
         variant: "destructive",
       });
@@ -97,7 +113,6 @@ export const useAccountManager = ({
   const handleAddAccount = () => {
     setIsAddingNew(!isAddingNew);
     if (!isAddingNew) {
-      // When opening the form, clear any previous input
       setNewConfigName('');
     }
   };

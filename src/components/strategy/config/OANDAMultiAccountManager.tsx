@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { SavedOANDAConfig, OANDAConfig } from '@/types/oanda';
@@ -54,7 +54,8 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
     currentConfig,
     onSaveNewConfig,
     onDeleteConfig,
-    loadSavedConfigs
+    loadSavedConfigs,
+    savedConfigs
   });
 
   return (
@@ -96,7 +97,7 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
           </>
         )}
 
-        {/* Saved Configurations List - Only shows accounts the user has manually added */}
+        {/* Connected Accounts List */}
         <div className="space-y-3">
           {savedConfigs.length === 0 && !isAddingNew ? (
             <EmptyStateDisplay />
