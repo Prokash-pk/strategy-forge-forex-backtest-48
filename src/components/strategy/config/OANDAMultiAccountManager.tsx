@@ -57,14 +57,6 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
     loadSavedConfigs
   });
 
-  // Debug logging to track config changes
-  useEffect(() => {
-    console.log('OANDAMultiAccountManager: savedConfigs updated', {
-      count: savedConfigs.length,
-      configs: savedConfigs.map(c => ({ id: c.id, name: c.configName, enabled: c.enabled }))
-    });
-  }, [savedConfigs]);
-
   return (
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
@@ -104,7 +96,7 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
           </>
         )}
 
-        {/* Saved Configurations List */}
+        {/* Saved Configurations List - Only shows accounts the user has manually added */}
         <div className="space-y-3">
           {savedConfigs.length === 0 && !isAddingNew ? (
             <EmptyStateDisplay />

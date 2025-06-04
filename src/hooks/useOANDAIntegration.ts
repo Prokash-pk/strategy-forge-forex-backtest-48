@@ -77,15 +77,15 @@ export const useOANDAIntegration = () => {
     setPersistentConnectionStatus
   );
 
-  // Load both strategies and configs when component mounts
+  // Load only strategies when component mounts - NOT configs
   useEffect(() => {
     if (!user) return;
     
-    console.log('Loading OANDA data...');
+    console.log('Loading OANDA strategies...');
     loadSavedStrategies();
     loadSelectedStrategy();
-    loadSavedConfigs(); // Ensure configs are loaded on mount
-  }, [user, loadSavedStrategies, loadSelectedStrategy, loadSavedConfigs]);
+    // Removed loadSavedConfigs() - configs will only load when user manually adds them
+  }, [user, loadSavedStrategies, loadSelectedStrategy]);
 
   const handleToggleForwardTesting = () => {
     handleToggleForwardTestingBase(canStartTesting, selectedStrategy, config);
