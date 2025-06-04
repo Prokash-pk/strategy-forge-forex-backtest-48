@@ -11,17 +11,46 @@ interface TradingDiagnosticsProps {
   strategy: any;
 }
 
+interface DiagnosticCheck {
+  status: 'success' | 'warning' | 'error';
+  details: string;
+  [key: string]: any;
+}
+
+interface DiagnosticResults {
+  timestamp: string;
+  checks: {
+    authentication?: DiagnosticCheck;
+    strategyConfig?: DiagnosticCheck;
+    oandaConfig?: DiagnosticCheck;
+    forwardTestingFlag?: DiagnosticCheck;
+    serverSessions?: DiagnosticCheck;
+    serverLogs?: DiagnosticCheck;
+    databaseSessions?: DiagnosticCheck;
+    oandaConnectivity?: DiagnosticCheck;
+    edgeFunctions?: DiagnosticCheck;
+  };
+  issues: string[];
+  recommendations: string[];
+  rootCause?: {
+    primaryIssue: string;
+    description: string;
+    severity: string;
+    action: string;
+  };
+}
+
 const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => {
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [comprehensiveResults, setComprehensiveResults] = useState<any>(null);
+  const [comprehensiveResults, setComprehensiveResults] = useState<DiagnosticResults | null>(null);
 
   const runComprehensiveDiagnostics = async () => {
     setIsLoading(true);
     try {
       console.log('🔍 Running COMPREHENSIVE Forward Testing Diagnosis...');
       
-      const results = {
+      const results: DiagnosticResults = {
         timestamp: new Date().toISOString(),
         checks: {},
         issues: [],
@@ -89,7 +118,7 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
           results.issues.push('No active server-side trading sessions found');
           results.recommendations.push('Try stopping and restarting forward testing to create server sessions');
         }
-      } catch (error) {
+      } catch (error: any) {
         results.checks.serverSessions = {
           status: 'error',
           details: `Error checking sessions: ${error.message}`,
@@ -112,7 +141,7 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
         if (!tradingLogs || tradingLogs.length === 0) {
           results.recommendations.push('No server trading activity detected - strategy may not be generating signals yet');
         }
-      } catch (error) {
+      } catch (error: any) {
         results.checks.serverLogs = {
           status: 'error',
           details: `Error checking logs: ${error.message}`,
@@ -140,7 +169,7 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
           if (!dbSessions || dbSessions.length === 0) {
             results.issues.push('No active trading sessions in database');
           }
-        } catch (error) {
+        } catch (error: any) {
           results.checks.databaseSessions = {
             status: 'error',
             details: `Database error: ${error.message}`,
@@ -173,7 +202,7 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
           if (!response.ok) {
             results.issues.push('OANDA API connection failed - check credentials');
           }
-        } catch (error) {
+        } catch (error: any) {
           results.checks.oandaConnectivity = {
             status: 'error',
             details: `Connection error: ${error.message}`,
@@ -203,7 +232,7 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
         if (edgeError) {
           results.issues.push('Edge functions not accessible - this prevents autonomous trading');
         }
-      } catch (error) {
+      } catch (error: any) {
         results.checks.edgeFunctions = {
           status: 'error',
           details: `Edge function test failed: ${error.message}`,
@@ -218,18 +247,21 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
       setComprehensiveResults(results);
       console.log('📊 Comprehensive Diagnosis Complete:', results);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Diagnostics error:', error);
       setComprehensiveResults({
         error: error.message,
-        timestamp: new Date().toISOString()
-      });
+        timestamp: new Date().toISOString(),
+        checks: {},
+        issues: [],
+        recommendations: []
+      } as any);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const analyzeRootCause = (results) => {
+  const analyzeRootCause = (results: DiagnosticResults) => {
     const issues = results.issues;
     
     if (issues.includes('User not authenticated')) {
@@ -308,7 +340,7 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
     runComprehensiveDiagnostics();
   }, []);
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'success': return <CheckCircle className="h-4 w-4 text-green-400" />;
       case 'warning': return <AlertCircle className="h-4 w-4 text-yellow-400" />;
@@ -317,7 +349,7 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
     }
   };
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'success': return 'text-green-400';
       case 'warning': return 'text-yellow-400';
@@ -440,7 +472,7 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
               <div className="p-4 bg-slate-700/30 rounded-lg">
                 <h4 className="text-white text-sm font-medium mb-2">Server Trading Sessions</h4>
                 <div className="space-y-2">
-                  {comprehensiveResults.checks.serverSessions.sessions.map((session, index) => (
+                  {comprehensiveResults.checks.serverSessions.sessions.map((session: any, index: number) => (
                     <div key={index} className="text-xs p-2 bg-slate-600/50 rounded">
                       <p className="text-slate-300">
                         Strategy: {session.strategy_name || session.strategy_id}
@@ -462,7 +494,7 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
               <div className="p-4 bg-slate-700/30 rounded-lg">
                 <h4 className="text-white text-sm font-medium mb-2">Recent Server Activity</h4>
                 <div className="space-y-1">
-                  {comprehensiveResults.checks.serverLogs.recentLogs.map((log, index) => (
+                  {comprehensiveResults.checks.serverLogs.recentLogs.map((log: any, index: number) => (
                     <div key={index} className="text-xs p-2 bg-slate-600/50 rounded">
                       <span className="text-slate-400">{new Date(log.timestamp).toLocaleString()}:</span>
                       <span className="text-slate-300 ml-2">{log.message}</span>
