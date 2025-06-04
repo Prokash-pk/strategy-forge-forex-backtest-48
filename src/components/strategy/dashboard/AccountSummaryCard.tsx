@@ -17,14 +17,19 @@ interface AccountSummaryCardProps {
 
 const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({
   strategyName,
-  accountBalance,
-  positionsCount,
-  totalPL,
+  accountBalance = 0,
+  positionsCount = 0,
+  totalPL = 0,
   environment,
   accountId,
   isLoading,
   onRefresh
 }) => {
+  // Ensure all numeric values are safe for toFixed()
+  const safeAccountBalance = typeof accountBalance === 'number' && !isNaN(accountBalance) ? accountBalance : 0;
+  const safeTotalPL = typeof totalPL === 'number' && !isNaN(totalPL) ? totalPL : 0;
+  const safePositionsCount = typeof positionsCount === 'number' && !isNaN(positionsCount) ? positionsCount : 0;
+
   return (
     <Card className="bg-slate-800 border-slate-700 w-full">
       <CardHeader className="pb-4">
@@ -50,21 +55,21 @@ const AccountSummaryCard: React.FC<AccountSummaryCardProps> = ({
           <div className="text-center p-3 bg-slate-700/50 rounded-lg">
             <DollarSign className="h-4 w-4 text-emerald-400 mx-auto mb-1" />
             <div className="text-lg font-semibold text-white">
-              ${accountBalance.toFixed(2)}
+              ${safeAccountBalance.toFixed(2)}
             </div>
             <p className="text-xs text-slate-400">Live Account Balance</p>
           </div>
           <div className="text-center p-3 bg-slate-700/50 rounded-lg">
             <Activity className="h-4 w-4 text-blue-400 mx-auto mb-1" />
             <div className="text-lg font-semibold text-white">
-              {positionsCount}
+              {safePositionsCount}
             </div>
             <p className="text-xs text-slate-400">Open Positions</p>
           </div>
           <div className="text-center p-3 bg-slate-700/50 rounded-lg">
-            <TrendingUp className={`h-4 w-4 mx-auto mb-1 ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`} />
-            <div className={`text-lg font-semibold ${totalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {totalPL >= 0 ? '+' : ''}${totalPL.toFixed(2)}
+            <TrendingUp className={`h-4 w-4 mx-auto mb-1 ${safeTotalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`} />
+            <div className={`text-lg font-semibold ${safeTotalPL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {safeTotalPL >= 0 ? '+' : ''}${safeTotalPL.toFixed(2)}
             </div>
             <p className="text-xs text-slate-400">Unrealized P&L</p>
           </div>
