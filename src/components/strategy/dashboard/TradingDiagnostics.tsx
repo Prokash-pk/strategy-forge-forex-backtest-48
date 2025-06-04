@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Search, Database, Activity, Clock, Server } from 'lucide-react';
+import { AlertTriangle, Search, Database, Activity, Clock, Server, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
+import { supabase } from '@/integrations/supabase/client';
 
 interface TradingDiagnosticsProps {
   strategy: any;
@@ -13,64 +14,213 @@ interface TradingDiagnosticsProps {
 const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => {
   const [diagnosticData, setDiagnosticData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [comprehensiveResults, setComprehensiveResults] = useState<any>(null);
 
-  const runDiagnostics = async () => {
+  const runComprehensiveDiagnostics = async () => {
     setIsLoading(true);
     try {
-      console.log('🔍 Running Comprehensive Forward Testing Diagnostics...');
+      console.log('🔍 Running COMPREHENSIVE Forward Testing Diagnosis...');
       
-      // Check for active sessions
-      const activeSessions = await ServerForwardTestingService.getActiveSessions();
-      console.log('Active Sessions:', activeSessions);
-      
-      // Check trading logs from server
-      const tradingLogs = await ServerForwardTestingService.getTradingLogs();
-      console.log('Server Trading Logs:', tradingLogs);
-      
-      // Check localStorage for any stored strategy trades
-      const storedTrades = localStorage.getItem('forward_testing_trades');
-      const parsedTrades = storedTrades ? JSON.parse(storedTrades) : [];
-      console.log('LocalStorage Trades:', parsedTrades);
-      
-      // Check for strategy results in localStorage
-      const strategyResults = localStorage.getItem('backtest_results');
-      const parsedResults = strategyResults ? JSON.parse(strategyResults) : null;
-      console.log('Strategy Results:', parsedResults);
-      
-      // Check selected strategy settings
+      const results = {
+        timestamp: new Date().toISOString(),
+        checks: {},
+        issues: [],
+        recommendations: []
+      };
+
+      // 1. Check Authentication
+      console.log('1️⃣ Checking Authentication...');
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      results.checks.authentication = {
+        status: user ? 'success' : 'error',
+        details: user ? `Authenticated as ${user.email}` : 'Not authenticated',
+        userId: user?.id || null,
+        error: authError?.message || null
+      };
+      if (!user) results.issues.push('User not authenticated - this is required for forward testing');
+
+      // 2. Check Strategy Configuration
+      console.log('2️⃣ Checking Strategy Configuration...');
       const selectedStrategy = localStorage.getItem('selected_strategy_settings');
       const parsedStrategy = selectedStrategy ? JSON.parse(selectedStrategy) : null;
-      console.log('Selected Strategy:', parsedStrategy);
+      results.checks.strategyConfig = {
+        status: parsedStrategy ? 'success' : 'error',
+        details: parsedStrategy ? `Strategy: ${parsedStrategy.strategy_name}` : 'No strategy selected',
+        strategyId: parsedStrategy?.id || null,
+        strategyName: parsedStrategy?.strategy_name || null,
+        hasCode: parsedStrategy?.strategy_code ? parsedStrategy.strategy_code.length > 0 : false
+      };
+      if (!parsedStrategy) results.issues.push('No strategy selected for forward testing');
 
-      // Check OANDA config
+      // 3. Check OANDA Configuration
+      console.log('3️⃣ Checking OANDA Configuration...');
       const oandaConfig = localStorage.getItem('oanda_config');
       const parsedOandaConfig = oandaConfig ? JSON.parse(oandaConfig) : null;
-      console.log('OANDA Config:', parsedOandaConfig);
+      results.checks.oandaConfig = {
+        status: (parsedOandaConfig?.accountId && parsedOandaConfig?.apiKey) ? 'success' : 'error',
+        details: parsedOandaConfig ? `Account: ${parsedOandaConfig.accountId} (${parsedOandaConfig.environment})` : 'No OANDA config found',
+        hasCredentials: !!(parsedOandaConfig?.accountId && parsedOandaConfig?.apiKey),
+        environment: parsedOandaConfig?.environment || null
+      };
+      if (!parsedOandaConfig?.accountId || !parsedOandaConfig?.apiKey) {
+        results.issues.push('OANDA credentials not configured properly');
+      }
 
-      // Check if forward testing is marked as active
+      // 4. Check Forward Testing Active Flag
+      console.log('4️⃣ Checking Forward Testing Status...');
       const forwardTestingActive = localStorage.getItem('forward_testing_active');
-      console.log('Forward Testing Active Flag:', forwardTestingActive);
+      results.checks.forwardTestingFlag = {
+        status: forwardTestingActive === 'true' ? 'success' : 'warning',
+        details: `Local flag: ${forwardTestingActive}`,
+        isActive: forwardTestingActive === 'true'
+      };
+
+      // 5. Check Server-Side Trading Sessions
+      console.log('5️⃣ Checking Server Trading Sessions...');
+      try {
+        const activeSessions = await ServerForwardTestingService.getActiveSessions();
+        results.checks.serverSessions = {
+          status: activeSessions?.length > 0 ? 'success' : 'error',
+          details: `Found ${activeSessions?.length || 0} active server sessions`,
+          sessions: activeSessions || [],
+          count: activeSessions?.length || 0
+        };
+        if (!activeSessions || activeSessions.length === 0) {
+          results.issues.push('No active server-side trading sessions found');
+          results.recommendations.push('Try stopping and restarting forward testing to create server sessions');
+        }
+      } catch (error) {
+        results.checks.serverSessions = {
+          status: 'error',
+          details: `Error checking sessions: ${error.message}`,
+          error: error.message
+        };
+        results.issues.push('Failed to check server sessions - this indicates a backend issue');
+      }
+
+      // 6. Check Server Trading Logs
+      console.log('6️⃣ Checking Server Trading Logs...');
+      try {
+        const tradingLogs = await ServerForwardTestingService.getTradingLogs();
+        results.checks.serverLogs = {
+          status: tradingLogs?.length > 0 ? 'success' : 'warning',
+          details: `Found ${tradingLogs?.length || 0} server trading logs`,
+          logs: tradingLogs || [],
+          count: tradingLogs?.length || 0,
+          recentLogs: tradingLogs?.slice(0, 5) || []
+        };
+        if (!tradingLogs || tradingLogs.length === 0) {
+          results.recommendations.push('No server trading activity detected - strategy may not be generating signals yet');
+        }
+      } catch (error) {
+        results.checks.serverLogs = {
+          status: 'error',
+          details: `Error checking logs: ${error.message}`,
+          error: error.message
+        };
+      }
+
+      // 7. Check Database Trading Sessions Table
+      console.log('7️⃣ Checking Database Trading Sessions...');
+      if (user) {
+        try {
+          const { data: dbSessions, error: dbError } = await supabase
+            .from('trading_sessions')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_active', true);
+          
+          results.checks.databaseSessions = {
+            status: dbSessions?.length > 0 ? 'success' : 'error',
+            details: `Found ${dbSessions?.length || 0} active database sessions`,
+            sessions: dbSessions || [],
+            count: dbSessions?.length || 0,
+            error: dbError?.message || null
+          };
+          if (!dbSessions || dbSessions.length === 0) {
+            results.issues.push('No active trading sessions in database');
+          }
+        } catch (error) {
+          results.checks.databaseSessions = {
+            status: 'error',
+            details: `Database error: ${error.message}`,
+            error: error.message
+          };
+        }
+      }
+
+      // 8. Check OANDA API Connectivity
+      console.log('8️⃣ Testing OANDA API Connectivity...');
+      if (parsedOandaConfig?.accountId && parsedOandaConfig?.apiKey) {
+        try {
+          const baseUrl = parsedOandaConfig.environment === 'practice' 
+            ? 'https://api-fxpractice.oanda.com'
+            : 'https://api-fxtrade.oanda.com';
+          
+          const response = await fetch(`${baseUrl}/v3/accounts/${parsedOandaConfig.accountId}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${parsedOandaConfig.apiKey}`,
+              'Content-Type': 'application/json',
+            }
+          });
+
+          results.checks.oandaConnectivity = {
+            status: response.ok ? 'success' : 'error',
+            details: response.ok ? 'OANDA API connection successful' : `HTTP ${response.status}: ${response.statusText}`,
+            httpStatus: response.status
+          };
+          if (!response.ok) {
+            results.issues.push('OANDA API connection failed - check credentials');
+          }
+        } catch (error) {
+          results.checks.oandaConnectivity = {
+            status: 'error',
+            details: `Connection error: ${error.message}`,
+            error: error.message
+          };
+          results.issues.push('Cannot connect to OANDA API');
+        }
+      } else {
+        results.checks.oandaConnectivity = {
+          status: 'error',
+          details: 'No OANDA credentials to test',
+        };
+      }
+
+      // 9. Check Edge Function Accessibility
+      console.log('9️⃣ Testing Edge Functions...');
+      try {
+        const { data: edgeFunctionTest, error: edgeError } = await supabase.functions.invoke('oanda-forward-testing', {
+          body: { action: 'test' }
+        });
+        
+        results.checks.edgeFunctions = {
+          status: !edgeError ? 'success' : 'error',
+          details: !edgeError ? 'Edge functions accessible' : `Edge function error: ${edgeError.message}`,
+          error: edgeError?.message || null
+        };
+        if (edgeError) {
+          results.issues.push('Edge functions not accessible - this prevents autonomous trading');
+        }
+      } catch (error) {
+        results.checks.edgeFunctions = {
+          status: 'error',
+          details: `Edge function test failed: ${error.message}`,
+          error: error.message
+        };
+      }
+
+      // 10. Analyze Root Cause
+      console.log('🔟 Analyzing Root Cause...');
+      results.rootCause = analyzeRootCause(results);
       
-      setDiagnosticData({
-        activeSessions,
-        tradingLogs,
-        localStorageTrades: parsedTrades,
-        strategyResults: parsedResults,
-        selectedStrategy: parsedStrategy,
-        oandaConfig: parsedOandaConfig,
-        forwardTestingActive,
-        timestamp: new Date().toISOString(),
-        // Analysis
-        hasServerSessions: activeSessions?.length > 0,
-        hasServerLogs: tradingLogs?.length > 0,
-        hasLocalTrades: parsedTrades?.length > 0,
-        strategyMatches: parsedStrategy?.strategy_name === strategy?.strategy_name,
-        isConfigured: !!(parsedOandaConfig?.accountId && parsedOandaConfig?.apiKey)
-      });
+      setComprehensiveResults(results);
+      console.log('📊 Comprehensive Diagnosis Complete:', results);
       
     } catch (error) {
       console.error('Diagnostics error:', error);
-      setDiagnosticData({
+      setComprehensiveResults({
         error: error.message,
         timestamp: new Date().toISOString()
       });
@@ -79,201 +229,240 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
     }
   };
 
-  // Auto-run diagnostics on mount
-  useEffect(() => {
-    runDiagnostics();
-  }, []);
-
-  const getDiagnosisMessage = () => {
-    if (!diagnosticData || diagnosticData.error) return null;
-
-    const { hasServerSessions, hasServerLogs, hasLocalTrades, strategyMatches, isConfigured } = diagnosticData;
-
-    if (!isConfigured) {
+  const analyzeRootCause = (results) => {
+    const issues = results.issues;
+    
+    if (issues.includes('User not authenticated')) {
       return {
-        type: 'error',
-        message: '❌ OANDA credentials not properly configured. Please check Configuration tab.'
+        primaryIssue: 'Authentication Required',
+        description: 'User must be logged in for forward testing to work',
+        severity: 'critical',
+        action: 'Please log in to your account'
       };
     }
-
-    if (!strategyMatches) {
+    
+    if (issues.includes('OANDA credentials not configured properly')) {
       return {
-        type: 'warning',
-        message: '⚠️ Strategy mismatch detected. The selected strategy may not match the active trading strategy.'
+        primaryIssue: 'OANDA Configuration Missing',
+        description: 'Valid OANDA Account ID and API Key are required',
+        severity: 'critical',
+        action: 'Configure OANDA credentials in the Configuration tab'
       };
     }
-
-    if (!hasServerSessions) {
+    
+    if (issues.includes('No strategy selected for forward testing')) {
       return {
-        type: 'error',
-        message: '❌ No autonomous trading sessions found on server. Forward testing may not be truly active.'
+        primaryIssue: 'Strategy Not Selected',
+        description: 'A strategy must be selected before starting forward testing',
+        severity: 'critical',
+        action: 'Select a strategy in the Strategy tab'
       };
     }
-
-    if (hasServerSessions && !hasServerLogs) {
+    
+    if (issues.includes('No active server-side trading sessions found')) {
       return {
-        type: 'warning',
-        message: '⚠️ Server sessions active but no trades logged. This could mean: 1) Strategy hasn\'t generated signals yet, 2) Market conditions don\'t meet strategy criteria, or 3) Execution issue.'
+        primaryIssue: 'Server Sessions Not Started',
+        description: 'Autonomous trading sessions are not running on the server',
+        severity: 'high',
+        action: 'Start forward testing from the Control tab'
       };
     }
-
-    if (hasServerSessions && hasServerLogs && !hasLocalTrades) {
+    
+    if (issues.includes('OANDA API connection failed - check credentials')) {
       return {
-        type: 'info',
-        message: '✅ Server-side autonomous trading is working correctly. Trades are being executed server-side (this is expected behavior).'
+        primaryIssue: 'OANDA API Connection Failed',
+        description: 'Cannot connect to OANDA with provided credentials',
+        severity: 'high',
+        action: 'Verify OANDA credentials and test connection'
       };
     }
-
+    
+    if (issues.includes('Edge functions not accessible - this prevents autonomous trading')) {
+      return {
+        primaryIssue: 'Backend Services Unavailable',
+        description: 'Server-side trading functions are not accessible',
+        severity: 'high',
+        action: 'This is a system issue - please contact support'
+      };
+    }
+    
+    if (issues.length === 0) {
+      return {
+        primaryIssue: 'System Appears Configured',
+        description: 'All checks passed - forward testing should be working',
+        severity: 'info',
+        action: 'Monitor for trading activity or check strategy signal generation'
+      };
+    }
+    
     return {
-      type: 'success',
-      message: '✅ Forward testing appears to be working correctly across all systems.'
+      primaryIssue: 'Multiple Configuration Issues',
+      description: `${issues.length} issues detected`,
+      severity: 'high',
+      action: 'Review and fix all identified issues'
     };
   };
 
-  const diagnosis = getDiagnosisMessage();
+  // Auto-run comprehensive diagnostics on mount
+  useEffect(() => {
+    runComprehensiveDiagnostics();
+  }, []);
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'success': return <CheckCircle className="h-4 w-4 text-green-400" />;
+      case 'warning': return <AlertCircle className="h-4 w-4 text-yellow-400" />;
+      case 'error': return <XCircle className="h-4 w-4 text-red-400" />;
+      default: return <Clock className="h-4 w-4 text-gray-400" />;
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'success': return 'text-green-400';
+      case 'warning': return 'text-yellow-400';
+      case 'error': return 'text-red-400';
+      default: return 'text-gray-400';
+    }
+  };
 
   return (
     <Card className="bg-slate-800 border-slate-700 w-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white text-sm sm:text-base">
           <Search className="h-4 w-4 sm:h-5 sm:w-5" />
-          Forward Testing Investigation
+          Comprehensive Forward Testing Diagnosis
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-slate-400 text-sm">
-            Investigating why Smart Momentum Strategy trades aren't visible
+            Full system analysis to diagnose why 226 backtest trades aren't executing live
           </p>
           <Button
-            onClick={runDiagnostics}
+            onClick={runComprehensiveDiagnostics}
             disabled={isLoading}
             variant="outline"
             size="sm"
             className="border-slate-600 text-slate-300 hover:text-white"
           >
             <Search className="h-4 w-4 mr-2" />
-            {isLoading ? 'Analyzing...' : 'Re-run Diagnostics'}
+            {isLoading ? 'Analyzing...' : 'Re-run Full Diagnosis'}
           </Button>
         </div>
 
-        {diagnosis && (
-          <div className={`p-3 rounded-lg border ${
-            diagnosis.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20' :
-            diagnosis.type === 'info' ? 'bg-blue-500/10 border-blue-500/20' :
-            diagnosis.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500/20' :
-            'bg-red-500/10 border-red-500/20'
-          }`}>
-            <p className={`text-sm font-medium ${
-              diagnosis.type === 'success' ? 'text-emerald-400' :
-              diagnosis.type === 'info' ? 'text-blue-400' :
-              diagnosis.type === 'warning' ? 'text-yellow-400' :
-              'text-red-400'
-            }`}>
-              {diagnosis.message}
-            </p>
-          </div>
-        )}
-
-        {diagnosticData && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Server Sessions */}
-              <div className="p-3 bg-slate-700/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Server className="h-4 w-4 text-blue-400" />
-                  <span className="text-white text-sm font-medium">Server Sessions</span>
-                </div>
-                <Badge variant={diagnosticData.hasServerSessions ? "default" : "destructive"}>
-                  {diagnosticData.activeSessions?.length || 0} Active
-                </Badge>
-                <p className="text-xs text-slate-400 mt-1">
-                  {diagnosticData.hasServerSessions 
-                    ? '✅ Autonomous trading running server-side'
-                    : '❌ No server-side trading sessions'
-                  }
+        {comprehensiveResults && (
+          <div className="space-y-6">
+            
+            {/* Root Cause Analysis */}
+            {comprehensiveResults.rootCause && (
+              <div className={`p-4 rounded-lg border ${
+                comprehensiveResults.rootCause.severity === 'critical' ? 'bg-red-500/10 border-red-500/20' :
+                comprehensiveResults.rootCause.severity === 'high' ? 'bg-orange-500/10 border-orange-500/20' :
+                comprehensiveResults.rootCause.severity === 'info' ? 'bg-blue-500/10 border-blue-500/20' :
+                'bg-yellow-500/10 border-yellow-500/20'
+              }`}>
+                <h3 className={`text-lg font-bold mb-2 ${
+                  comprehensiveResults.rootCause.severity === 'critical' ? 'text-red-400' :
+                  comprehensiveResults.rootCause.severity === 'high' ? 'text-orange-400' :
+                  comprehensiveResults.rootCause.severity === 'info' ? 'text-blue-400' :
+                  'text-yellow-400'
+                }`}>
+                  🎯 Root Cause: {comprehensiveResults.rootCause.primaryIssue}
+                </h3>
+                <p className="text-slate-300 mb-2">{comprehensiveResults.rootCause.description}</p>
+                <p className="text-white font-medium">
+                  ➡️ Action Required: {comprehensiveResults.rootCause.action}
                 </p>
               </div>
+            )}
 
-              {/* Server Trading Logs */}
-              <div className="p-3 bg-slate-700/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Database className="h-4 w-4 text-emerald-400" />
-                  <span className="text-white text-sm font-medium">Server Logs</span>
-                </div>
-                <Badge variant={diagnosticData.hasServerLogs ? "default" : "secondary"}>
-                  {diagnosticData.tradingLogs?.length || 0} Records
-                </Badge>
-                <p className="text-xs text-slate-400 mt-1">
-                  Server-side trade execution logs
-                </p>
-              </div>
-
-              {/* Configuration Status */}
-              <div className="p-3 bg-slate-700/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Activity className="h-4 w-4 text-purple-400" />
-                  <span className="text-white text-sm font-medium">Configuration</span>
-                </div>
-                <Badge variant={diagnosticData.isConfigured ? "default" : "destructive"}>
-                  {diagnosticData.isConfigured ? 'Configured' : 'Incomplete'}
-                </Badge>
-                <p className="text-xs text-slate-400 mt-1">
-                  OANDA API credentials status
-                </p>
-              </div>
-            </div>
-
-            {/* Detailed Analysis */}
-            <div className="p-3 bg-slate-700/30 rounded-lg">
-              <h4 className="text-white text-sm font-medium mb-2 flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                Detailed Analysis
-              </h4>
-              <div className="space-y-2 text-xs">
-                {diagnosticData.error ? (
-                  <p className="text-red-400">Error: {diagnosticData.error}</p>
-                ) : (
-                  <div className="space-y-1">
-                    <p className="text-slate-300">
-                      <span className="text-slate-400">Last Check:</span> {new Date(diagnosticData.timestamp).toLocaleString()}
-                    </p>
-                    
-                    {diagnosticData.selectedStrategy && (
-                      <p className="text-slate-300">
-                        <span className="text-slate-400">Selected Strategy:</span> {diagnosticData.selectedStrategy.strategy_name}
-                      </p>
-                    )}
-
-                    {diagnosticData.oandaConfig && (
-                      <p className="text-slate-300">
-                        <span className="text-slate-400">OANDA Account:</span> {diagnosticData.oandaConfig.accountId} ({diagnosticData.oandaConfig.environment})
-                      </p>
-                    )}
-
-                    <div className="mt-3 pt-2 border-t border-slate-600">
-                      <p className="text-yellow-400 font-medium">Possible Issues:</p>
-                      {!diagnosticData.hasServerSessions && (
-                        <p className="text-yellow-300">• Forward testing may not be properly started on server</p>
-                      )}
-                      {diagnosticData.hasServerSessions && !diagnosticData.hasServerLogs && (
-                        <p className="text-yellow-300">• Strategy may not have generated trading signals yet</p>
-                      )}
-                      {!diagnosticData.strategyMatches && (
-                        <p className="text-yellow-300">• Strategy configuration mismatch detected</p>
-                      )}
-                    </div>
+            {/* System Checks Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {comprehensiveResults.checks && Object.entries(comprehensiveResults.checks).map(([checkName, check]: [string, any]) => (
+                <div key={checkName} className="p-3 bg-slate-700/50 rounded-lg">
+                  <div className="flex items-center gap-2 mb-2">
+                    {getStatusIcon(check.status)}
+                    <span className="text-white text-sm font-medium capitalize">
+                      {checkName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                    </span>
                   </div>
-                )}
-              </div>
+                  <Badge variant={check.status === 'success' ? "default" : check.status === 'warning' ? "secondary" : "destructive"} className="mb-2">
+                    {check.status.toUpperCase()}
+                  </Badge>
+                  <p className="text-xs text-slate-400">
+                    {check.details}
+                  </p>
+                  {check.error && (
+                    <p className="text-xs text-red-400 mt-1">
+                      Error: {check.error}
+                    </p>
+                  )}
+                </div>
+              ))}
             </div>
 
-            {/* Server Trading Logs Preview */}
-            {diagnosticData.tradingLogs?.length > 0 && (
-              <div className="p-3 bg-slate-700/30 rounded-lg">
-                <h4 className="text-white text-sm font-medium mb-2">Recent Server Trading Activity</h4>
+            {/* Issues Summary */}
+            {comprehensiveResults.issues?.length > 0 && (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+                <h4 className="text-red-400 font-medium mb-2 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  Issues Detected ({comprehensiveResults.issues.length})
+                </h4>
+                <ul className="space-y-1">
+                  {comprehensiveResults.issues.map((issue, index) => (
+                    <li key={index} className="text-red-300 text-sm">
+                      • {issue}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Recommendations */}
+            {comprehensiveResults.recommendations?.length > 0 && (
+              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <h4 className="text-blue-400 font-medium mb-2">
+                  💡 Recommendations
+                </h4>
+                <ul className="space-y-1">
+                  {comprehensiveResults.recommendations.map((rec, index) => (
+                    <li key={index} className="text-blue-300 text-sm">
+                      • {rec}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Server Session Details */}
+            {comprehensiveResults.checks?.serverSessions?.sessions?.length > 0 && (
+              <div className="p-4 bg-slate-700/30 rounded-lg">
+                <h4 className="text-white text-sm font-medium mb-2">Server Trading Sessions</h4>
+                <div className="space-y-2">
+                  {comprehensiveResults.checks.serverSessions.sessions.map((session, index) => (
+                    <div key={index} className="text-xs p-2 bg-slate-600/50 rounded">
+                      <p className="text-slate-300">
+                        Strategy: {session.strategy_name || session.strategy_id}
+                      </p>
+                      <p className="text-slate-400">
+                        Symbol: {session.symbol} | Environment: {session.environment}
+                      </p>
+                      <p className="text-slate-400">
+                        Last Execution: {new Date(session.last_execution).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Recent Server Logs */}
+            {comprehensiveResults.checks?.serverLogs?.recentLogs?.length > 0 && (
+              <div className="p-4 bg-slate-700/30 rounded-lg">
+                <h4 className="text-white text-sm font-medium mb-2">Recent Server Activity</h4>
                 <div className="space-y-1">
-                  {diagnosticData.tradingLogs.slice(0, 3).map((log: any, index: number) => (
+                  {comprehensiveResults.checks.serverLogs.recentLogs.map((log, index) => (
                     <div key={index} className="text-xs p-2 bg-slate-600/50 rounded">
                       <span className="text-slate-400">{new Date(log.timestamp).toLocaleString()}:</span>
                       <span className="text-slate-300 ml-2">{log.message}</span>
@@ -285,6 +474,10 @@ const TradingDiagnostics: React.FC<TradingDiagnosticsProps> = ({ strategy }) => 
                 </div>
               </div>
             )}
+
+            <div className="text-xs text-slate-500 pt-2 border-t border-slate-600">
+              Last diagnosis: {new Date(comprehensiveResults.timestamp).toLocaleString()}
+            </div>
           </div>
         )}
       </CardContent>
