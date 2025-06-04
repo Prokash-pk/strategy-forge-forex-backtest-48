@@ -7,12 +7,14 @@ interface UseAccountManagerProps {
   currentConfig: OANDAConfig;
   onSaveNewConfig: (config: OANDAConfig & { configName: string }) => void;
   onDeleteConfig: (configId: string) => void;
+  loadSavedConfigs: () => Promise<void>;
 }
 
 export const useAccountManager = ({
   currentConfig,
   onSaveNewConfig,
-  onDeleteConfig
+  onDeleteConfig,
+  loadSavedConfigs
 }: UseAccountManagerProps) => {
   const { toast } = useToast();
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -38,6 +40,8 @@ export const useAccountManager = ({
     }
 
     try {
+      console.log('Saving config:', { ...currentConfig, configName: newConfigName.trim() });
+      
       await onSaveNewConfig({
         ...currentConfig,
         configName: newConfigName.trim(),
@@ -47,6 +51,9 @@ export const useAccountManager = ({
       // Reset form state after successful save
       setNewConfigName('');
       setIsAddingNew(false);
+
+      // Reload saved configs to show the new one
+      await loadSavedConfigs();
 
       toast({
         title: "✅ Account Connected 24/7",
@@ -62,12 +69,22 @@ export const useAccountManager = ({
     }
   };
 
-  const handleDeleteConfig = (configId: string, configName: string) => {
-    onDeleteConfig(configId);
-    toast({
-      title: "Account Disconnected",
-      description: `"${configName}" has been disconnected and removed`,
-    });
+  const handleDeleteConfig = async (configId: string, configName: string) => {
+    try {
+      await onDeleteConfig(configId);
+      await loadSavedConfigs(); // Reload after deletion
+      toast({
+        title: "Account Disconnected",
+        description: `"${configName}" has been disconnected and removed`,
+      });
+    } catch (error) {
+      console.error('Failed to delete config:', error);
+      toast({
+        title: "Delete Failed",
+        description: "Could not disconnect account. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAddAccount = () => {

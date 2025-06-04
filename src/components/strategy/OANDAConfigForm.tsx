@@ -27,6 +27,7 @@ interface OANDAConfigFormProps {
   isForwardTestingActive: boolean;
   connectionStatusIcon: React.ReactNode;
   persistentConnectionStatus?: 'idle' | 'connected' | 'error';
+  loadSavedConfigs?: () => Promise<void>;
 }
 
 const OANDAConfigForm: React.FC<OANDAConfigFormProps> = memo(({
@@ -47,7 +48,8 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = memo(({
   canStartTesting,
   isForwardTestingActive,
   connectionStatusIcon,
-  persistentConnectionStatus
+  persistentConnectionStatus,
+  loadSavedConfigs
 }) => {
   const { savedStrategies, loadSavedStrategies } = useOANDAStrategies();
   
@@ -56,6 +58,9 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = memo(({
 
   const handleRefreshAll = () => {
     loadSavedStrategies();
+    if (loadSavedConfigs) {
+      loadSavedConfigs();
+    }
   };
 
   return (
@@ -79,6 +84,7 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = memo(({
         isLoading={isLoading}
         persistentConnectionStatus={persistentConnectionStatus}
         onDisconnectOANDA={onDisconnectOANDA}
+        loadSavedConfigs={loadSavedConfigs || (() => Promise.resolve())}
       />
 
       {isConfiguredForTesting && (

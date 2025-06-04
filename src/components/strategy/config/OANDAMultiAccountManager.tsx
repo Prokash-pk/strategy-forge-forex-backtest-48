@@ -23,6 +23,7 @@ interface OANDAMultiAccountManagerProps {
   isLoading: boolean;
   persistentConnectionStatus?: 'idle' | 'connected' | 'error';
   onDisconnectOANDA?: () => void;
+  loadSavedConfigs: () => Promise<void>;
 }
 
 const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
@@ -37,7 +38,8 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
   connectionError,
   isLoading,
   persistentConnectionStatus,
-  onDisconnectOANDA
+  onDisconnectOANDA,
+  loadSavedConfigs
 }) => {
   const {
     isAddingNew,
@@ -50,7 +52,8 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
   } = useAccountManager({
     currentConfig,
     onSaveNewConfig,
-    onDeleteConfig
+    onDeleteConfig,
+    loadSavedConfigs
   });
 
   return (
@@ -77,15 +80,17 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
 
             {/* Add New Configuration Form - only show when connection is successful */}
             {connectionStatus === 'success' && (
-              <AddAccountForm
-                configName={newConfigName}
-                onConfigNameChange={setNewConfigName}
-                onSave={handleSaveCurrentConfig}
-                onCancel={handleCancel}
-              />
-            )}
+              <>
+                <AddAccountForm
+                  configName={newConfigName}
+                  onConfigNameChange={setNewConfigName}
+                  onSave={handleSaveCurrentConfig}
+                  onCancel={handleCancel}
+                />
 
-            <Separator className="bg-slate-600" />
+                <Separator className="bg-slate-600" />
+              </>
+            )}
           </>
         )}
 
@@ -101,7 +106,6 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
                 onLoad={onLoadConfig}
                 onDelete={handleDeleteConfig}
                 onTestTrade={() => {
-                  // TODO: Implement test trade functionality
                   console.log('Test trade for config:', config.id);
                 }}
               />
