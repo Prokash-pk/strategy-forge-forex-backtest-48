@@ -91,12 +91,12 @@ export const useOANDAIntegration = () => {
   };
 
   // Make functions async to match expected signatures
-  const handleSaveNewConfigAsync = async (config: Parameters<typeof handleSaveNewConfigBase>[0]) => {
-    await handleSaveNewConfigBase(config);
+  const handleSaveNewConfig = async (config: Parameters<typeof handleSaveNewConfigBase>[0]) => {
+    return await handleSaveNewConfigBase(config);
   };
 
-  const handleDeleteConfigAsync = async (configId: string) => {
-    await handleDeleteConfigBase(configId);
+  const handleDeleteConfig = async (configId: string) => {
+    return await handleDeleteConfigBase(configId);
   };
 
   return {
@@ -116,9 +116,9 @@ export const useOANDAIntegration = () => {
     handleConfigChange: handleConfigChangeWithReset,
     handleTestConnection: () => handleTestConnection(config),
     handleSaveConfig: handlePersistentSaveConfig,
-    handleSaveNewConfig: handleSaveNewConfigAsync,
+    handleSaveNewConfig,
     handleLoadConfig,
-    handleDeleteConfig: handleDeleteConfigAsync,
+    handleDeleteConfig,
     handleLoadStrategy,
     handleTestTrade: () => handleTestTrade(config, selectedStrategy, connectionStatus),
     handleDeleteStrategy,
