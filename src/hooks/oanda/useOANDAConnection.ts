@@ -18,11 +18,11 @@ export const useOANDAConnection = () => {
       return;
     }
 
-    // Validate API key format
-    if (!config.apiKey.includes('-')) {
+    // Enhanced API key validation
+    if (!config.apiKey.includes('-') || config.apiKey.length < 50) {
       toast({
         title: "Invalid API Key Format",
-        description: "OANDA API keys should contain dashes (e.g., 12345678-abcd1234567890abcdef1234567890ab-12345678901234567890123456789012)",
+        description: "OANDA API keys should be long tokens with dashes. Please verify your API token from OANDA.",
         variant: "destructive",
       });
       return;
@@ -69,7 +69,23 @@ export const useOANDAConnection = () => {
       } else {
         const errorData = await response.json();
         console.error('OANDA API Error Response:', errorData);
-        throw new Error(errorData.errorMessage || `HTTP ${response.status}: ${response.statusText}`);
+        
+        // Enhanced error handling for authorization issues
+        if (response.status === 401) {
+          const errorMessage = "API key authorization failed. Please check:\n" +
+                              "1. Your API token is correct and active\n" +
+                              "2. The token has proper permissions\n" +
+                              "3. The account ID matches the token\n" +
+                              "4. Generate a new token if this one has expired";
+          setConnectionError(errorMessage);
+          toast({
+            title: "Authorization Failed ❌",
+            description: "Your OANDA API token appears to be invalid or expired. Please generate a new token from your OANDA account.",
+            variant: "destructive",
+          });
+        } else {
+          throw new Error(errorData.errorMessage || `HTTP ${response.status}: ${response.statusText}`);
+        }
       }
     } catch (error) {
       console.error('OANDA connection test failed:', error);
@@ -79,12 +95,12 @@ export const useOANDAConnection = () => {
       
       // Provide more specific error guidance
       let userFriendlyMessage = errorMessage;
-      if (errorMessage.includes('Insufficient authorization')) {
-        userFriendlyMessage = 'API key is invalid or doesn\'t have access to this account. Please check your API token and account ID.';
-      } else if (errorMessage.includes('401')) {
-        userFriendlyMessage = 'Authentication failed. Please verify your API token is correct and active.';
+      if (errorMessage.includes('Insufficient authorization') || errorMessage.includes('401')) {
+        userFriendlyMessage = 'API token is invalid, expired, or lacks permissions. Please generate a new token from your OANDA account settings.';
       } else if (errorMessage.includes('404')) {
-        userFriendlyMessage = 'Account not found. Please check your account ID is correct.';
+        userFriendlyMessage = 'Account not found. Please verify your account ID is correct for the selected environment.';
+      } else if (errorMessage.includes('fetch')) {
+        userFriendlyMessage = 'Network error. Please check your internet connection and try again.';
       }
       
       toast({

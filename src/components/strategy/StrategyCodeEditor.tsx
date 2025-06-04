@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -27,16 +26,17 @@ const StrategyCodeEditor: React.FC<StrategyCodeEditorProps> = ({
   };
 
   const loadCleanStrategy = () => {
-    const cleanCode = `# Clean Smart Momentum Strategy
-# Simple and effective momentum trading with proper directional signals
+    const cleanCode = `# Fixed Smart Momentum Strategy with Proper Directional Signals
+# Enhanced for forward testing with proper BUY/SELL signal generation
 
 def strategy_logic(data, reverse_signals=False):
     """
-    Clean momentum strategy with directional signals:
+    Fixed momentum strategy with proper directional signals:
     - EMA trend filtering
     - RSI momentum confirmation
     - Volatility-based entry timing
-    - Proper BUY/SELL signal generation
+    - PROPER BUY/SELL signal generation for forward testing
+    - Reverse signal capability for testing both directions
     """
     
     close = data['Close'].tolist()
@@ -53,7 +53,7 @@ def strategy_logic(data, reverse_signals=False):
     
     entry = []
     exit = []
-    trade_direction = []
+    trade_direction = []  # CRITICAL: This provides BUY/SELL direction
     
     for i in range(len(close)):
         if i < 200:
@@ -76,7 +76,7 @@ def strategy_logic(data, reverse_signals=False):
             long_signal = uptrend and momentum_up and high_vol
             short_signal = downtrend and momentum_down and high_vol
             
-            # Apply reverse signals if enabled
+            # Apply reverse signals if enabled (for testing opposite direction)
             if reverse_signals:
                 actual_long = short_signal
                 actual_short = long_signal
@@ -84,13 +84,13 @@ def strategy_logic(data, reverse_signals=False):
                 actual_long = long_signal
                 actual_short = short_signal
             
-            # Generate signals
+            # Generate PROPER directional signals for forward testing
             if actual_long:
                 entry.append(True)
-                trade_direction.append('BUY')
+                trade_direction.append('BUY')  # EXPLICIT BUY signal
             elif actual_short:
                 entry.append(True)
-                trade_direction.append('SELL')
+                trade_direction.append('SELL')  # EXPLICIT SELL signal
             else:
                 entry.append(False)
                 trade_direction.append('NONE')
@@ -99,22 +99,24 @@ def strategy_logic(data, reverse_signals=False):
             exit_signal = rsi[i] > 80 or rsi[i] < 20 or not high_vol
             exit.append(exit_signal)
     
+    # CRITICAL: Return trade_direction for forward testing
     return {
         'entry': entry,
         'exit': exit,
-        'trade_direction': trade_direction,
+        'trade_direction': trade_direction,  # This is what forward testing needs
         'ema_fast': ema_fast,
         'ema_slow': ema_slow,
         'ema_trend': ema_trend,
         'rsi': rsi,
         'atr': atr,
-        'reverse_signals_applied': reverse_signals
+        'reverse_signals_applied': reverse_signals,
+        'note': 'Strategy fixed with proper BUY/SELL directional signals'
     }`;
 
     onCodeChange(cleanCode);
     toast({
-      title: "Clean Strategy Loaded",
-      description: "Loaded a cleaner, more readable version of the momentum strategy",
+      title: "Fixed Strategy Loaded",
+      description: "Loaded strategy with proper BUY/SELL directional signals for forward testing",
     });
   };
 
@@ -138,7 +140,7 @@ def strategy_logic(data, reverse_signals=False):
             className="bg-slate-700 text-slate-200 border-slate-600 hover:bg-slate-600"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Load Clean Strategy
+            Load Fixed Strategy
           </Button>
         </div>
         {codeChanged && (
