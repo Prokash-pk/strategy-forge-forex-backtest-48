@@ -5,23 +5,20 @@ import { SavedOANDAConfig, OANDAConfig } from '@/types/oanda';
 
 interface UseAccountManagerProps {
   currentConfig: OANDAConfig;
-  onSaveNewConfig: (config: OANDAConfig & { configName: string }) => Promise<void>;
-  onDeleteConfig: (configId: string) => Promise<void>;
-  loadSavedConfigs: () => Promise<void>;
+  onSaveNewConfig: (config: OANDAConfig & { configName: string }) => void;
+  onDeleteConfig: (configId: string) => void;
 }
 
 export const useAccountManager = ({
   currentConfig,
   onSaveNewConfig,
-  onDeleteConfig,
-  loadSavedConfigs
+  onDeleteConfig
 }: UseAccountManagerProps) => {
   const { toast } = useToast();
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newConfigName, setNewConfigName] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSaveCurrentConfig = async () => {
+  const handleSaveCurrentConfig = () => {
     if (!newConfigName.trim()) {
       toast({
         title: "Configuration Name Required",
@@ -34,65 +31,36 @@ export const useAccountManager = ({
     if (!currentConfig.accountId || !currentConfig.apiKey) {
       toast({
         title: "Configuration Incomplete",
-        description: "Please fill in all account details and test connection before saving",
+        description: "Please fill in all account details before saving",
         variant: "destructive",
       });
       return;
     }
 
-    setIsSaving(true);
-    try {
-      console.log('Saving config:', { ...currentConfig, configName: newConfigName.trim() });
-      
-      await onSaveNewConfig({
-        ...currentConfig,
-        configName: newConfigName.trim(),
-        enabled: true // Enable the new config for 24/7 connection
-      });
+    onSaveNewConfig({
+      ...currentConfig,
+      configName: newConfigName.trim()
+    });
 
-      // Reset form state after successful save
-      setNewConfigName('');
-      setIsAddingNew(false);
+    setNewConfigName('');
+    setIsAddingNew(false);
 
-      toast({
-        title: "✅ Account Connected 24/7",
-        description: `"${newConfigName}" is now connected and will stay active 24/7 until you disconnect it.`,
-      });
-    } catch (error) {
-      console.error('Failed to save config:', error);
-      toast({
-        title: "Connection Failed",
-        description: "Could not establish 24/7 connection. Please test your credentials first.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
+    toast({
+      title: "Configuration Saved",
+      description: `"${newConfigName}" has been saved successfully`,
+    });
   };
 
-  const handleDeleteConfig = async (configId: string, configName: string) => {
-    try {
-      await onDeleteConfig(configId);
-      toast({
-        title: "Account Disconnected",
-        description: `"${configName}" has been disconnected and removed`,
-      });
-    } catch (error) {
-      console.error('Failed to delete config:', error);
-      toast({
-        title: "Delete Failed",
-        description: "Could not disconnect account. Please try again.",
-        variant: "destructive",
-      });
-    }
+  const handleDeleteConfig = (configId: string, configName: string) => {
+    onDeleteConfig(configId);
+    toast({
+      title: "Configuration Deleted",
+      description: `"${configName}" has been removed`,
+    });
   };
 
   const handleAddAccount = () => {
     setIsAddingNew(!isAddingNew);
-    if (!isAddingNew) {
-      // When opening the form, clear any previous input
-      setNewConfigName('');
-    }
   };
 
   const handleCancel = () => {
@@ -107,7 +75,6 @@ export const useAccountManager = ({
     handleSaveCurrentConfig,
     handleDeleteConfig,
     handleAddAccount,
-    handleCancel,
-    isSaving
+    handleCancel
   };
 };

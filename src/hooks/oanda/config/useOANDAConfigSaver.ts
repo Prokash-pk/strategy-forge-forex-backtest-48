@@ -30,7 +30,7 @@ export const useOANDAConfigSaver = (
         .update({ enabled: false })
         .eq('user_id', user.id);
 
-      // Then save the new config as enabled for 24/7 connection
+      // Then save the new config as enabled
       const configToSave = {
         user_id: user.id,
         account_id: config.accountId,
@@ -47,8 +47,8 @@ export const useOANDAConfigSaver = (
       if (error) throw error;
 
       toast({
-        title: "✅ Account Connected 24/7",
-        description: "Your OANDA account is now connected and will stay active until you disconnect it.",
+        title: "✅ Configuration Saved",
+        description: "Your OANDA configuration has been saved and will be auto-loaded on future logins.",
       });
 
       // Reload saved configs to show the new one
@@ -57,8 +57,8 @@ export const useOANDAConfigSaver = (
     } catch (error) {
       console.error('Failed to save config:', error);
       toast({
-        title: "Connection Failed",
-        description: "Could not establish 24/7 connection. Please try again.",
+        title: "Save Failed",
+        description: "Could not save OANDA configuration. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -67,54 +67,37 @@ export const useOANDAConfigSaver = (
   };
 
   const handleSaveNewConfig = async (configWithName: OANDAConfig & { configName: string }) => {
-    if (!user) {
-      throw new Error('User not authenticated');
-    }
+    if (!user) return;
 
-    console.log('Saving new config to database:', configWithName);
-
+    setIsLoading(true);
     try {
-      // If this config should be enabled, disable all others first
-      if (configWithName.enabled) {
-        const { error: updateError } = await supabase
-          .from('oanda_configs')
-          .update({ enabled: false })
-          .eq('user_id', user.id);
-
-        if (updateError) {
-          console.error('Error disabling existing configs:', updateError);
-        }
-      }
-
       const configToSave = {
         user_id: user.id,
         account_id: configWithName.accountId,
         api_key: configWithName.apiKey,
         environment: configWithName.environment,
         config_name: configWithName.configName,
-        enabled: configWithName.enabled || false
+        enabled: false // Don't make it active by default
       };
 
-      console.log('Inserting config:', configToSave);
-
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('oanda_configs')
-        .insert(configToSave)
-        .select();
+        .insert(configToSave);
 
-      if (error) {
-        console.error('Database insert error:', error);
-        throw error;
-      }
-
-      console.log('Config saved successfully:', data);
+      if (error) throw error;
 
       // Reload saved configs to show the new one
       await loadSavedConfigs();
 
     } catch (error) {
       console.error('Failed to save new config:', error);
-      throw error;
+      toast({
+        title: "Save Failed",
+        description: "Could not save OANDA configuration. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 

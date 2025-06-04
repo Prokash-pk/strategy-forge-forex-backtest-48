@@ -7,23 +7,14 @@ import AccountManagerHeader from './multi-account/AccountManagerHeader';
 import AddAccountForm from './multi-account/AddAccountForm';
 import AccountConfigCard from './multi-account/AccountConfigCard';
 import EmptyStateDisplay from './multi-account/EmptyStateDisplay';
-import OANDAConfigurationSection from './multi-account/OANDAConfigurationSection';
 import { useAccountManager } from './multi-account/useAccountManager';
 
 interface OANDAMultiAccountManagerProps {
   savedConfigs: SavedOANDAConfig[];
   currentConfig: OANDAConfig;
   onLoadConfig: (config: SavedOANDAConfig) => void;
-  onDeleteConfig: (configId: string) => Promise<void>;
-  onSaveNewConfig: (config: OANDAConfig & { configName: string }) => Promise<void>;
-  onConfigChange: (field: keyof OANDAConfig, value: any) => void;
-  onTestConnection: () => void;
-  connectionStatus: 'idle' | 'testing' | 'success' | 'error';
-  connectionError: string;
-  isLoading: boolean;
-  persistentConnectionStatus?: 'idle' | 'connected' | 'error';
-  onDisconnectOANDA?: () => void;
-  loadSavedConfigs: () => Promise<void>;
+  onDeleteConfig: (configId: string) => void;
+  onSaveNewConfig: (config: OANDAConfig & { configName: string }) => void;
 }
 
 const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
@@ -31,15 +22,7 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
   currentConfig,
   onLoadConfig,
   onDeleteConfig,
-  onSaveNewConfig,
-  onConfigChange,
-  onTestConnection,
-  connectionStatus,
-  connectionError,
-  isLoading,
-  persistentConnectionStatus,
-  onDisconnectOANDA,
-  loadSavedConfigs
+  onSaveNewConfig
 }) => {
   const {
     isAddingNew,
@@ -48,13 +31,11 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
     handleSaveCurrentConfig,
     handleDeleteConfig,
     handleAddAccount,
-    handleCancel,
-    isSaving
+    handleCancel
   } = useAccountManager({
     currentConfig,
     onSaveNewConfig,
-    onDeleteConfig,
-    loadSavedConfigs
+    onDeleteConfig
   });
 
   return (
@@ -63,42 +44,21 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
         <AccountManagerHeader onAddAccount={handleAddAccount} />
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Only show OANDA Configuration Section when adding new account */}
+        {/* Add New Configuration Form */}
         {isAddingNew && (
-          <>
-            <OANDAConfigurationSection
-              config={currentConfig}
-              onConfigChange={onConfigChange}
-              onTestConnection={onTestConnection}
-              connectionStatus={connectionStatus}
-              connectionError={connectionError}
-              isLoading={isLoading}
-              persistentConnectionStatus={persistentConnectionStatus}
-              onDisconnectOANDA={onDisconnectOANDA}
-            />
-
-            <Separator className="bg-slate-600" />
-
-            {/* Add New Configuration Form - only show when connection is successful */}
-            {connectionStatus === 'success' && (
-              <>
-                <AddAccountForm
-                  configName={newConfigName}
-                  onConfigNameChange={setNewConfigName}
-                  onSave={handleSaveCurrentConfig}
-                  onCancel={handleCancel}
-                  isSaving={isSaving}
-                />
-
-                <Separator className="bg-slate-600" />
-              </>
-            )}
-          </>
+          <AddAccountForm
+            configName={newConfigName}
+            onConfigNameChange={setNewConfigName}
+            onSave={handleSaveCurrentConfig}
+            onCancel={handleCancel}
+          />
         )}
+
+        {savedConfigs.length > 0 && <Separator className="bg-slate-600" />}
 
         {/* Saved Configurations List */}
         <div className="space-y-3">
-          {savedConfigs.length === 0 && !isAddingNew ? (
+          {savedConfigs.length === 0 ? (
             <EmptyStateDisplay />
           ) : (
             savedConfigs.map((config) => (
@@ -107,9 +67,6 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
                 config={config}
                 onLoad={onLoadConfig}
                 onDelete={handleDeleteConfig}
-                onTestTrade={() => {
-                  console.log('Test trade for config:', config.id);
-                }}
               />
             ))
           )}
@@ -117,7 +74,7 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
 
         {savedConfigs.length > 0 && (
           <div className="text-xs text-slate-400 mt-4">
-            💡 Each account stays connected 24/7 once configured. Switch between accounts by loading different configurations.
+            Tip: You can switch between different OANDA accounts by loading saved configurations
           </div>
         )}
       </CardContent>
