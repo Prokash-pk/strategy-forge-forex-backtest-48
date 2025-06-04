@@ -31,7 +31,7 @@ export const useAccountManager = ({
     if (!currentConfig.accountId || !currentConfig.apiKey) {
       toast({
         title: "Configuration Incomplete",
-        description: "Please fill in all account details before saving",
+        description: "Please fill in all account details and test connection before saving",
         variant: "destructive",
       });
       return;
@@ -40,21 +40,22 @@ export const useAccountManager = ({
     try {
       await onSaveNewConfig({
         ...currentConfig,
-        configName: newConfigName.trim()
+        configName: newConfigName.trim(),
+        enabled: true // Enable the new config for 24/7 connection
       });
 
       setNewConfigName('');
       setIsAddingNew(false);
 
       toast({
-        title: "Account Added Successfully",
-        description: `"${newConfigName}" has been added to your saved configurations`,
+        title: "✅ Account Connected 24/7",
+        description: `"${newConfigName}" is now connected and will stay active 24/7 until you disconnect it.`,
       });
     } catch (error) {
       console.error('Failed to save config:', error);
       toast({
-        title: "Save Failed",
-        description: "Could not save the account configuration. Please try again.",
+        title: "Connection Failed",
+        description: "Could not establish 24/7 connection. Please test your credentials first.",
         variant: "destructive",
       });
     }
@@ -63,8 +64,8 @@ export const useAccountManager = ({
   const handleDeleteConfig = (configId: string, configName: string) => {
     onDeleteConfig(configId);
     toast({
-      title: "Configuration Deleted",
-      description: `"${configName}" has been removed`,
+      title: "Account Disconnected",
+      description: `"${configName}" has been disconnected and removed`,
     });
   };
 

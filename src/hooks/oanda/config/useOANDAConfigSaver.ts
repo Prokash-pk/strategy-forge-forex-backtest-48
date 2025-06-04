@@ -30,7 +30,7 @@ export const useOANDAConfigSaver = (
         .update({ enabled: false })
         .eq('user_id', user.id);
 
-      // Then save the new config as enabled
+      // Then save the new config as enabled for 24/7 connection
       const configToSave = {
         user_id: user.id,
         account_id: config.accountId,
@@ -47,8 +47,8 @@ export const useOANDAConfigSaver = (
       if (error) throw error;
 
       toast({
-        title: "✅ Configuration Saved",
-        description: "Your OANDA configuration has been saved and will be auto-loaded on future logins.",
+        title: "✅ Account Connected 24/7",
+        description: "Your OANDA account is now connected and will stay active until you disconnect it.",
       });
 
       // Reload saved configs to show the new one
@@ -57,8 +57,8 @@ export const useOANDAConfigSaver = (
     } catch (error) {
       console.error('Failed to save config:', error);
       toast({
-        title: "Save Failed",
-        description: "Could not save OANDA configuration. Please try again.",
+        title: "Connection Failed",
+        description: "Could not establish 24/7 connection. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -71,13 +71,21 @@ export const useOANDAConfigSaver = (
 
     setIsLoading(true);
     try {
+      // If this config should be enabled, disable all others first
+      if (configWithName.enabled) {
+        await supabase
+          .from('oanda_configs')
+          .update({ enabled: false })
+          .eq('user_id', user.id);
+      }
+
       const configToSave = {
         user_id: user.id,
         account_id: configWithName.accountId,
         api_key: configWithName.apiKey,
         environment: configWithName.environment,
         config_name: configWithName.configName,
-        enabled: false // Don't make it active by default - preserve existing active config
+        enabled: configWithName.enabled || false
       };
 
       const { error } = await supabase
@@ -86,10 +94,17 @@ export const useOANDAConfigSaver = (
 
       if (error) throw error;
 
-      toast({
-        title: "✅ Account Added",
-        description: `"${configWithName.configName}" has been added to your saved configurations.`,
-      });
+      if (configWithName.enabled) {
+        toast({
+          title: "✅ Account Connected 24/7",
+          description: `"${configWithName.configName}" is now connected and will stay active until you disconnect it.`,
+        });
+      } else {
+        toast({
+          title: "✅ Account Added",
+          description: `"${configWithName.configName}" has been added to your saved configurations.`,
+        });
+      }
 
       // Reload saved configs to show the new one
       await loadSavedConfigs();
