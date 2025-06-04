@@ -106,7 +106,7 @@ const OANDAMultiAccountManager: React.FC<OANDAMultiAccountManagerProps> = ({
                 key={config.id}
                 config={config}
                 onLoad={onLoadConfig}
-                onDelete={(configId: string, configName: string) => handleDeleteConfig(configId, configName)}
+                onDelete={handleDeleteConfig}
                 onTestTrade={() => {
                   console.log('Test trade for config:', config.id);
                 }}
