@@ -225,7 +225,7 @@ export class InteractiveBrokersService {
     }
   }
 
-  private static async requestAccountData(): void {
+  private static async requestAccountData(): Promise<void> {
     try {
       const response = await fetch(`${this.baseUrl}/iserver/accounts`);
       if (response.ok) {
@@ -247,7 +247,7 @@ export class InteractiveBrokersService {
     }
   }
 
-  private static async requestPositions(): void {
+  private static async requestPositions(): Promise<void> {
     try {
       const response = await fetch(`${this.baseUrl}/iserver/account/positions/0`);
       if (response.ok) {
