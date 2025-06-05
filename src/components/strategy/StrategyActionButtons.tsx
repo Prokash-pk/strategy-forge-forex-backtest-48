@@ -10,6 +10,7 @@ interface StrategyActionButtonsProps {
   isSaving: boolean;
   codeChanged: boolean;
   hasCode: boolean;
+  disabled?: boolean;
 }
 
 const StrategyActionButtons: React.FC<StrategyActionButtonsProps> = ({
@@ -18,14 +19,15 @@ const StrategyActionButtons: React.FC<StrategyActionButtonsProps> = ({
   isRunning = false,
   isSaving,
   codeChanged,
-  hasCode
+  hasCode,
+  disabled = false
 }) => {
   return (
     <div className="space-y-3">
       {onRunBacktest && (
         <Button
           onClick={onRunBacktest}
-          disabled={isRunning || !hasCode}
+          disabled={isRunning || !hasCode || disabled}
           className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
         >
           {isRunning ? (
@@ -44,7 +46,7 @@ const StrategyActionButtons: React.FC<StrategyActionButtonsProps> = ({
 
       <Button
         onClick={onSaveSettings}
-        disabled={isSaving}
+        disabled={isSaving || disabled}
         variant="outline"
         className="w-full border-slate-600 text-slate-300 hover:bg-slate-700"
       >
