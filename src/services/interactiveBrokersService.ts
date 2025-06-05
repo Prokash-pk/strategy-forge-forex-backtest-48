@@ -52,104 +52,97 @@ export interface IBTrade {
 export class InteractiveBrokersService {
   private static config: IBConfig = {
     host: 'localhost',
-    port: 7497, // TWS paper trading port
+    port: 5000, // Client Portal Gateway default port
     clientId: 1,
     isConnected: false,
     paperTrading: true,
-    defaultOrderSize: 10000, // 10k units for forex
+    defaultOrderSize: 10000,
     riskPerTrade: 1.0,
     autoTrading: false
   };
 
-  private static ws: WebSocket | null = null;
   private static positions: Map<string, IBPosition> = new Map();
   private static orders: Map<number, IBOrderStatus> = new Map();
   private static accountSummary: IBAccountSummary | null = null;
+  private static baseUrl: string = '';
 
   static async connect(config: IBConfig): Promise<boolean> {
     try {
       this.config = { ...config };
+      this.baseUrl = `https://${config.host}:${config.port}/v1/api`;
       
-      // Connect to IB Gateway or TWS via REST API bridge
-      const wsUrl = `ws://${config.host}:${config.port + 1}`; // REST API typically on port+1
+      console.log('🔗 Connecting to IB Client Portal Gateway...');
       
-      return new Promise((resolve, reject) => {
-        this.ws = new WebSocket(wsUrl);
-        
-        this.ws.onopen = () => {
-          console.log('✅ Connected to Interactive Brokers');
-          this.config.isConnected = true;
-          this.requestAccountData();
-          this.requestPositions();
-          resolve(true);
-        };
-        
-        this.ws.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          this.handleIBMessage(data);
-        };
-        
-        this.ws.onerror = (error) => {
-          console.error('❌ IB Connection Error:', error);
-          this.config.isConnected = false;
-          reject(error);
-        };
-        
-        this.ws.onclose = () => {
-          console.log('🔌 IB Connection Closed');
-          this.config.isConnected = false;
-        };
-        
-        // Timeout after 15 seconds
-        setTimeout(() => {
-          if (!this.config.isConnected) {
-            reject(new Error('Connection timeout'));
-          }
-        }, 15000);
+      // Test connection by trying to get authentication status
+      const response = await fetch(`${this.baseUrl}/iserver/auth/status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Connected to Interactive Brokers Client Portal', data);
+        this.config.isConnected = true;
+        
+        // Initialize account data
+        await this.requestAccountData();
+        await this.requestPositions();
+        
+        return true;
+      } else {
+        throw new Error(`Connection failed: ${response.status} - ${response.statusText}`);
+      }
     } catch (error) {
-      console.error('IB Connection failed:', error);
+      console.error('❌ IB Connection failed:', error);
+      this.config.isConnected = false;
       throw error;
     }
   }
 
   static disconnect(): void {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-      this.config.isConnected = false;
-    }
+    this.config.isConnected = false;
+    this.baseUrl = '';
+    console.log('🔌 IB Connection Closed');
   }
 
   static async placeTrade(trade: IBTrade): Promise<number | null> {
-    if (!this.config.isConnected || !this.ws) {
+    if (!this.config.isConnected) {
       console.warn('IB not connected');
       return null;
     }
 
     try {
-      const orderId = Date.now(); // Simple order ID generation
+      const orderId = Date.now();
       
       const order = {
-        id: orderId,
-        symbol: this.convertSymbolToIB(trade.symbol),
-        action: trade.action,
-        quantity: trade.quantity,
+        acctId: this.config.paperTrading ? 'DU123456' : '',
+        conid: await this.getContractId(trade.symbol),
         orderType: trade.orderType,
+        side: trade.action,
+        quantity: trade.quantity,
         price: trade.price,
-        stopPrice: trade.stopPrice,
-        timeInForce: trade.timeInForce,
-        account: this.config.paperTrading ? 'DU123456' : '', // Paper trading account
-        strategyName: trade.strategyName
+        tif: trade.timeInForce,
       };
 
-      this.ws.send(JSON.stringify({
-        type: 'PLACE_ORDER',
-        order: order
-      }));
+      const response = await fetch(`${this.baseUrl}/iserver/account/${order.acctId}/orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orders: [order]
+        })
+      });
 
-      console.log('📤 Order sent to IB:', order);
-      return orderId;
+      if (response.ok) {
+        const result = await response.json();
+        console.log('📤 Order sent to IB:', result);
+        return orderId;
+      } else {
+        throw new Error(`Order failed: ${response.status}`);
+      }
     } catch (error) {
       console.error('Failed to place IB trade:', error);
       return null;
@@ -190,7 +183,6 @@ export class InteractiveBrokersService {
     const { entry, trade_direction, exit } = backtestResults;
     
     for (let i = 0; i < entry.length; i++) {
-      // Entry signals
       if (entry[i] && trade_direction[i] && trade_direction[i] !== 'NONE') {
         trades.push({
           symbol,
@@ -202,7 +194,6 @@ export class InteractiveBrokersService {
         });
       }
       
-      // Exit signals
       if (exit?.[i]) {
         trades.push({
           symbol,
@@ -218,59 +209,70 @@ export class InteractiveBrokersService {
     return trades;
   }
 
-  private static handleIBMessage(data: any): void {
-    switch (data.type) {
-      case 'POSITION_UPDATE':
-        this.updatePosition(data.position);
-        break;
-      case 'ORDER_STATUS':
-        this.updateOrderStatus(data.order);
-        break;
-      case 'ACCOUNT_SUMMARY':
-        this.accountSummary = data.summary;
-        break;
-      case 'ERROR':
-        console.error('IB Error:', data.message);
-        break;
-      default:
-        console.log('IB Message:', data);
+  private static async getContractId(symbol: string): Promise<number> {
+    try {
+      const ibSymbol = this.convertSymbolToIB(symbol);
+      const response = await fetch(`${this.baseUrl}/iserver/secdef/search?symbol=${ibSymbol}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        return data[0]?.conid || 0;
+      }
+      return 0;
+    } catch (error) {
+      console.error('Failed to get contract ID:', error);
+      return 0;
     }
   }
 
-  private static updatePosition(position: IBPosition): void {
-    this.positions.set(position.symbol, position);
-  }
-
-  private static updateOrderStatus(order: IBOrderStatus): void {
-    this.orders.set(order.orderId, order);
-  }
-
-  private static requestAccountData(): void {
-    if (this.ws) {
-      this.ws.send(JSON.stringify({ type: 'REQUEST_ACCOUNT_SUMMARY' }));
+  private static async requestAccountData(): void {
+    try {
+      const response = await fetch(`${this.baseUrl}/iserver/accounts`);
+      if (response.ok) {
+        const accounts = await response.json();
+        console.log('📊 Account data received:', accounts);
+        
+        // Mock account summary for now
+        this.accountSummary = {
+          totalCashValue: 100000,
+          netLiquidation: 100000,
+          grossPositionValue: 0,
+          availableFunds: 100000,
+          buyingPower: 400000,
+          currency: 'USD'
+        };
+      }
+    } catch (error) {
+      console.error('Failed to get account data:', error);
     }
   }
 
-  private static requestPositions(): void {
-    if (this.ws) {
-      this.ws.send(JSON.stringify({ type: 'REQUEST_POSITIONS' }));
+  private static async requestPositions(): void {
+    try {
+      const response = await fetch(`${this.baseUrl}/iserver/account/positions/0`);
+      if (response.ok) {
+        const positions = await response.json();
+        console.log('📈 Positions received:', positions);
+        
+        // Process positions if any
+        this.positions.clear();
+        // Mock empty positions for now
+      }
+    } catch (error) {
+      console.error('Failed to get positions:', error);
     }
   }
 
   private static convertSymbolToIB(symbol: string): string {
-    // Convert various symbol formats to IB format
     let ibSymbol = symbol;
     
     if (symbol.includes('=X')) {
-      // Yahoo Finance format like USDJPY=X
       ibSymbol = symbol.replace('=X', '');
     }
     
     if (symbol.includes('/')) {
-      // Format like EUR/USD
       ibSymbol = symbol.replace('/', '.');
     } else if (symbol.length === 6 && !symbol.includes('.')) {
-      // Format like EURUSD - convert to EUR.USD
       ibSymbol = `${symbol.slice(0, 3)}.${symbol.slice(3)}`;
     }
 

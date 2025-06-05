@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -145,7 +144,7 @@ const InteractiveBrokersIntegration: React.FC = () => {
                     type="number"
                     value={config.port}
                     onChange={(e) => handleConfigChange('port', parseInt(e.target.value))}
-                    placeholder="7497"
+                    placeholder="5000"
                     className="bg-slate-700 border-slate-600 text-white"
                   />
                 </div>
@@ -222,15 +221,21 @@ const InteractiveBrokersIntegration: React.FC = () => {
 
             {/* Setup Instructions */}
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-              <h4 className="text-blue-300 font-medium mb-2">📋 Setup Instructions</h4>
+              <h4 className="text-blue-300 font-medium mb-2">📋 Updated Setup Instructions</h4>
               <ol className="text-blue-200 text-sm space-y-1 list-decimal list-inside">
-                <li>Download and install TWS (Trader Workstation) from Interactive Brokers</li>
-                <li>Enable API access in TWS: File → Global Configuration → API → Settings</li>
-                <li>Set "Enable ActiveX and Socket Clients" to TRUE</li>
-                <li>Add your IP address (127.0.0.1 for local) to trusted IPs</li>
-                <li>For paper trading, use port 7497. For live trading, use port 7496</li>
-                <li>Ensure TWS is running before clicking "Connect"</li>
+                <li>Download and install <strong>Client Portal Gateway</strong> from Interactive Brokers</li>
+                <li>Run the Gateway application (not TWS) on your computer</li>
+                <li>Access the gateway at <code>https://localhost:5000</code> in your browser</li>
+                <li>Log in with your IB credentials to authenticate</li>
+                <li>Use port <strong>5000</strong> for Client Portal Gateway connection</li>
+                <li>Ensure the gateway is running before clicking "Connect"</li>
               </ol>
+              <div className="mt-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded">
+                <p className="text-yellow-200 text-xs">
+                  <strong>Note:</strong> Client Portal Gateway is the recommended way to connect web applications to IB. 
+                  Traditional TWS socket connections require a bridge server due to browser security restrictions.
+                </p>
+              </div>
             </div>
           </TabsContent>
 
