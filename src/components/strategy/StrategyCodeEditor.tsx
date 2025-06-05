@@ -27,16 +27,16 @@ const StrategyCodeEditor: React.FC<StrategyCodeEditorProps> = ({
   };
 
   const loadCleanStrategy = () => {
-    const cleanCode = `# Smart Momentum Strategy with Proper BUY/SELL Signals
-# This strategy defines clear directional signals for forward testing
+    const cleanCode = `# Smart Momentum Strategy with OANDA Trade Direction Support
+# Enhanced with proper BUY/SELL signals and direction array for OANDA integration
 
 def strategy_logic(data, reverse_signals=False):
     """
-    Enhanced momentum strategy with proper BUY/SELL directional signals:
+    Enhanced momentum strategy with OANDA-compatible trade directions:
     - EMA trend filtering
     - RSI momentum confirmation
     - Volatility-based entry timing
-    - EXPLICIT BUY/SELL signal generation for forward testing
+    - EXPLICIT BUY/SELL direction array for OANDA execution
     - Reverse signal capability for testing both directions
     """
     
@@ -54,13 +54,13 @@ def strategy_logic(data, reverse_signals=False):
     
     entry = []
     exit = []
-    trade_direction = []  # CRITICAL: This provides BUY/SELL direction
+    direction = []  # CRITICAL: Trade direction for OANDA integration
     
     for i in range(len(close)):
         if i < 200:
             entry.append(False)
             exit.append(False)
-            trade_direction.append('NONE')
+            direction.append(None)
         else:
             # Trend conditions
             uptrend = ema_fast[i] > ema_slow[i] and close[i] > ema_trend[i]
@@ -73,51 +73,51 @@ def strategy_logic(data, reverse_signals=False):
             # Volatility filter
             high_vol = atr[i] > atr_avg[i] * 1.2
             
-            # Entry conditions
-            long_signal = uptrend and momentum_up and high_vol
-            short_signal = downtrend and momentum_down and high_vol
+            # Base entry conditions
+            base_long_entry = uptrend and momentum_up and high_vol
+            base_short_entry = downtrend and momentum_down and high_vol
             
             # Apply reverse signals if enabled (for testing opposite direction)
             if reverse_signals:
-                actual_long = short_signal
-                actual_short = long_signal
+                actual_long = base_short_entry
+                actual_short = base_long_entry
             else:
-                actual_long = long_signal
-                actual_short = short_signal
+                actual_long = base_long_entry
+                actual_short = base_short_entry
             
-            # Generate EXPLICIT directional signals for forward testing
+            # Generate entry signals with EXPLICIT directions for OANDA
             if actual_long:
                 entry.append(True)
-                trade_direction.append('BUY')  # EXPLICIT BUY signal
+                direction.append("BUY")  # OANDA-compatible BUY signal
             elif actual_short:
                 entry.append(True)
-                trade_direction.append('SELL')  # EXPLICIT SELL signal
+                direction.append("SELL")  # OANDA-compatible SELL signal
             else:
                 entry.append(False)
-                trade_direction.append('NONE')
+                direction.append(None)  # No trade signal
             
             # Exit conditions
             exit_signal = rsi[i] > 80 or rsi[i] < 20 or not high_vol
             exit.append(exit_signal)
     
-    # CRITICAL: Return trade_direction for forward testing
+    # CRITICAL: Return direction array for OANDA integration
     return {
         'entry': entry,
         'exit': exit,
-        'trade_direction': trade_direction,  # This is what forward testing needs
+        'direction': direction,  # Required for OANDA trade execution
         'ema_fast': ema_fast,
         'ema_slow': ema_slow,
         'ema_trend': ema_trend,
         'rsi': rsi,
         'atr': atr,
         'reverse_signals_applied': reverse_signals,
-        'note': 'Strategy with proper BUY/SELL directional signals for forward testing'
+        'note': 'Strategy with OANDA-compatible trade directions for live trading'
     }`;
 
     onCodeChange(cleanCode);
     toast({
       title: "Strategy Updated! ✅",
-      description: "Loaded strategy with proper BUY/SELL directional signals for forward testing",
+      description: "Loaded strategy with OANDA-compatible trade directions (BUY/SELL signals)",
     });
   };
 
@@ -141,7 +141,7 @@ def strategy_logic(data, reverse_signals=False):
             className="bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Load Strategy with BUY/SELL Signals
+            Load OANDA-Compatible Strategy
           </Button>
         </div>
         {codeChanged && (

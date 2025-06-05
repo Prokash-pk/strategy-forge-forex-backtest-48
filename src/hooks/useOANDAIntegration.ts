@@ -1,4 +1,3 @@
-
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
@@ -6,11 +5,12 @@ import { useOANDATrade } from '@/hooks/oanda/useOANDATrade';
 import { useState, useEffect } from 'react';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
-import { AutoStrategyService } from '@/services/autoStrategyService';
+import { OANDAConnectionKeepalive } from '@/services/oanda/connectionKeepalive';
 import { CheckCircle, XCircle, Clock } from 'lucide-react';
 
 export const useOANDAIntegration = () => {
   const [isForwardTestingActive, setIsForwardTestingActive] = useState(false);
+  const keepaliveService = OANDAConnectionKeepalive.getInstance();
 
   const {
     config,
@@ -51,6 +51,30 @@ export const useOANDAIntegration = () => {
     loadSavedStrategies();
     loadSelectedStrategy();
   }, []);
+
+  // Start keepalive when connection is successful and config is complete
+  useEffect(() => {
+    const isConfigComplete = config.accountId?.trim() && config.apiKey?.trim();
+    
+    if (connectionStatus === 'success' && isConfigComplete) {
+      console.log('🔄 Starting OANDA connection keepalive...');
+      keepaliveService.startKeepalive({
+        accountId: config.accountId,
+        apiKey: config.apiKey,
+        environment: config.environment
+      });
+    } else if (connectionStatus === 'error' || !isConfigComplete) {
+      console.log('🛑 Stopping OANDA keepalive due to config/connection issues');
+      keepaliveService.stopKeepalive();
+    }
+
+    // Cleanup keepalive on unmount
+    return () => {
+      if (connectionStatus !== 'success') {
+        keepaliveService.stopKeepalive();
+      }
+    };
+  }, [connectionStatus, config.accountId, config.apiKey, config.environment]);
 
   // Debug log when strategies or selected strategy changes
   useEffect(() => {
@@ -101,6 +125,7 @@ export const useOANDAIntegration = () => {
         console.log('🤖 Autonomous trading status check:', {
           autonomousActive: isAutonomousActive,
           totalActiveSessions: activeSessions.length,
+          keepaliveActive: keepaliveService.isKeepaliveActive(),
           status: isAutonomousActive ? 'RUNNING AUTONOMOUSLY' : 'INACTIVE'
         });
 
@@ -130,6 +155,8 @@ export const useOANDAIntegration = () => {
     handleConfigChange(field, value);
     if (field === 'accountId' || field === 'apiKey' || field === 'environment') {
       resetConnectionStatus();
+      // Stop keepalive when credentials change
+      keepaliveService.stopKeepalive();
     }
   };
 
@@ -177,6 +204,7 @@ export const useOANDAIntegration = () => {
   console.log('useOANDAIntegration state:', {
     isConfigured,
     connectionStatus,
+    keepaliveActive: keepaliveService.isKeepaliveActive(),
     selectedStrategy: selectedStrategy?.strategy_name || 'None',
     selectedStrategyReturn: selectedStrategy?.total_return || 'N/A',
     canStartTesting,

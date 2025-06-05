@@ -8,7 +8,7 @@ def validate_strategy_signals(result):
     
     entry = result.get('entry', [])
     exit = result.get('exit', [])
-    entry_type = result.get('entry_type', result.get('trade_direction', []))
+    direction = result.get('direction', result.get('entry_type', result.get('trade_direction', [])))
     
     # Check required fields exist
     if not entry:
@@ -17,24 +17,24 @@ def validate_strategy_signals(result):
     if not exit:
         return False, "Strategy must return 'exit' array"
     
-    if not entry_type:
-        return False, "Strategy must return 'entry_type' or 'trade_direction' array with BUY/SELL signals"
+    if not direction:
+        return False, "Strategy must return 'direction' array with BUY/SELL/None signals"
     
     # Check array lengths match
-    if len(entry) != len(exit) or len(entry) != len(entry_type):
-        return False, f"Arrays must be same length: entry({len(entry)}), exit({len(exit)}), entry_type({len(entry_type)})"
+    if len(entry) != len(exit) or len(entry) != len(direction):
+        return False, f"Arrays must be same length: entry({len(entry)}), exit({len(exit)}), direction({len(direction)})"
     
-    # Validate entry_type values
-    valid_directions = ['BUY', 'SELL', 'NONE', None]
-    invalid_directions = [d for d in entry_type if d not in valid_directions]
+    # Validate direction values
+    valid_directions = ['BUY', 'SELL', None]
+    invalid_directions = [d for d in direction if d not in valid_directions]
     if invalid_directions:
-        return False, f"Invalid entry_type values: {set(invalid_directions)}. Must be 'BUY', 'SELL', or 'NONE'"
+        return False, f"Invalid direction values: {set(invalid_directions)}. Must be 'BUY', 'SELL', or None"
     
     # Check for actual trading signals
-    buy_signals = sum(1 for i, (has_entry, direction) in enumerate(zip(entry, entry_type)) 
-                     if has_entry and direction == 'BUY')
-    sell_signals = sum(1 for i, (has_entry, direction) in enumerate(zip(entry, entry_type)) 
-                      if has_entry and direction == 'SELL')
+    buy_signals = sum(1 for i, (has_entry, dir_signal) in enumerate(zip(entry, direction)) 
+                     if has_entry and dir_signal == 'BUY')
+    sell_signals = sum(1 for i, (has_entry, dir_signal) in enumerate(zip(entry, direction)) 
+                      if has_entry and dir_signal == 'SELL')
     
     if buy_signals == 0 and sell_signals == 0:
         return False, "Strategy generates no BUY or SELL signals. Check your entry conditions."
@@ -60,32 +60,32 @@ def enforce_directional_signals(result):
     
     if not entry:
         print("❌ Cannot fix: No entry signals found")
-        return {'entry': [], 'exit': [], 'entry_type': [], 'error': message}
+        return {'entry': [], 'exit': [], 'direction': [], 'error': message}
     
-    # Auto-generate entry_type based on simple momentum
-    entry_type = []
+    # Auto-generate direction based on simple momentum
+    direction = []
     close_prices = result.get('close', [])
     
     for i, has_entry in enumerate(entry):
         if not has_entry:
-            entry_type.append('NONE')
+            direction.append(None)
         else:
             # Simple heuristic: if we have price data, use momentum
             if close_prices and len(close_prices) > i and i > 0:
                 if close_prices[i] > close_prices[i-1]:
-                    entry_type.append('BUY')
+                    direction.append('BUY')
                 else:
-                    entry_type.append('SELL')
+                    direction.append('SELL')
             else:
                 # Default to BUY if no price context
-                entry_type.append('BUY')
+                direction.append('BUY')
     
     # Update result with auto-generated signals
-    result['entry_type'] = entry_type
+    result['direction'] = direction
     result['auto_fixed'] = True
     result['original_error'] = message
     
-    print(f"🔧 Auto-fixed strategy with {entry_type.count('BUY')} BUY and {entry_type.count('SELL')} SELL signals")
+    print(f"🔧 Auto-fixed strategy with {direction.count('BUY')} BUY and {direction.count('SELL')} SELL signals")
     
     return result
 
@@ -94,7 +94,7 @@ def process_strategy_signals(result, reverse_signals):
     
     # Ensure we have the basic required signals
     if not isinstance(result, dict):
-        return {'entry': [], 'exit': [], 'entry_type': [], 'error': 'Invalid strategy result format'}
+        return {'entry': [], 'exit': [], 'direction': [], 'error': 'Invalid strategy result format'}
     
     # Enforce directional signals (this will auto-fix if possible)
     result = enforce_directional_signals(result)
@@ -102,7 +102,7 @@ def process_strategy_signals(result, reverse_signals):
     # Extract signals with fallbacks
     entry = result.get('entry', [])
     exit = result.get('exit', [])
-    entry_type = result.get('entry_type', result.get('trade_direction', []))
+    direction = result.get('direction', result.get('entry_type', result.get('trade_direction', [])))
     
     # Final validation after potential auto-fix
     is_valid, validation_message = validate_strategy_signals(result)
@@ -112,41 +112,41 @@ def process_strategy_signals(result, reverse_signals):
         return {
             'entry': [], 
             'exit': [], 
-            'entry_type': [], 
+            'direction': [], 
             'error': f"Strategy validation failed: {validation_message}"
         }
     
     # Apply reverse signals if requested
-    if reverse_signals and entry_type:
+    if reverse_signals and direction:
         print("🔄 Applying reverse signals transformation")
-        reversed_entry_type = []
-        for direction in entry_type:
-            if direction == 'BUY':
-                reversed_entry_type.append('SELL')
-            elif direction == 'SELL':
-                reversed_entry_type.append('BUY')
+        reversed_direction = []
+        for dir_signal in direction:
+            if dir_signal == 'BUY':
+                reversed_direction.append('SELL')
+            elif dir_signal == 'SELL':
+                reversed_direction.append('BUY')
             else:
-                reversed_entry_type.append(direction)
-        entry_type = reversed_entry_type
+                reversed_direction.append(dir_signal)
+        direction = reversed_direction
     
     # Convert to JavaScript-compatible format
     processed_result = {
         'entry': [bool(x) for x in entry] if entry else [],
         'exit': [bool(x) for x in exit] if exit else [],
-        'entry_type': [str(x) if x is not None else 'NONE' for x in entry_type] if entry_type else [],
+        'direction': [str(x) if x is not None else None for x in direction] if direction else [],
         'reverse_signals_applied': reverse_signals,
         'validation_passed': True,
         'validation_message': validation_message,
         'signal_stats': {
             'total_entries': sum(entry) if entry else 0,
-            'buy_signals': entry_type.count('BUY') if entry_type else 0,
-            'sell_signals': entry_type.count('SELL') if entry_type else 0
+            'buy_signals': direction.count('BUY') if direction else 0,
+            'sell_signals': direction.count('SELL') if direction else 0
         }
     }
     
     # Include other indicators if present
     for key, value in result.items():
-        if key not in ['entry', 'exit', 'entry_type', 'trade_direction']:
+        if key not in ['entry', 'exit', 'direction', 'entry_type', 'trade_direction']:
             if hasattr(value, '__iter__') and not isinstance(value, str):
                 try:
                     processed_result[key] = [float(x) if not math.isnan(x) else 0 for x in value]
