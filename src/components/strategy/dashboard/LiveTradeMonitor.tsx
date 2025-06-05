@@ -6,6 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Activity, Clock, TrendingUp, RefreshCw } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
+interface TradeData {
+  action?: string;
+  symbol?: string;
+  units?: number;
+  price?: number;
+  strategy_name?: string;
+  status?: string;
+  transaction_id?: string;
+}
+
 interface LiveTrade {
   id: string;
   timestamp: string;
@@ -27,6 +37,21 @@ const LiveTradeMonitor: React.FC<LiveTradeMonitorProps> = ({ isActive, strategy 
   const [liveTrades, setLiveTrades] = useState<LiveTrade[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  const parseTradeData = (tradeData: any): TradeData => {
+    if (!tradeData) return {};
+    
+    // Handle both string and object cases
+    if (typeof tradeData === 'string') {
+      try {
+        return JSON.parse(tradeData);
+      } catch {
+        return {};
+      }
+    }
+    
+    return tradeData as TradeData;
+  };
 
   const fetchLiveTrades = async () => {
     if (!isActive) return;
@@ -50,17 +75,21 @@ const LiveTradeMonitor: React.FC<LiveTradeMonitorProps> = ({ isActive, strategy 
         return;
       }
 
-      const trades = logs?.map(log => ({
-        id: log.id,
-        timestamp: log.timestamp,
-        action: log.trade_data?.action || 'BUY',
-        symbol: log.trade_data?.symbol || 'EUR_USD',
-        units: log.trade_data?.units || 100,
-        price: log.trade_data?.price || 0,
-        strategy_name: log.trade_data?.strategy_name || strategy?.strategy_name || 'Unknown',
-        status: log.trade_data?.status || 'executed',
-        transaction_id: log.trade_data?.transaction_id
-      })) || [];
+      const trades = logs?.map(log => {
+        const tradeData = parseTradeData(log.trade_data);
+        
+        return {
+          id: log.id,
+          timestamp: log.timestamp,
+          action: (tradeData.action || 'BUY') as 'BUY' | 'SELL',
+          symbol: tradeData.symbol || 'EUR_USD',
+          units: tradeData.units || 100,
+          price: tradeData.price || 0,
+          strategy_name: tradeData.strategy_name || strategy?.strategy_name || 'Unknown',
+          status: (tradeData.status || 'executed') as 'executed' | 'pending' | 'failed',
+          transaction_id: tradeData.transaction_id
+        };
+      }) || [];
 
       setLiveTrades(trades);
       setLastUpdate(new Date());
