@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
@@ -104,7 +103,8 @@ const ComprehensiveDiagnostics: React.FC = () => {
   const stats: DiagnosticStats = {
     successCount: diagnostics.filter(d => d.status === 'SUCCESS').length,
     warningCount: diagnostics.filter(d => d.status === 'WARNING').length,
-    errorCount: diagnostics.filter(d => d.status === 'ERROR').length
+    errorCount: diagnostics.filter(d => d.status === 'ERROR').length,
+    infoCount: diagnostics.filter(d => d.status === 'INFO').length
   };
 
   // Group diagnostics by category

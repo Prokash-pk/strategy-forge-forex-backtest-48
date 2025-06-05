@@ -1,3 +1,4 @@
+
 import { DiagnosticResult } from './types';
 
 export const runAuthenticationCheck = (user: any): DiagnosticResult => {
@@ -30,7 +31,7 @@ export const runStrategyConfigCheck = (): DiagnosticResult => {
       status: 'SUCCESS',
       message: 'Strategy is configured',
       details: { strategyName: JSON.parse(strategy).strategy_name },
-      iconType: 'code',
+      iconType: 'settings',
       category: 'config'
     };
   } else {
@@ -39,7 +40,7 @@ export const runStrategyConfigCheck = (): DiagnosticResult => {
       status: 'WARNING',
       message: 'No strategy selected',
       details: { error: 'No strategy in localStorage' },
-      iconType: 'code',
+      iconType: 'settings',
       category: 'config'
     };
   }
@@ -100,7 +101,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
         status: 'WARNING',
         message: 'No OANDA configuration found',
         details: { error: 'No config in localStorage' },
-        iconType: 'connectivity',
+        iconType: 'wifi',
         category: 'connectivity'
       };
     }
@@ -112,7 +113,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
         status: 'WARNING',
         message: 'Incomplete OANDA configuration',
         details: { error: 'Missing accountId or apiKey' },
-        iconType: 'connectivity',
+        iconType: 'wifi',
         category: 'connectivity'
       };
     }
@@ -139,7 +140,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
         status: 'SUCCESS',
         message: 'Successfully connected to OANDA API',
         details: { status: response.status },
-        iconType: 'connectivity',
+        iconType: 'wifi',
         category: 'connectivity'
       };
     } else {
@@ -148,7 +149,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
         status: 'ERROR',
         message: `OANDA API connection failed: ${response.status}`,
         details: { status: response.status },
-        iconType: 'connectivity',
+        iconType: 'wifi',
         category: 'connectivity'
       };
     }
@@ -158,7 +159,7 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
       status: 'ERROR',
       message: `OANDA connectivity check failed: ${error.message}`,
       details: { error: error.message },
-      iconType: 'connectivity',
+      iconType: 'wifi',
       category: 'connectivity'
     };
   }
@@ -182,7 +183,7 @@ export const runServerSessionsCheck = async (): Promise<DiagnosticResult> => {
         status: 'SUCCESS',
         message: `Found ${data.sessions?.length || 0} active sessions`,
         details: { sessionCount: data.sessions?.length || 0 },
-        iconType: 'connectivity',
+        iconType: 'server',
         category: 'connectivity'
       };
     } else {
@@ -191,7 +192,7 @@ export const runServerSessionsCheck = async (): Promise<DiagnosticResult> => {
         status: 'WARNING',
         message: 'Could not fetch server sessions',
         details: { status: response.status },
-        iconType: 'connectivity',
+        iconType: 'server',
         category: 'connectivity'
       };
     }
@@ -201,7 +202,7 @@ export const runServerSessionsCheck = async (): Promise<DiagnosticResult> => {
       status: 'WARNING',
       message: 'Server sessions check failed (this is normal for local development)',
       details: { error: error.message },
-      iconType: 'connectivity',
+      iconType: 'server',
       category: 'connectivity'
     };
   }
@@ -225,7 +226,7 @@ export const runServerLogsCheck = async (): Promise<DiagnosticResult> => {
         status: 'SUCCESS',
         message: `Found ${data.logs?.length || 0} recent log entries`,
         details: { logCount: data.logs?.length || 0 },
-        iconType: 'connectivity',
+        iconType: 'server',
         category: 'connectivity'
       };
     } else {
@@ -234,7 +235,7 @@ export const runServerLogsCheck = async (): Promise<DiagnosticResult> => {
         status: 'WARNING',
         message: 'Could not fetch server logs',
         details: { status: response.status },
-        iconType: 'connectivity',
+        iconType: 'server',
         category: 'connectivity'
       };
     }
@@ -244,7 +245,7 @@ export const runServerLogsCheck = async (): Promise<DiagnosticResult> => {
       status: 'WARNING',
       message: 'Server logs check failed (this is normal for local development)',
       details: { error: error.message },
-      iconType: 'connectivity',
+      iconType: 'server',
       category: 'connectivity'
     };
   }
@@ -257,7 +258,7 @@ export const runDatabaseSessionsCheck = async (user: any): Promise<DiagnosticRes
       status: 'WARNING',
       message: 'No user session for database check',
       details: { error: 'User not authenticated' },
-      iconType: 'connectivity',
+      iconType: 'database',
       category: 'connectivity'
     };
   }
@@ -269,7 +270,7 @@ export const runDatabaseSessionsCheck = async (user: any): Promise<DiagnosticRes
       status: 'SUCCESS',
       message: 'Database connection available',
       details: { userId: user.id },
-      iconType: 'connectivity',
+      iconType: 'database',
       category: 'connectivity'
     };
   } catch (error) {
@@ -278,7 +279,7 @@ export const runDatabaseSessionsCheck = async (user: any): Promise<DiagnosticRes
       status: 'ERROR',
       message: 'Database session check failed',
       details: { error: error.message },
-      iconType: 'connectivity',
+      iconType: 'database',
       category: 'connectivity'
     };
   }
@@ -301,7 +302,7 @@ export const runEdgeFunctionsCheck = async (): Promise<DiagnosticResult> => {
         status: 'SUCCESS',
         message: 'Edge functions are available',
         details: { status: response.status },
-        iconType: 'connectivity',
+        iconType: 'zap',
         category: 'connectivity'
       };
     } else {
@@ -310,7 +311,7 @@ export const runEdgeFunctionsCheck = async (): Promise<DiagnosticResult> => {
         status: 'WARNING',
         message: 'Edge functions may not be available',
         details: { status: response.status },
-        iconType: 'connectivity',
+        iconType: 'zap',
         category: 'connectivity'
       };
     }
@@ -320,7 +321,7 @@ export const runEdgeFunctionsCheck = async (): Promise<DiagnosticResult> => {
       status: 'WARNING',
       message: 'Edge functions check failed (this is normal for local development)',
       details: { error: error.message },
-      iconType: 'connectivity',
+      iconType: 'zap',
       category: 'connectivity'
     };
   }
