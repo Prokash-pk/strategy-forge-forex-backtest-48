@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { InteractiveBrokersService, IBConfig, IBTrade } from '@/services/interactiveBrokersService';
+import { InteractiveBrokersService } from '@/services/interactiveBrokersService';
+import { IBConfig, IBTrade } from '@/types/interactiveBrokers';
 import { useToast } from '@/hooks/use-toast';
 
 export const useInteractiveBrokers = () => {
