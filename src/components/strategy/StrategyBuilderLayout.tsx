@@ -9,6 +9,7 @@ import VisualStrategyTab from './VisualStrategyTab';
 import StrategyRecommendationsTab from './StrategyRecommendationsTab';
 import HighPerformanceStrategiesTab from './HighPerformanceStrategiesTab';
 import OANDAIntegration from './OANDAIntegration';
+import MT4Integration from './MT4Integration';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
@@ -47,7 +48,7 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   return (
     <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8">
       <Tabs defaultValue="configuration" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 bg-slate-800 border-slate-700 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 bg-slate-800 border-slate-700 h-auto p-1">
           <TabsTrigger 
             value="configuration" 
             className="data-[state=active]:bg-emerald-600 flex flex-col items-center gap-1 py-3 px-2 text-xs lg:text-sm"
@@ -91,6 +92,15 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
             <Lightbulb className="h-4 w-4" />
             <span className="hidden sm:inline">AI Recommendations</span>
             <span className="sm:hidden">AI</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="mt4" 
+            className="data-[state=active]:bg-emerald-600 flex flex-col items-center gap-1 py-3 px-2 text-xs lg:text-sm"
+          >
+            <TrendingUp className="h-4 w-4" />
+            <span className="hidden sm:inline">MT4 Trading</span>
+            <span className="sm:hidden">MT4</span>
           </TabsTrigger>
           
           <TabsTrigger 
@@ -154,6 +164,12 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
                 onAddToStrategy={onAddToStrategy}
                 onStrategySelect={onStrategySelect}
               />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="mt4" className="mt-0 w-full">
+            <div className="w-full space-y-6">
+              <MT4Integration />
             </div>
           </TabsContent>
 
