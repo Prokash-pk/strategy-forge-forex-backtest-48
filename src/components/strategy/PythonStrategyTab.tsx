@@ -1,12 +1,15 @@
-
 import React from 'react';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import StrategyZeroTradesAlert from './StrategyZeroTradesAlert';
 import StrategyQuickLoad from './StrategyQuickLoad';
 import StrategyCodeEditor from './StrategyCodeEditor';
 import StrategyActionButtons from './StrategyActionButtons';
+import StrategyValidationAlert from './StrategyValidationAlert';
+import { useStrategyValidation } from '@/hooks/useStrategyValidation';
+import { FileText } from 'lucide-react';
 
 interface PythonStrategyTabProps {
   strategy: {
@@ -31,6 +34,9 @@ const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({
   const { toast } = useToast();
   const [isSaving, setIsSaving] = React.useState(false);
   const [codeChanged, setCodeChanged] = React.useState(false);
+  
+  // Add strategy validation
+  const { validation, isValidating, getTemplate } = useStrategyValidation(strategy.code);
 
   // Check if last backtest resulted in 0 trades
   const hasZeroTrades = backtestResults && backtestResults.totalTrades === 0;
@@ -48,6 +54,16 @@ const PythonStrategyTab: React.FC<PythonStrategyTabProps> = ({
   const handleStrategyLoad = (loadedStrategy: any) => {
     onStrategyChange(loadedStrategy);
     setCodeChanged(true);
+  };
+
+  const handleLoadTemplate = () => {
+    const template = getTemplate();
+    handleCodeChange(template);
+    
+    toast({
+      title: "Template Loaded",
+      description: "Loaded template with required directional signals structure",
+    });
   };
 
   const handleLoadImprovedStrategy = () => {
@@ -203,13 +219,27 @@ def strategy_logic(data):
     <div className="space-y-4 mt-6">
       <StrategyZeroTradesAlert show={hasZeroTrades} />
 
+      {/* Strategy Validation */}
+      <StrategyValidationAlert validation={validation} />
+
       <div className="flex justify-between items-center">
         <Label htmlFor="strategyCode" className="text-slate-300">Python Strategy Code</Label>
-        <StrategyQuickLoad
-          onStrategyLoad={handleStrategyLoad}
-          onImprovedLoad={handleLoadImprovedStrategy}
-          hasZeroTrades={hasZeroTrades}
-        />
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleLoadTemplate}
+            className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10"
+          >
+            <FileText className="h-4 w-4 mr-1" />
+            Load Template
+          </Button>
+          <StrategyQuickLoad
+            onStrategyLoad={handleStrategyLoad}
+            onImprovedLoad={handleLoadImprovedStrategy}
+            hasZeroTrades={hasZeroTrades}
+          />
+        </div>
       </div>
       
       <StrategyCodeEditor
@@ -225,6 +255,7 @@ def strategy_logic(data):
         isSaving={isSaving}
         codeChanged={codeChanged}
         hasCode={!!strategy.code.trim()}
+        disabled={validation && !validation.isValid}
       />
     </div>
   );

@@ -1,6 +1,4 @@
-
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 export interface AutoStrategyConfig {
   strategy_name: string;
@@ -25,18 +23,16 @@ export interface AutoStrategyConfig {
 export class AutoStrategyService {
   static async getDefaultBuySellStrategy(): Promise<AutoStrategyConfig> {
     const defaultStrategy = {
-      strategy_name: "Smart Momentum Strategy with BUY/SELL Signals",
-      strategy_code: `# Smart Momentum Strategy with Proper BUY/SELL Signals
-# This strategy defines clear directional signals for forward testing
+      strategy_name: "Validated BUY/SELL Strategy",
+      strategy_code: `# Validated Strategy with Enforced Directional Signals
+# This strategy meets all validation requirements for forward testing
 
-def strategy_logic(data, reverse_signals=False):
+def strategy_logic(data):
     """
-    Enhanced momentum strategy with proper BUY/SELL directional signals:
-    - EMA trend filtering
-    - RSI momentum confirmation
-    - Volatility-based entry timing
-    - EXPLICIT BUY/SELL signal generation for forward testing
-    - Reverse signal capability for testing both directions
+    ENFORCED STRUCTURE - Returns required directional signals:
+    - entry: [True/False] - when to enter trades
+    - exit: [True/False] - when to exit trades  
+    - entry_type: ["BUY"/"SELL"/"NONE"] - REQUIRED for forward testing
     """
     
     close = data['Close'].tolist()
@@ -44,73 +40,68 @@ def strategy_logic(data, reverse_signals=False):
     low = data['Low'].tolist()
     
     # Technical indicators
-    ema_fast = TechnicalAnalysis.ema(close, 21)
-    ema_slow = TechnicalAnalysis.ema(close, 55)
-    ema_trend = TechnicalAnalysis.ema(close, 200)
+    ema_fast = TechnicalAnalysis.ema(close, 12)
+    ema_slow = TechnicalAnalysis.ema(close, 26)
+    ema_trend = TechnicalAnalysis.ema(close, 100)
     rsi = TechnicalAnalysis.rsi(close, 14)
     atr = TechnicalAnalysis.atr(high, low, close, 14)
-    atr_avg = TechnicalAnalysis.sma(atr, 20)
     
+    # REQUIRED arrays - these MUST be returned
     entry = []
     exit = []
-    trade_direction = []  # CRITICAL: This provides BUY/SELL direction
+    entry_type = []  # CRITICAL: This prevents validation errors
     
     for i in range(len(close)):
-        if i < 200:
+        if i < 100:  # Need enough data for all indicators
             entry.append(False)
             exit.append(False)
-            trade_direction.append('NONE')
+            entry_type.append('NONE')
         else:
-            # Trend conditions
-            uptrend = ema_fast[i] > ema_slow[i] and close[i] > ema_trend[i]
-            downtrend = ema_fast[i] < ema_slow[i] and close[i] < ema_trend[i]
+            # Trend analysis
+            uptrend = (ema_fast[i] > ema_slow[i] and 
+                      close[i] > ema_trend[i] and
+                      ema_fast[i] > ema_fast[i-1])
             
-            # Momentum conditions
-            momentum_up = close[i] > ema_fast[i] and rsi[i] > 50 and rsi[i] < 75
-            momentum_down = close[i] < ema_fast[i] and rsi[i] < 50 and rsi[i] > 25
+            downtrend = (ema_fast[i] < ema_slow[i] and 
+                        close[i] < ema_trend[i] and
+                        ema_fast[i] < ema_fast[i-1])
+            
+            # Momentum confirmation
+            momentum_up = (close[i] > ema_fast[i] and 
+                          rsi[i] > 45 and rsi[i] < 70)
+            
+            momentum_down = (close[i] < ema_fast[i] and 
+                           rsi[i] < 55 and rsi[i] > 30)
             
             # Volatility filter
-            high_vol = atr[i] > atr_avg[i] * 1.2
+            volatility_ok = not math.isnan(atr[i]) and atr[i] > 0.0001
             
-            # Entry conditions
-            long_signal = uptrend and momentum_up and high_vol
-            short_signal = downtrend and momentum_down and high_vol
-            
-            # Apply reverse signals if enabled (for testing opposite direction)
-            if reverse_signals:
-                actual_long = short_signal
-                actual_short = long_signal
-            else:
-                actual_long = long_signal
-                actual_short = short_signal
-            
-            # Generate EXPLICIT directional signals for forward testing
-            if actual_long:
+            # EXPLICIT DIRECTIONAL SIGNALS
+            if uptrend and momentum_up and volatility_ok:
                 entry.append(True)
-                trade_direction.append('BUY')  # EXPLICIT BUY signal
-            elif actual_short:
+                entry_type.append('BUY')  # EXPLICIT BUY signal
+            elif downtrend and momentum_down and volatility_ok:
                 entry.append(True)
-                trade_direction.append('SELL')  # EXPLICIT SELL signal
+                entry_type.append('SELL')  # EXPLICIT SELL signal
             else:
                 entry.append(False)
-                trade_direction.append('NONE')
+                entry_type.append('NONE')
             
             # Exit conditions
-            exit_signal = rsi[i] > 80 or rsi[i] < 20 or not high_vol
+            exit_signal = (rsi[i] > 75 or rsi[i] < 25 or not volatility_ok)
             exit.append(exit_signal)
     
-    # CRITICAL: Return trade_direction for forward testing
+    # REQUIRED: Must return all three arrays for validation
     return {
         'entry': entry,
         'exit': exit,
-        'trade_direction': trade_direction,  # This is what forward testing needs
+        'entry_type': entry_type,  # PREVENTS "missing directional signals" error
         'ema_fast': ema_fast,
         'ema_slow': ema_slow,
         'ema_trend': ema_trend,
         'rsi': rsi,
         'atr': atr,
-        'reverse_signals_applied': reverse_signals,
-        'note': 'Strategy with proper BUY/SELL directional signals for forward testing'
+        'validation_compliant': True
     }`,
       symbol: "EURUSD=X",
       timeframe: "1h",
