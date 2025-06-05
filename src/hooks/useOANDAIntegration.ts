@@ -52,28 +52,43 @@ export const useOANDAIntegration = () => {
     loadSelectedStrategy();
   }, []);
 
-  // Start keepalive when connection is successful and config is complete
+  // Enhanced keepalive management - start keepalive when valid config is present
   useEffect(() => {
     const isConfigComplete = config.accountId?.trim() && config.apiKey?.trim();
     
-    if (connectionStatus === 'success' && isConfigComplete) {
-      console.log('🔄 Starting OANDA connection keepalive...');
+    if (isConfigComplete) {
+      console.log('🔄 Valid OANDA config detected, starting keepalive service...');
       keepaliveService.startKeepalive({
         accountId: config.accountId,
         apiKey: config.apiKey,
         environment: config.environment
       });
-    } else if (connectionStatus === 'error' || !isConfigComplete) {
-      console.log('🛑 Stopping OANDA keepalive due to config/connection issues');
+    } else {
+      console.log('🛑 Stopping OANDA keepalive due to incomplete config');
       keepaliveService.stopKeepalive();
     }
 
-    // Cleanup keepalive on unmount
+    // Cleanup keepalive on unmount or config change
     return () => {
-      if (connectionStatus !== 'success') {
+      if (!isConfigComplete) {
         keepaliveService.stopKeepalive();
       }
     };
+  }, [config.accountId, config.apiKey, config.environment]);
+
+  // Additional keepalive boost after successful connection test
+  useEffect(() => {
+    if (connectionStatus === 'success') {
+      const isConfigComplete = config.accountId?.trim() && config.apiKey?.trim();
+      if (isConfigComplete) {
+        console.log('✅ Connection test successful, ensuring keepalive is active...');
+        keepaliveService.startKeepalive({
+          accountId: config.accountId,
+          apiKey: config.apiKey,
+          environment: config.environment
+        });
+      }
+    }
   }, [connectionStatus, config.accountId, config.apiKey, config.environment]);
 
   // Debug log when strategies or selected strategy changes
@@ -155,8 +170,7 @@ export const useOANDAIntegration = () => {
     handleConfigChange(field, value);
     if (field === 'accountId' || field === 'apiKey' || field === 'environment') {
       resetConnectionStatus();
-      // Stop keepalive when credentials change
-      keepaliveService.stopKeepalive();
+      // Don't stop keepalive here - let the main effect handle it
     }
   };
 

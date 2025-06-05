@@ -1,7 +1,10 @@
+
 export class OANDAConnectionKeepalive {
   private static instance: OANDAConnectionKeepalive;
   private keepaliveInterval: NodeJS.Timeout | null = null;
   private isActive: boolean = false;
+  private failureCount: number = 0;
+  private maxFailures: number = 3;
 
   static getInstance(): OANDAConnectionKeepalive {
     if (!OANDAConnectionKeepalive.instance) {
@@ -21,6 +24,7 @@ export class OANDAConnectionKeepalive {
     }
 
     this.isActive = true;
+    this.failureCount = 0;
     console.log('🚀 Starting OANDA connection keepalive...');
 
     // Send initial ping
@@ -31,7 +35,7 @@ export class OANDAConnectionKeepalive {
       if (this.isActive) {
         await this.sendKeepalivePing(config);
       }
-    }, 45000); // 45 seconds
+    }, 30000); // 30 seconds for more frequent pings
 
     console.log('✅ OANDA keepalive started - connection will stay active');
   }
@@ -42,6 +46,7 @@ export class OANDAConnectionKeepalive {
       this.keepaliveInterval = null;
     }
     this.isActive = false;
+    this.failureCount = 0;
     console.log('🛑 OANDA keepalive stopped');
   }
 
@@ -55,7 +60,7 @@ export class OANDAConnectionKeepalive {
         ? 'https://api-fxpractice.oanda.com'
         : 'https://api-fxtrade.oanda.com';
 
-      // Lightweight request to keep session alive
+      // Use the accounts endpoint as it's lightweight and always available
       const response = await fetch(
         `${baseUrl}/v3/accounts/${config.accountId}`,
         {
@@ -63,27 +68,45 @@ export class OANDAConnectionKeepalive {
           headers: {
             'Authorization': `Bearer ${config.apiKey}`,
             'Content-Type': 'application/json',
-          }
+          },
+          // Add timeout to prevent hanging requests
+          signal: AbortSignal.timeout(10000) // 10 second timeout
         }
       );
 
       if (response.ok) {
+        this.failureCount = 0; // Reset failure count on success
         console.log('💚 OANDA keepalive ping successful');
       } else {
-        console.warn('⚠️ OANDA keepalive ping failed:', response.status);
+        this.failureCount++;
+        console.warn(`⚠️ OANDA keepalive ping failed (${this.failureCount}/${this.maxFailures}):`, response.status);
         
         // If unauthorized, stop keepalive to prevent spam
         if (response.status === 401) {
           console.error('❌ OANDA session expired - stopping keepalive');
           this.stopKeepalive();
+        } else if (this.failureCount >= this.maxFailures) {
+          console.error(`❌ OANDA keepalive failed ${this.maxFailures} times - stopping to prevent spam`);
+          this.stopKeepalive();
         }
       }
     } catch (error) {
-      console.warn('⚠️ OANDA keepalive ping error:', error);
+      this.failureCount++;
+      console.warn(`⚠️ OANDA keepalive ping error (${this.failureCount}/${this.maxFailures}):`, error);
+      
+      // Stop if too many failures
+      if (this.failureCount >= this.maxFailures) {
+        console.error(`❌ OANDA keepalive failed ${this.maxFailures} times - stopping to prevent spam`);
+        this.stopKeepalive();
+      }
     }
   }
 
   isKeepaliveActive(): boolean {
     return this.isActive;
+  }
+
+  getFailureCount(): number {
+    return this.failureCount;
   }
 }
