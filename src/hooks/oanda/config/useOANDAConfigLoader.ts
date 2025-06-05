@@ -10,7 +10,21 @@ export const useOANDAConfigLoader = (
   const loadLastUsedConfig = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        // If no user, try to load from localStorage as fallback
+        const saved = localStorage.getItem('oanda_config');
+        if (saved) {
+          try {
+            const config = JSON.parse(saved);
+            setConfig(config);
+            console.log('✅ Loaded OANDA config from localStorage (no user)');
+            return;
+          } catch (error) {
+            console.error('Failed to parse saved OANDA config:', error);
+          }
+        }
+        return;
+      }
 
       // First try to load from Supabase
       const { data: configs } = await supabase
@@ -26,10 +40,14 @@ export const useOANDAConfigLoader = (
         const oandaConfig: OANDAConfig = {
           accountId: config.account_id,
           apiKey: config.api_key,
-          environment: config.environment as 'practice' | 'live'
+          environment: config.environment as 'practice' | 'live',
+          enabled: config.enabled,
+          configName: config.config_name
         };
         
         setConfig(oandaConfig);
+        // Also save to localStorage for immediate access
+        localStorage.setItem('oanda_config', JSON.stringify(oandaConfig));
         console.log('✅ Auto-loaded OANDA config from Supabase');
         return;
       }

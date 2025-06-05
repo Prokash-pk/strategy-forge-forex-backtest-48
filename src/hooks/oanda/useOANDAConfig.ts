@@ -35,13 +35,17 @@ export const useOANDAConfig = () => {
     handleDeleteConfig
   } = useOANDAConfigManager(setConfig, resetConfig, savedConfigs, loadSavedConfigs);
 
-  // Auto-load saved config on mount
+  // Auto-load saved config on mount and when user changes
   useEffect(() => {
     if (user) {
+      console.log('🔄 User detected, loading OANDA configs and settings');
       loadSavedConfigs();
       loadLastUsedConfig();
+    } else {
+      console.log('🔄 No user, attempting to load from localStorage');
+      loadLastUsedConfig(); // This will try localStorage if no user
     }
-  }, [user]);
+  }, [user, loadSavedConfigs, loadLastUsedConfig]);
 
   return {
     config,

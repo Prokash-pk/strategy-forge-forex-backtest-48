@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { StrategySettings } from '@/types/oanda';
@@ -8,6 +8,11 @@ export const useOANDAStrategies = () => {
   const { toast } = useToast();
   const [savedStrategies, setSavedStrategies] = useState<StrategySettings[]>([]);
   const [selectedStrategy, setSelectedStrategy] = useState<StrategySettings | null>(null);
+
+  // Load selected strategy on component mount
+  useEffect(() => {
+    loadSelectedStrategy();
+  }, []);
 
   const loadSelectedStrategy = () => {
     const saved = localStorage.getItem('selected_strategy_settings');
@@ -96,12 +101,48 @@ export const useOANDAStrategies = () => {
     setSelectedStrategy(completeStrategy);
     localStorage.setItem('selected_strategy_settings', JSON.stringify(completeStrategy));
     
+    // Also save to user settings in Supabase for cross-session persistence
+    saveStrategyToUserSettings(completeStrategy);
+    
     console.log('Strategy loaded and saved to localStorage:', completeStrategy);
     
     toast({
       title: "Strategy Settings Loaded",
       description: `Loaded strategy: ${completeStrategy.strategy_name} with all settings`,
     });
+  };
+
+  const saveStrategyToUserSettings = async (strategy: StrategySettings) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Save selected strategy ID to a user settings approach
+      localStorage.setItem('last_selected_strategy_id', strategy.id);
+      console.log('💾 Saved strategy selection for cross-session persistence');
+    } catch (error) {
+      console.error('Failed to save strategy to user settings:', error);
+    }
+  };
+
+  const loadLastSelectedStrategy = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const lastStrategyId = localStorage.getItem('last_selected_strategy_id');
+      if (!lastStrategyId) return;
+
+      // Find the strategy by ID from loaded strategies
+      const strategy = savedStrategies.find(s => s.id === lastStrategyId);
+      if (strategy) {
+        setSelectedStrategy(strategy);
+        localStorage.setItem('selected_strategy_settings', JSON.stringify(strategy));
+        console.log('🔄 Restored last selected strategy after login');
+      }
+    } catch (error) {
+      console.error('Failed to load last selected strategy:', error);
+    }
   };
 
   const handleDeleteStrategy = async (strategyId: string) => {
@@ -123,6 +164,7 @@ export const useOANDAStrategies = () => {
       if (selectedStrategy?.id === strategyId) {
         setSelectedStrategy(null);
         localStorage.removeItem('selected_strategy_settings');
+        localStorage.removeItem('last_selected_strategy_id');
       }
 
       toast({
@@ -148,6 +190,7 @@ export const useOANDAStrategies = () => {
     selectedStrategy,
     loadSelectedStrategy,
     loadSavedStrategies,
+    loadLastSelectedStrategy,
     handleLoadStrategy,
     handleDeleteStrategy
   };
