@@ -38,7 +38,7 @@ const OANDAPriceMonitorControl: React.FC<OANDAPriceMonitorControlProps> = ({
   // Debug logging for button state
   console.log('🔍 PriceMonitorControl Debug State:', {
     isConfigured,
-    strategy: strategy?.name || 'null',
+    strategy: strategy?.strategy_name || 'null',
     connectionStatus,
     isMonitoring,
     canStartMonitoring,
@@ -54,7 +54,7 @@ const OANDAPriceMonitorControl: React.FC<OANDAPriceMonitorControlProps> = ({
       action: isMonitoring ? 'STOP' : 'START',
       canStartMonitoring,
       isMonitoring,
-      strategy: strategy?.name,
+      strategy: strategy?.strategy_name,
       timestamp: new Date().toISOString()
     });
 
@@ -103,7 +103,7 @@ const OANDAPriceMonitorControl: React.FC<OANDAPriceMonitorControlProps> = ({
           <div className="space-y-1 text-slate-400">
             <div>Button Clickable: {canStartMonitoring || isMonitoring ? '✅ YES' : '❌ NO'}</div>
             <div>Monitoring: {isMonitoring ? '✅ Active' : '❌ Stopped'}</div>
-            <div>Strategy: {strategy?.name || '❌ None'}</div>
+            <div>Strategy: {strategy?.strategy_name || '❌ None'}</div>
             <div>Connection: {connectionStatus}</div>
           </div>
         </div>

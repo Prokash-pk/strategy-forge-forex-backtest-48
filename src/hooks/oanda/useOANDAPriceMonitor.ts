@@ -30,7 +30,7 @@ export const useOANDAPriceMonitor = () => {
         environment: config.environment
       },
       strategy: {
-        name: strategy.name,
+        name: strategy.strategy_name,
         symbol: strategy.symbol
       }
     });
