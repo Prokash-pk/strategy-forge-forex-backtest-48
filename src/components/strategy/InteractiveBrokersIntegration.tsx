@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useInteractiveBrokers } from '@/hooks/useInteractiveBrokers';
-import { Settings, Wifi, WifiOff, Play, Square, TestTube, DollarSign, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Settings, Wifi, WifiOff, Play, Square, TestTube, DollarSign, TrendingUp, AlertTriangle, ExternalLink, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 
 const InteractiveBrokersIntegration: React.FC = () => {
   const {
@@ -68,8 +68,11 @@ const InteractiveBrokersIntegration: React.FC = () => {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="connection" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-700">
+        <Tabs defaultValue="setup" className="w-full">
+          <TabsList className="grid w-full grid-cols-5 bg-slate-700">
+            <TabsTrigger value="setup" className="data-[state=active]:bg-slate-600">
+              Setup
+            </TabsTrigger>
             <TabsTrigger value="connection" className="data-[state=active]:bg-slate-600">
               Connection
             </TabsTrigger>
@@ -83,6 +86,108 @@ const InteractiveBrokersIntegration: React.FC = () => {
               Orders
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="setup" className="mt-6 space-y-6">
+            {/* Step-by-step Setup Guide */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-white">🚀 Initial Setup Guide</h3>
+              
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <div className="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">1</div>
+                  <div>
+                    <h4 className="text-blue-300 font-medium">Download IB Gateway</h4>
+                    <p className="text-blue-200 text-sm">Download the Client Portal Gateway (not TWS) from Interactive Brokers</p>
+                    <Button
+                      asChild
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 border-blue-500/30 text-blue-300 hover:bg-blue-500/10"
+                    >
+                      <a href="https://www.interactivebrokers.com/en/trading/ibgateway-stable.php" target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Download IB Gateway
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <div className="bg-yellow-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">2</div>
+                  <div>
+                    <h4 className="text-yellow-300 font-medium">Start IB Gateway</h4>
+                    <p className="text-yellow-200 text-sm">Launch the Gateway application and log in with your IB credentials</p>
+                    <p className="text-yellow-200 text-xs mt-1">⚠️ Make sure to enable "Web API" in the Gateway settings</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">3</div>
+                  <div>
+                    <h4 className="text-green-300 font-medium">Access Web Interface</h4>
+                    <p className="text-green-200 text-sm">Open your browser and go to the Gateway web interface</p>
+                    <div className="flex gap-2 mt-2">
+                      <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        className="border-green-500/30 text-green-300 hover:bg-green-500/10"
+                      >
+                        <a href="https://localhost:5000" target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          https://localhost:5000
+                        </a>
+                      </Button>
+                      <Button
+                        asChild
+                        size="sm"
+                        variant="outline"
+                        className="border-green-500/30 text-green-300 hover:bg-green-500/10"
+                      >
+                        <a href="http://localhost:5000" target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-3 w-3 mr-1" />
+                          http://localhost:5000
+                        </a>
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                  <div className="bg-purple-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">4</div>
+                  <div>
+                    <h4 className="text-purple-300 font-medium">Test Connection</h4>
+                    <p className="text-purple-200 text-sm">Use the "Test Connection" button below to verify the Gateway is accessible</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Common Issues */}
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+              <h4 className="text-red-300 font-medium mb-3">🔧 Common Issues & Solutions</h4>
+              <div className="space-y-2 text-red-200 text-sm">
+                <div className="flex items-start gap-2">
+                  <XCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>"Site can't be reached":</strong> Gateway not running or wrong port. Try ports 5000, 5001, 4000, or 8080.
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>CORS errors:</strong> Enable CORS in Gateway settings or use the web interface to authenticate first.
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <strong>SSL Certificate warnings:</strong> Normal for localhost - click "Advanced" and "Proceed to localhost".
+                  </div>
+                </div>
+              </div>
+            </div>
+          </TabsContent>
 
           <TabsContent value="connection" className="mt-6 space-y-6">
             {/* Connection Status */}
@@ -161,6 +266,7 @@ const InteractiveBrokersIntegration: React.FC = () => {
                     placeholder="5000"
                     className="bg-slate-700 border-slate-600 text-white"
                   />
+                  <p className="text-xs text-slate-400 mt-1">Common ports: 5000, 5001, 4000, 8080</p>
                 </div>
                 <div>
                   <Label htmlFor="clientId" className="text-slate-300">Client ID</Label>

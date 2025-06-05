@@ -18,42 +18,74 @@ export class IBConnectionService {
   static async connect(config: IBConfig): Promise<boolean> {
     try {
       this.config = { ...config };
-      this.baseUrl = `https://${config.host}:${config.port}/v1/api`;
       
-      console.log('🔗 Connecting to IB Client Portal Gateway...');
-      console.log('🔗 Base URL:', this.baseUrl);
+      // Try both HTTP and HTTPS
+      const protocols = ['https', 'http'];
+      let connected = false;
       
-      const response = await fetch(`${this.baseUrl}/iserver/auth/status`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        mode: 'cors'
-      });
+      for (const protocol of protocols) {
+        try {
+          this.baseUrl = `${protocol}://${config.host}:${config.port}`;
+          console.log(`🔗 Attempting connection to: ${this.baseUrl}`);
+          
+          // First try to check if the gateway is accessible
+          const healthResponse = await fetch(`${this.baseUrl}/v1/api/portal/iserver/account/summary`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            mode: 'cors',
+            credentials: 'include'
+          });
 
-      console.log('🔗 Response status:', response.status);
-      console.log('🔗 Response headers:', response.headers);
+          if (healthResponse.ok || healthResponse.status === 401) {
+            // 401 is expected if not authenticated yet, but it means the API is accessible
+            console.log(`✅ Gateway accessible via ${protocol}:// - Status: ${healthResponse.status}`);
+            
+            // Now try the auth status endpoint
+            const authResponse = await fetch(`${this.baseUrl}/v1/api/iserver/auth/status`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              mode: 'cors',
+              credentials: 'include'
+            });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('✅ Connected to Interactive Brokers Client Portal', data);
-        this.config.isConnected = true;
-        return true;
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Connection failed with status:', response.status);
-        console.error('❌ Error response:', errorText);
-        throw new Error(`Connection failed: ${response.status} - ${response.statusText}. Response: ${errorText}`);
+            if (authResponse.ok) {
+              const data = await authResponse.json();
+              console.log('✅ Connected to Interactive Brokers Client Portal', data);
+              this.config.isConnected = true;
+              connected = true;
+              break;
+            } else if (authResponse.status === 401) {
+              console.log('⚠️ Gateway accessible but authentication required');
+              console.log('Please authenticate by visiting:', `${this.baseUrl}/#/`);
+              throw new Error(`Authentication required. Please log in at ${this.baseUrl}/#/ first`);
+            }
+          }
+        } catch (protocolError) {
+          console.log(`❌ ${protocol}:// failed:`, protocolError.message);
+          continue;
+        }
       }
+
+      if (!connected) {
+        throw new Error('Unable to connect using HTTP or HTTPS. Please check that IB Gateway is running and API is enabled.');
+      }
+
+      return true;
     } catch (error) {
       console.error('❌ IB Connection failed:', error);
       
       if (error instanceof TypeError && error.message.includes('fetch')) {
-        console.error('❌ Network error: Make sure IB Client Portal Gateway is running on https://localhost:5000');
-        throw new Error('Network error: Cannot reach IB Client Portal Gateway. Make sure it is running and accessible at https://localhost:5000');
+        console.error('❌ Network error: Cannot reach IB Gateway');
+        throw new Error(`Network error: Cannot reach IB Gateway at ${this.config.host}:${this.config.port}. Please ensure:\n1. IB Gateway is running\n2. Web API is enabled\n3. Port ${this.config.port} is correct`);
       } else if (error.message.includes('CORS')) {
         console.error('❌ CORS error: Browser is blocking the request');
-        throw new Error('CORS error: Browser security is blocking the connection. Make sure Client Portal Gateway is configured correctly.');
+        throw new Error('CORS error: Browser security is blocking the connection. Please enable CORS in IB Gateway settings or use the desktop application.');
       }
       
       this.config.isConnected = false;
@@ -63,42 +95,58 @@ export class IBConnectionService {
 
   static async testConnection(config: IBConfig): Promise<IBConnectionTestResult> {
     try {
-      const testUrl = `https://${config.host}:${config.port}/v1/api/iserver/auth/status`;
-      console.log('🧪 Testing connection to:', testUrl);
+      const protocols = ['https', 'http'];
+      const ports = [config.port, 5000, 5001, 4000, 8080];
       
-      const response = await fetch(testUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        mode: 'cors'
-      });
+      for (const protocol of protocols) {
+        for (const port of ports) {
+          try {
+            const testUrl = `${protocol}://${config.host}:${port}`;
+            console.log(`🧪 Testing: ${testUrl}`);
+            
+            // Test basic connectivity
+            const response = await fetch(`${testUrl}/v1/api/portal/iserver/account/summary`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              mode: 'cors',
+              credentials: 'include',
+              signal: AbortSignal.timeout(5000) // 5 second timeout
+            });
 
-      if (response.ok) {
-        const data = await response.json();
-        return {
-          success: true,
-          message: 'Connection successful! Gateway is accessible and responding.',
-          details: data
-        };
-      } else {
-        const errorText = await response.text();
-        return {
-          success: false,
-          message: `Gateway responded with error: ${response.status} - ${response.statusText}`,
-          details: { status: response.status, error: errorText }
-        };
+            if (response.ok || response.status === 401) {
+              return {
+                success: true,
+                message: `✅ Gateway found at ${testUrl}! ${response.status === 401 ? '(Authentication required - please log in first)' : ''}`,
+                details: { 
+                  url: testUrl, 
+                  status: response.status,
+                  protocol,
+                  port,
+                  authRequired: response.status === 401
+                }
+              };
+            }
+          } catch (portError) {
+            console.log(`Port ${port} with ${protocol}: ${portError.message}`);
+            continue;
+          }
+        }
       }
+      
+      return {
+        success: false,
+        message: `❌ Cannot reach IB Gateway. Tested protocols: ${protocols.join(', ')} on ports: ${ports.join(', ')}`,
+        details: { 
+          testedProtocols: protocols,
+          testedPorts: ports,
+          suggestion: 'Please ensure IB Gateway is running and Web API is enabled'
+        }
+      };
     } catch (error) {
       console.error('🧪 Connection test failed:', error);
-      
-      if (error instanceof TypeError && error.message.includes('fetch')) {
-        return {
-          success: false,
-          message: 'Cannot reach IB Client Portal Gateway. Make sure it is running on the specified host and port.',
-          details: { error: error.message }
-        };
-      }
       
       return {
         success: false,
