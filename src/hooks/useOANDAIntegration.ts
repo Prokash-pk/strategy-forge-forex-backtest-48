@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
@@ -49,7 +48,12 @@ export const useOANDAIntegration = () => {
     handleToggleForwardTesting: baseHandleToggleForwardTesting
   } = useOANDAForwardTesting();
 
-  const { keepaliveService } = useOANDAKeepalive(config, connectionStatus);
+  const { 
+    keepaliveService, 
+    isKeepaliveActive, 
+    getKeepaliveStatus, 
+    forceRestart 
+  } = useOANDAKeepalive(config, connectionStatus);
 
   const {
     isConfigured,
@@ -64,11 +68,12 @@ export const useOANDAIntegration = () => {
     loadSelectedStrategy();
   }, []);
 
-  // Reset connection status when credentials change
+  // Reset connection status when credentials change, but don't stop keepalive
   const handleConfigChangeWithReset = (field: keyof typeof config, value: any) => {
     handleConfigChange(field, value);
     if (field === 'accountId' || field === 'apiKey' || field === 'environment') {
       resetConnectionStatus();
+      // Note: keepalive will automatically restart with new config via useOANDAKeepalive
     }
   };
 
@@ -92,6 +97,12 @@ export const useOANDAIntegration = () => {
     isForwardTestingActive
   );
 
+  // Enhanced connection test that maintains keepalive
+  const handleEnhancedTestConnection = async () => {
+    await handleTestConnection(config);
+    // Keepalive will automatically boost after successful connection
+  };
+
   return {
     config,
     savedConfigs,
@@ -105,8 +116,11 @@ export const useOANDAIntegration = () => {
     canStartTesting,
     isForwardTestingActive,
     connectionStatusIcon,
+    // Enhanced keepalive info
+    isKeepaliveActive,
+    keepaliveStatus: getKeepaliveStatus(),
     handleConfigChange: handleConfigChangeWithReset,
-    handleTestConnection: () => handleTestConnection(config),
+    handleTestConnection: handleEnhancedTestConnection,
     handleSaveConfig,
     handleSaveNewConfig,
     handleLoadConfig,
@@ -118,6 +132,8 @@ export const useOANDAIntegration = () => {
     handleShowGuide,
     loadSelectedStrategy,
     loadSavedConfigs,
-    loadSavedStrategies
+    loadSavedStrategies,
+    // New keepalive control methods
+    forceRestartKeepalive: forceRestart
   };
 };
