@@ -48,5 +48,3 @@ export interface StrategyResult {
   avg_atr?: number[];
   [key: string]: any;
 }
-
-export {};
