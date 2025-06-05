@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Settings, Code2, Bookmark, Lightbulb, TrendingUp, Cpu } from 'lucide-react';
+import { Settings, Code2, Bookmark, Lightbulb, TrendingUp, Cpu, BarChart3 } from 'lucide-react';
 import StrategyConfigurationTab from './StrategyConfigurationTab';
 import PythonStrategyTab from './PythonStrategyTab';
 import SavedStrategiesTab from './SavedStrategiesTab';
@@ -10,6 +10,7 @@ import StrategyRecommendationsTab from './StrategyRecommendationsTab';
 import HighPerformanceStrategiesTab from './HighPerformanceStrategiesTab';
 import OANDAIntegration from './OANDAIntegration';
 import MT4Integration from './MT4Integration';
+import InteractiveBrokersIntegration from './InteractiveBrokersIntegration';
 
 interface StrategyBuilderLayoutProps {
   strategy: any;
@@ -48,7 +49,7 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   return (
     <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8">
       <Tabs defaultValue="configuration" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:grid-cols-7 bg-slate-800 border-slate-700 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 bg-slate-800 border-slate-700 h-auto p-1">
           <TabsTrigger 
             value="configuration" 
             className="data-[state=active]:bg-emerald-600 flex flex-col items-center gap-1 py-3 px-2 text-xs lg:text-sm"
@@ -110,6 +111,15 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
             <TrendingUp className="h-4 w-4" />
             <span className="hidden sm:inline">OANDA Trading</span>
             <span className="sm:hidden">OANDA</span>
+          </TabsTrigger>
+          
+          <TabsTrigger 
+            value="interactive-brokers" 
+            className="data-[state=active]:bg-emerald-600 flex flex-col items-center gap-1 py-3 px-2 text-xs lg:text-sm"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span className="hidden sm:inline">Interactive Brokers</span>
+            <span className="sm:hidden">IB</span>
           </TabsTrigger>
         </TabsList>
 
@@ -176,6 +186,12 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
           <TabsContent value="oanda" className="mt-0 w-full">
             <div className="w-full space-y-6">
               <OANDAIntegration />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="interactive-brokers" className="mt-0 w-full">
+            <div className="w-full space-y-6">
+              <InteractiveBrokersIntegration />
             </div>
           </TabsContent>
         </div>
