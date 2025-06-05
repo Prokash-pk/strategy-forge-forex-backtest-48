@@ -8,6 +8,7 @@ import OANDAConfigForm from './OANDAConfigForm';
 import OANDAStrategySettings from './OANDAStrategySettings';
 import OANDAForwardTestingControl from './OANDAForwardTestingControl';
 import OANDATradingDashboard from './OANDATradingDashboard';
+import OANDAPriceMonitorControl from './OANDAPriceMonitorControl';
 import { useOANDAIntegration } from '@/hooks/useOANDAIntegration';
 
 const OANDAIntegration: React.FC = () => {
@@ -73,12 +74,15 @@ const OANDAIntegration: React.FC = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="config" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-slate-700">
+            <TabsList className="grid w-full grid-cols-5 bg-slate-700">
               <TabsTrigger value="config" className="data-[state=active]:bg-slate-600">
                 Configuration
               </TabsTrigger>
               <TabsTrigger value="strategy" className="data-[state=active]:bg-slate-600">
                 Strategy
+              </TabsTrigger>
+              <TabsTrigger value="monitor" className="data-[state=active]:bg-slate-600">
+                Monitor
               </TabsTrigger>
               <TabsTrigger value="control" className="data-[state=active]:bg-slate-600">
                 Control
@@ -119,6 +123,15 @@ const OANDAIntegration: React.FC = () => {
                   loadSelectedStrategy();
                   loadSavedStrategies();
                 }}
+              />
+            </TabsContent>
+
+            <TabsContent value="monitor" className="mt-6">
+              <OANDAPriceMonitorControl
+                config={config}
+                strategy={selectedStrategy}
+                isConfigured={Boolean(isConfigured)}
+                connectionStatus={connectionStatus}
               />
             </TabsContent>
 
