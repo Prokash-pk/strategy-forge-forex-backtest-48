@@ -1,9 +1,10 @@
 
 import type { StrategyResult, MarketData } from './python/types';
 import { PyodideLoader } from './python/pyodideLoader';
+import type { PyodideInstance } from './python/types';
 
 export class PythonExecutor {
-  static async initializePyodide(): Promise<any> {
+  static async initializePyodide(): Promise<PyodideInstance> {
     return PyodideLoader.initialize();
   }
 

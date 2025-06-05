@@ -1,12 +1,13 @@
 
 import { STRATEGY_EXECUTOR_PYTHON_CODE } from './strategyExecutor';
+import type { PyodideInstance } from './types';
 
 export class PyodideLoader {
-  private static pyodideInstance: any = null;
+  private static pyodideInstance: PyodideInstance | null = null;
   private static isLoading = false;
-  private static loadPromise: Promise<any> | null = null;
+  private static loadPromise: Promise<PyodideInstance> | null = null;
 
-  static async initialize(): Promise<any> {
+  static async initialize(): Promise<PyodideInstance> {
     if (this.pyodideInstance) {
       return this.pyodideInstance;
     }
@@ -26,9 +27,9 @@ export class PyodideLoader {
     }
   }
 
-  private static async loadPyodideInternal(): Promise<any> {
+  private static async loadPyodideInternal(): Promise<PyodideInstance> {
     // Load Pyodide from CDN
-    if (!window.loadPyodide) {
+    if (typeof window !== 'undefined' && !window.loadPyodide) {
       await new Promise<void>((resolve, reject) => {
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js';
@@ -51,7 +52,7 @@ export class PyodideLoader {
     pyodide.runPython(STRATEGY_EXECUTOR_PYTHON_CODE);
 
     console.log('Pyodide initialized successfully');
-    return pyodide;
+    return pyodide as PyodideInstance;
   }
 
   static async isAvailable(): Promise<boolean> {
