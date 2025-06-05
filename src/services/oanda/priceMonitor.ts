@@ -95,10 +95,13 @@ export class OANDAPriceMonitor {
       const hasEntrySignal = strategyResult.entry[latestIndex];
       const currentPrice = marketData.close[latestIndex];
 
-      // Determine signal type if direction array exists
+      // Determine signal type - check multiple possible property names
       let signalType: 'BUY' | 'SELL' | null = null;
-      if (hasEntrySignal && strategyResult.direction) {
-        signalType = strategyResult.direction[latestIndex] as 'BUY' | 'SELL';
+      if (hasEntrySignal) {
+        const direction = strategyResult.direction || strategyResult.trade_direction;
+        if (direction && direction[latestIndex]) {
+          signalType = direction[latestIndex] as 'BUY' | 'SELL';
+        }
       }
 
       // Calculate confidence based on recent signals
@@ -115,8 +118,8 @@ export class OANDAPriceMonitor {
         marketData: {
           close: marketData.close.slice(-5), // Last 5 prices
           rsi: strategyResult.rsi?.slice(-1)[0] || null,
-          ema_fast: strategyResult.ema_fast?.slice(-1)[0] || null,
-          ema_slow: strategyResult.ema_slow?.slice(-1)[0] || null
+          ema_fast: strategyResult.ema_fast?.slice(-1)[0] || strategyResult.short_ema?.slice(-1)[0] || null,
+          ema_slow: strategyResult.ema_slow?.slice(-1)[0] || strategyResult.long_ema?.slice(-1)[0] || null
         }
       };
 
