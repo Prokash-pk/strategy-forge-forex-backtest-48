@@ -12,6 +12,7 @@ import TradingDiagnostics from './TradingDiagnostics';
 import ComprehensiveDiagnostics from './ComprehensiveDiagnostics';
 import LiveTradeMonitor from './LiveTradeMonitor';
 import AutoTradeExecutor from './AutoTradeExecutor';
+import AutoStrategyTesterComponent from './AutoStrategyTester';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 
 interface OANDATradingDashboardProps {
@@ -104,6 +105,7 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
   const positionsCount = accountData?.openPositionCount ? parseInt(accountData.openPositionCount) : 0;
   const totalPL = accountData?.unrealizedPL ? parseFloat(accountData.unrealizedPL) : 0;
   const strategyName = strategy?.strategy_name || 'No Strategy Selected';
+  const isConfigured = Boolean(strategy?.strategy_name && oandaConfig?.accountId && oandaConfig?.apiKey);
 
   return (
     <div className="space-y-6">
@@ -120,9 +122,12 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="executor" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-slate-700">
+            <TabsList className="grid w-full grid-cols-6 bg-slate-700">
               <TabsTrigger value="executor" className="data-[state=active]:bg-slate-600">
                 Auto-Executor
+              </TabsTrigger>
+              <TabsTrigger value="tester" className="data-[state=active]:bg-slate-600">
+                Auto-Tester
               </TabsTrigger>
               <TabsTrigger value="monitor" className="data-[state=active]:bg-slate-600">
                 Live Monitor
@@ -144,6 +149,14 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
                 oandaConfig={oandaConfig}
                 isActive={isActive}
                 onToggleTrading={onToggleForwardTesting}
+              />
+            </TabsContent>
+
+            <TabsContent value="tester" className="mt-6">
+              <AutoStrategyTesterComponent
+                strategy={strategy}
+                oandaConfig={oandaConfig}
+                isConfigured={isConfigured}
               />
             </TabsContent>
 
