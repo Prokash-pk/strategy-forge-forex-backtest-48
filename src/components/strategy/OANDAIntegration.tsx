@@ -154,6 +154,7 @@ const OANDAIntegration: React.FC = () => {
                 strategy={selectedStrategy}
                 environment={config.environment}
                 oandaConfig={config}
+                onToggleForwardTesting={handleToggleForwardTesting}
               />
             </TabsContent>
           </Tabs>

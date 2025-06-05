@@ -10,6 +10,8 @@ import TradeLogCard from './dashboard/TradeLogCard';
 import InactiveStateCard from './dashboard/InactiveStateCard';
 import TradingDiagnostics from './dashboard/TradingDiagnostics';
 import ComprehensiveDiagnostics from './dashboard/ComprehensiveDiagnostics';
+import LiveTradeMonitor from './dashboard/LiveTradeMonitor';
+import EnhancedTradeExecutor from './dashboard/EnhancedTradeExecutor';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 
 interface OANDATradingDashboardProps {
@@ -21,13 +23,15 @@ interface OANDATradingDashboardProps {
     apiKey: string;
     environment: 'practice' | 'live';
   };
+  onToggleForwardTesting?: () => void;
 }
 
 const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
   isActive,
   strategy,
   environment,
-  oandaConfig
+  oandaConfig,
+  onToggleForwardTesting
 }) => {
   const [tradingStats, setTradingStats] = useState<any>(null);
   const [accountData, setAccountData] = useState<any>(null);
@@ -115,21 +119,42 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-slate-700">
+          <Tabs defaultValue="execution" className="w-full">
+            <TabsList className="grid w-full grid-cols-5 bg-slate-700">
+              <TabsTrigger value="execution" className="data-[state=active]:bg-slate-600">
+                Execution
+              </TabsTrigger>
+              <TabsTrigger value="monitor" className="data-[state=active]:bg-slate-600">
+                Live Monitor
+              </TabsTrigger>
               <TabsTrigger value="overview" className="data-[state=active]:bg-slate-600">
                 Overview
               </TabsTrigger>
               <TabsTrigger value="positions" className="data-[state=active]:bg-slate-600">
                 Positions
               </TabsTrigger>
-              <TabsTrigger value="logs" className="data-[state=active]:bg-slate-600">
-                Trade Logs
-              </TabsTrigger>
               <TabsTrigger value="diagnostics" className="data-[state=active]:bg-slate-600">
                 Diagnostics
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="execution" className="mt-6">
+              <div className="space-y-6">
+                <EnhancedTradeExecutor
+                  strategy={strategy}
+                  oandaConfig={oandaConfig}
+                  isActive={isActive}
+                  onToggleTrading={onToggleForwardTesting || (() => {})}
+                />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="monitor" className="mt-6">
+              <LiveTradeMonitor 
+                isActive={isActive}
+                strategy={strategy}
+              />
+            </TabsContent>
 
             <TabsContent value="overview" className="mt-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -207,14 +232,6 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
                 positions={[]}
                 closingPositions={new Set()}
                 onClosePosition={() => {}}
-              />
-            </TabsContent>
-
-            <TabsContent value="logs" className="mt-6">
-              <TradeLogCard 
-                tradeLog={[]}
-                timezoneAbbr="UTC"
-                formatDateTime={(timestamp: string) => new Date(timestamp).toLocaleString()}
               />
             </TabsContent>
 
