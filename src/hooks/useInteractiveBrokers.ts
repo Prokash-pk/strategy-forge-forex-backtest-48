@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { InteractiveBrokersService, IBConfig, IBTrade } from '@/services/interactiveBrokersService';
 import { useToast } from '@/hooks/use-toast';
@@ -58,6 +57,36 @@ export const useInteractiveBrokers = () => {
       title: "Disconnected",
       description: "Disconnected from Interactive Brokers",
     });
+  };
+
+  const testConnection = async (): Promise<boolean> => {
+    try {
+      const result = await InteractiveBrokersService.testConnection(config);
+      
+      if (result.success) {
+        toast({
+          title: "Connection Test Successful! ✅",
+          description: result.message,
+        });
+        return true;
+      } else {
+        toast({
+          title: "Connection Test Failed ❌",
+          description: result.message,
+          variant: "destructive",
+        });
+        console.error('Connection test details:', result.details);
+        return false;
+      }
+    } catch (error) {
+      console.error('Connection test error:', error);
+      toast({
+        title: "Connection Test Error",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
+      return false;
+    }
   };
 
   const sendBacktestSignalsToIB = async (
@@ -195,6 +224,7 @@ export const useInteractiveBrokers = () => {
     handleConfigChange,
     connect,
     disconnect,
+    testConnection,
     sendBacktestSignalsToIB,
     placeTrade,
     closePosition

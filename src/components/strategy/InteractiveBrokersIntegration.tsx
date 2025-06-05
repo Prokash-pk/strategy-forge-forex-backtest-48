@@ -22,6 +22,7 @@ const InteractiveBrokersIntegration: React.FC = () => {
     handleConfigChange,
     connect,
     disconnect,
+    testConnection,
     closePosition
   } = useInteractiveBrokers();
 
@@ -31,6 +32,10 @@ const InteractiveBrokersIntegration: React.FC = () => {
 
   const handleDisconnect = () => {
     disconnect();
+  };
+
+  const handleTestConnection = () => {
+    testConnection();
   };
 
   const formatCurrency = (value: number, currency = 'USD') => {
@@ -93,6 +98,15 @@ const InteractiveBrokersIntegration: React.FC = () => {
                   {isConnected ? '🟢 Connected to Interactive Brokers' : '🔴 Not Connected'}
                 </span>
                 <div className="flex gap-2">
+                  <Button
+                    onClick={handleTestConnection}
+                    size="sm"
+                    variant="outline"
+                    className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10"
+                  >
+                    <TestTube className="h-3 w-3 mr-1" />
+                    Test Connection
+                  </Button>
                   {isConnected ? (
                     <Button
                       onClick={handleDisconnect}
@@ -221,19 +235,20 @@ const InteractiveBrokersIntegration: React.FC = () => {
 
             {/* Setup Instructions */}
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-              <h4 className="text-blue-300 font-medium mb-2">📋 Updated Setup Instructions</h4>
-              <ol className="text-blue-200 text-sm space-y-1 list-decimal list-inside">
-                <li>Download and install <strong>Client Portal Gateway</strong> from Interactive Brokers</li>
-                <li>Run the Gateway application (not TWS) on your computer</li>
-                <li>Access the gateway at <code>https://localhost:5000</code> in your browser</li>
-                <li>Log in with your IB credentials to authenticate</li>
-                <li>Use port <strong>5000</strong> for Client Portal Gateway connection</li>
-                <li>Ensure the gateway is running before clicking "Connect"</li>
+              <h4 className="text-blue-300 font-medium mb-2">📋 Troubleshooting Steps</h4>
+              <ol className="text-blue-200 text-sm space-y-2 list-decimal list-inside">
+                <li><strong>Download Client Portal Gateway:</strong> Get it from <a href="https://www.interactivebrokers.com" target="_blank" className="underline">IB website</a></li>
+                <li><strong>Run the Gateway:</strong> Start the application (not TWS)</li>
+                <li><strong>Authenticate:</strong> Go to <code>https://localhost:5000</code> and log in with IB credentials</li>
+                <li><strong>Test Connection:</strong> Click "Test Connection" button above to verify Gateway is accessible</li>
+                <li><strong>Check Settings:</strong> Ensure host is "localhost" and port is "5000"</li>
+                <li><strong>Browser Issues:</strong> Try refreshing the page or using a different browser</li>
               </ol>
               <div className="mt-3 p-2 bg-yellow-500/10 border border-yellow-500/20 rounded">
                 <p className="text-yellow-200 text-xs">
-                  <strong>Note:</strong> Client Portal Gateway is the recommended way to connect web applications to IB. 
-                  Traditional TWS socket connections require a bridge server due to browser security restrictions.
+                  <strong>Common Issues:</strong> CORS errors indicate browser security blocking. 
+                  Network errors mean the Gateway is not running or not accessible.
+                  Use the "Test Connection" button to diagnose specific issues.
                 </p>
               </div>
             </div>
