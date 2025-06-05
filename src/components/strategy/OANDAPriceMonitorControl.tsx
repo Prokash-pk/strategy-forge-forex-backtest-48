@@ -35,11 +35,46 @@ const OANDAPriceMonitorControl: React.FC<OANDAPriceMonitorControlProps> = ({
                             connectionStatus === 'success' && 
                             !isMonitoring;
 
+  // Debug logging for button state
+  console.log('🔍 PriceMonitorControl Debug State:', {
+    isConfigured,
+    strategy: strategy?.name || 'null',
+    connectionStatus,
+    isMonitoring,
+    canStartMonitoring,
+    config: {
+      accountId: config.accountId ? 'SET' : 'NOT_SET',
+      apiKey: config.apiKey ? 'SET' : 'NOT_SET',
+      environment: config.environment
+    }
+  });
+
   const handleToggleMonitoring = async () => {
+    console.log('🎯 Monitor Button Clicked!', {
+      action: isMonitoring ? 'STOP' : 'START',
+      canStartMonitoring,
+      isMonitoring,
+      strategy: strategy?.name,
+      timestamp: new Date().toISOString()
+    });
+
     if (isMonitoring) {
+      console.log('🛑 Stopping monitoring...');
       stopMonitoring();
     } else if (strategy) {
-      await startMonitoring(config, strategy);
+      console.log('▶️ Starting monitoring...', {
+        symbol: strategy.symbol,
+        accountId: config.accountId,
+        environment: config.environment
+      });
+      try {
+        await startMonitoring(config, strategy);
+        console.log('✅ Monitoring started successfully');
+      } catch (error) {
+        console.error('❌ Failed to start monitoring:', error);
+      }
+    } else {
+      console.warn('⚠️ Cannot start monitoring: No strategy selected');
     }
   };
 
@@ -62,6 +97,17 @@ const OANDAPriceMonitorControl: React.FC<OANDAPriceMonitorControlProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Debug Info Panel */}
+        <div className="bg-slate-700/30 p-3 rounded-lg text-xs">
+          <h4 className="text-slate-300 font-medium mb-1">Debug Info (Check Console for More)</h4>
+          <div className="space-y-1 text-slate-400">
+            <div>Button Clickable: {canStartMonitoring || isMonitoring ? '✅ YES' : '❌ NO'}</div>
+            <div>Monitoring: {isMonitoring ? '✅ Active' : '❌ Stopped'}</div>
+            <div>Strategy: {strategy?.name || '❌ None'}</div>
+            <div>Connection: {connectionStatus}</div>
+          </div>
+        </div>
+
         {/* Monitor Status */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-slate-700/50 p-3 rounded-lg">
@@ -165,7 +211,14 @@ const OANDAPriceMonitorControl: React.FC<OANDAPriceMonitorControlProps> = ({
         {/* Control Buttons */}
         <div className="flex gap-2">
           <Button
-            onClick={handleToggleMonitoring}
+            onClick={() => {
+              console.log('🖱️ Button Click Event Triggered', {
+                canStartMonitoring,
+                isMonitoring,
+                disabled: !canStartMonitoring && !isMonitoring
+              });
+              handleToggleMonitoring();
+            }}
             disabled={!canStartMonitoring && !isMonitoring}
             className={`flex-1 ${
               isMonitoring 
@@ -193,13 +246,13 @@ const OANDAPriceMonitorControl: React.FC<OANDAPriceMonitorControlProps> = ({
             <p>Requirements to start monitoring:</p>
             <ul className="list-disc list-inside space-y-1 ml-4">
               <li className={isConfigured ? 'text-emerald-400' : ''}>
-                OANDA credentials configured
+                OANDA credentials configured {isConfigured ? '✅' : '❌'}
               </li>
               <li className={strategy ? 'text-emerald-400' : ''}>
-                Strategy selected
+                Strategy selected {strategy ? '✅' : '❌'}
               </li>
               <li className={connectionStatus === 'success' ? 'text-emerald-400' : ''}>
-                Successful connection test
+                Successful connection test {connectionStatus === 'success' ? '✅' : '❌'}
               </li>
             </ul>
           </div>
