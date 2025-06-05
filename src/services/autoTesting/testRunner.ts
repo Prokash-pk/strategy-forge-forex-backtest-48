@@ -1,89 +1,11 @@
 
-import { OANDAMarketDataService } from './oandaMarketDataService';
-import { PythonExecutor } from './pythonExecutor';
+import { OANDAMarketDataService } from '../oandaMarketDataService';
+import { PythonExecutor } from '../pythonExecutor';
 import { OANDAConfig, StrategySettings } from '@/types/oanda';
+import { AutoTestResult } from './types';
 
-export interface AutoTestResult {
-  timestamp: string;
-  symbol: string;
-  currentPrice: number;
-  candleData: {
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number;
-  };
-  strategySignals: {
-    hasEntry: boolean;
-    hasExit: boolean;
-    direction: 'BUY' | 'SELL' | null;
-    confidence: number;
-  };
-  technicalIndicators: {
-    rsi?: number;
-    ema_fast?: number;
-    ema_slow?: number;
-    macd?: number;
-  };
-}
-
-export class AutoStrategyTester {
-  private static instance: AutoStrategyTester;
-  private testInterval: NodeJS.Timeout | null = null;
-  private isRunning: boolean = false;
-
-  static getInstance(): AutoStrategyTester {
-    if (!AutoStrategyTester.instance) {
-      AutoStrategyTester.instance = new AutoStrategyTester();
-    }
-    return AutoStrategyTester.instance;
-  }
-
-  async startAutoTesting(
-    config: OANDAConfig,
-    strategy: StrategySettings,
-    intervalSeconds: number = 30
-  ) {
-    if (this.isRunning) {
-      console.log('🔄 Auto-testing already running');
-      return;
-    }
-
-    this.isRunning = true;
-    
-    console.log('🚀 ==============================================');
-    console.log('🚀 STARTING AUTO STRATEGY TESTING');
-    console.log('🚀 ==============================================');
-    console.log(`📊 Strategy: ${strategy.strategy_name}`);
-    console.log(`📈 Symbol: ${strategy.symbol}`);
-    console.log(`⏰ Testing every ${intervalSeconds} seconds`);
-    console.log('🚀 ==============================================');
-
-    // Initial test
-    await this.runSingleTest(config, strategy);
-
-    // Set up periodic testing
-    this.testInterval = setInterval(async () => {
-      if (this.isRunning) {
-        await this.runSingleTest(config, strategy);
-      }
-    }, intervalSeconds * 1000);
-  }
-
-  stopAutoTesting() {
-    if (this.testInterval) {
-      clearInterval(this.testInterval);
-      this.testInterval = null;
-    }
-    this.isRunning = false;
-    
-    console.log('🛑 ==============================================');
-    console.log('🛑 AUTO STRATEGY TESTING STOPPED');
-    console.log('🛑 ==============================================');
-  }
-
-  private async runSingleTest(config: OANDAConfig, strategy: StrategySettings): Promise<AutoTestResult> {
+export class StrategyTestRunner {
+  static async runSingleTest(config: OANDAConfig, strategy: StrategySettings): Promise<AutoTestResult> {
     try {
       const timestamp = new Date().toISOString();
       
@@ -205,16 +127,5 @@ export class AutoStrategyTester {
         technicalIndicators: {}
       };
     }
-  }
-
-  isActive(): boolean {
-    return this.isRunning;
-  }
-
-  getStatus() {
-    return {
-      isRunning: this.isRunning,
-      hasInterval: !!this.testInterval
-    };
   }
 }
