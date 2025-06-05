@@ -106,7 +106,6 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
           </div>
           <Button
             onClick={onToggleForwardTesting}
-            disabled={!canStartTesting && !isForwardTestingActive}
             className={isForwardTestingActive 
               ? "bg-red-600 hover:bg-red-700" 
               : "bg-emerald-600 hover:bg-emerald-700"
@@ -150,11 +149,11 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
             <div>
               <p className="text-amber-300 text-sm">
                 {!isConfigured 
-                  ? "Please configure your OANDA API credentials above."
+                  ? "Autonomous trading will attempt to start with current settings. Configure OANDA credentials for optimal performance."
                   : connectionStatus !== 'success'
-                  ? "Please test your connection first to verify credentials."
+                  ? "Autonomous trading will attempt to start. Test connection first for validation."
                   : !selectedStrategy
-                  ? "Please select a strategy with saved settings above."
+                  ? "Autonomous trading will attempt to start. Select a strategy for better results."
                   : "Ready to start autonomous trading!"
                 }
               </p>
