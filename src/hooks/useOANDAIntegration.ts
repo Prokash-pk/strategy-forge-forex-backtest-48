@@ -46,7 +46,7 @@ export const useOANDAIntegration = () => {
   const {
     isForwardTestingActive,
     setIsForwardTestingActive,
-    handleToggleForwardTesting
+    handleToggleForwardTesting: baseHandleToggleForwardTesting
   } = useOANDAForwardTesting();
 
   const { keepaliveService } = useOANDAKeepalive(config, connectionStatus);
@@ -74,6 +74,11 @@ export const useOANDAIntegration = () => {
 
   const handleShowGuide = () => {
     console.log('Show OANDA setup guide');
+  };
+
+  // Wrapper function that provides the required parameters
+  const handleToggleForwardTesting = () => {
+    return baseHandleToggleForwardTesting(config, selectedStrategy, canStartTesting);
   };
 
   // Use logging hook
@@ -109,8 +114,7 @@ export const useOANDAIntegration = () => {
     handleLoadStrategy,
     handleTestTrade: () => handleTestTrade(config, selectedStrategy, connectionStatus),
     handleDeleteStrategy,
-    handleToggleForwardTesting: (config: any, selectedStrategy: any, canStartTesting: boolean) => 
-      handleToggleForwardTesting(config, selectedStrategy, canStartTesting),
+    handleToggleForwardTesting,
     handleShowGuide,
     loadSelectedStrategy,
     loadSavedConfigs,
