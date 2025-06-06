@@ -111,11 +111,22 @@ export class SignalProcessor {
         log_type: result.success ? 'trade_execution' : 'trade_error',
         message: `SIGNAL PROCESSING: ${signal.signal} ${signal.symbol} at ${signal.currentPrice} - ${result.message}`,
         trade_data: {
-          signal_data: signal,
-          execution_result: result,
+          signal_data: {
+            signal: signal.signal,
+            symbol: signal.symbol,
+            currentPrice: signal.currentPrice,
+            timestamp: signal.timestamp,
+            confidence: signal.confidence,
+            strategyName: signal.strategyName
+          },
+          execution_result: {
+            success: result.success,
+            message: result.message,
+            tradeId: result.tradeId
+          },
           timestamp: new Date().toISOString(),
           trade_executed: result.success
-        }
+        } as any
       });
     } catch (error) {
       console.error('Failed to log trade execution:', error);

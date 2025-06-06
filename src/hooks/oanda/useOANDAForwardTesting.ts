@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
@@ -72,8 +73,8 @@ export const useOANDAForwardTesting = () => {
       const service = ForwardTestingService.getInstance();
       await service.startForwardTesting({
         strategyId: selectedStrategy.id,
-        oandaAccountId: config.accountId,
-        oandaApiKey: config.apiKey,
+        accountId: config.accountId,
+        apiKey: config.apiKey,
         environment: config.environment,
         enabled: true
       }, selectedStrategy);
@@ -107,8 +108,8 @@ export const useOANDAForwardTesting = () => {
         try {
           await service.startForwardTesting({
             strategyId: selectedStrategy.id,
-            oandaAccountId: config.accountId,
-            oandaApiKey: config.apiKey,
+            accountId: config.accountId,
+            apiKey: config.apiKey,
             environment: config.environment,
             enabled: true
           }, selectedStrategy);

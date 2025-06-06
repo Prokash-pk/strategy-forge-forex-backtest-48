@@ -8,12 +8,19 @@ import { OANDAConfig, StrategySettings } from '@/types/oanda';
 export interface ForwardTestingSession {
   id: string;
   strategyId: string;
-  oandaAccountId: string;
-  oandaApiKey: string;
+  accountId: string;
+  apiKey: string;
   environment: 'practice' | 'live';
   enabled: boolean;
   startTime: string;
   lastExecutionTime?: string;
+}
+
+export interface ForwardTestingStats {
+  totalTrades: number;
+  successfulTrades: number;
+  failedTrades: number;
+  lastExecution?: string;
 }
 
 export class ForwardTestingService {
@@ -41,7 +48,7 @@ export class ForwardTestingService {
       
       console.log('🚀 Starting forward testing session:', sessionId);
       console.log('📊 Strategy:', strategy.strategy_name);
-      console.log('🏦 OANDA Account:', config.oandaAccountId);
+      console.log('🏦 OANDA Account:', config.accountId);
       console.log('🌍 Environment:', config.environment);
 
       // Initialize the signal processor with trade bridge
@@ -53,8 +60,8 @@ export class ForwardTestingService {
       const session: ForwardTestingSession = {
         id: sessionId,
         strategyId: config.strategyId,
-        oandaAccountId: config.oandaAccountId,
-        oandaApiKey: config.oandaApiKey,
+        accountId: config.accountId,
+        apiKey: config.apiKey,
         environment: config.environment,
         enabled: config.enabled,
         startTime: new Date().toISOString()
@@ -62,20 +69,19 @@ export class ForwardTestingService {
 
       this.activeSessions.set(sessionId, session);
 
-      // Save session to database for persistence
-      await supabase.from('forward_testing_sessions').upsert({
+      // Save session to trading_sessions table (using existing table)
+      await supabase.from('trading_sessions').upsert({
         id: sessionId,
         user_id: user.id,
         strategy_id: config.strategyId,
-        oanda_account_id: config.oandaAccountId,
+        oanda_account_id: config.accountId,
+        oanda_api_key: config.apiKey,
         environment: config.environment,
-        enabled: config.enabled,
-        start_time: session.startTime,
-        session_data: {
-          strategy_name: strategy.strategy_name,
-          symbol: strategy.symbol,
-          timeframe: strategy.timeframe
-        }
+        is_active: config.enabled,
+        strategy_code: strategy.strategy_code,
+        symbol: strategy.symbol,
+        timeframe: strategy.timeframe,
+        last_execution: new Date().toISOString()
       });
 
       console.log('✅ Forward testing session started successfully');
@@ -100,16 +106,61 @@ export class ForwardTestingService {
       // Clear active sessions
       this.activeSessions.clear();
 
-      // Update database
+      // Update database using existing trading_sessions table
       await supabase
-        .from('forward_testing_sessions')
-        .update({ enabled: false, end_time: new Date().toISOString() })
+        .from('trading_sessions')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
         .eq('user_id', user.id)
-        .eq('enabled', true);
+        .eq('is_active', true);
 
       console.log('✅ Forward testing stopped');
     } catch (error) {
       console.error('❌ Error stopping forward testing:', error);
+    }
+  }
+
+  async getForwardTestingStats(): Promise<ForwardTestingStats> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return {
+          totalTrades: 0,
+          successfulTrades: 0,
+          failedTrades: 0
+        };
+      }
+
+      // Get stats from trading_logs
+      const { data: logs } = await supabase
+        .from('trading_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false });
+
+      const totalTrades = logs?.filter(log => log.log_type === 'trade_execution').length || 0;
+      const successfulTrades = logs?.filter(log => 
+        log.log_type === 'trade_execution' && 
+        log.message.includes('successfully')
+      ).length || 0;
+      const failedTrades = logs?.filter(log => 
+        log.log_type === 'trade_error'
+      ).length || 0;
+      
+      const lastExecution = logs?.[0]?.timestamp;
+
+      return {
+        totalTrades,
+        successfulTrades,
+        failedTrades,
+        lastExecution
+      };
+    } catch (error) {
+      console.error('❌ Error getting forward testing stats:', error);
+      return {
+        totalTrades: 0,
+        successfulTrades: 0,
+        failedTrades: 0
+      };
     }
   }
 
@@ -150,8 +201,8 @@ export class ForwardTestingService {
 
       // Fetch latest market data
       const marketData = await OANDAMarketDataService.fetchLiveMarketData(
-        session.oandaAccountId,
-        session.oandaApiKey,
+        session.accountId,
+        session.apiKey,
         session.environment,
         oandaSymbol,
         'M1', // 1-minute candles
@@ -203,8 +254,8 @@ export class ForwardTestingService {
         // Update session last execution time
         session.lastExecutionTime = new Date().toISOString();
         await supabase
-          .from('forward_testing_sessions')
-          .update({ last_execution_time: session.lastExecutionTime })
+          .from('trading_sessions')
+          .update({ last_execution: session.lastExecutionTime })
           .eq('id', session.id);
       } else {
         console.log('📊 No trade signals detected - monitoring continues...');
@@ -222,9 +273,9 @@ export class ForwardTestingService {
           log_type: 'error',
           message: `Signal check error: ${error instanceof Error ? error.message : 'Unknown error'}`,
           trade_data: {
-            error_details: error,
+            error_details: String(error),
             timestamp: new Date().toISOString()
-          }
+          } as any
         });
       }
     }
