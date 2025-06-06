@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
@@ -72,11 +71,8 @@ export const useOANDAIntegration = () => {
     loadSavedStrategies();
     loadSelectedStrategy();
     
-    // Auto-reconnect if we have valid config and were previously connected
-    if (config.accountId && config.apiKey && !isConnected && lastConnectedAt) {
-      console.log('🔄 Auto-reconnecting to OANDA...');
-      autoReconnect(config);
-    }
+    // Auto-reconnect will be handled by the OANDAConnectionContext
+    // No need to trigger it here as it's now done in the context provider
   }, []);
 
   // Auto-reconnect when config changes and we have valid credentials

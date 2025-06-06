@@ -11,7 +11,9 @@ export const useOANDAConnection = () => {
     accountInfo,
     testConnection,
     disconnectOANDA,
-    autoReconnect
+    autoReconnect,
+    retryCount,
+    isAutoReconnecting
   } = useGlobalOANDAConnection();
 
   const handleTestConnection = async (config: OANDAConfig) => {
@@ -32,6 +34,8 @@ export const useOANDAConnection = () => {
     handleTestConnection,
     resetConnectionStatus,
     disconnectOANDA,
-    autoReconnect
+    autoReconnect,
+    retryCount,
+    isAutoReconnecting
   };
 };

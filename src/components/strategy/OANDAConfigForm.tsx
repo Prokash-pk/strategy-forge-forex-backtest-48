@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -34,6 +33,10 @@ interface OANDAConfigFormProps {
   canStartTesting: boolean;
   isForwardTestingActive: boolean;
   connectionStatusIcon: React.ReactNode;
+  connectionProps?: {
+    retryCount?: number;
+    isAutoReconnecting?: boolean;
+  };
 }
 
 const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
@@ -55,7 +58,8 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
   isTestingTrade,
   canStartTesting,
   isForwardTestingActive,
-  connectionStatusIcon
+  connectionStatusIcon,
+  connectionProps
 }) => {
   const { savedStrategies, loadSavedStrategies } = useOANDAStrategies();
   
@@ -111,6 +115,8 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
             isConnected={isConnected}
             lastConnectedAt={lastConnectedAt}
             accountInfo={accountInfo}
+            retryCount={connectionProps?.retryCount}
+            isAutoReconnecting={connectionProps?.isAutoReconnecting}
           />
 
           {/* Environment Selection */}

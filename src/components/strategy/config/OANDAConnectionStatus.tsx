@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { CircleCheck, Wifi, Clock } from 'lucide-react';
+import { CircleCheck, Wifi, Clock, AlertTriangle, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface OANDAConnectionStatusProps {
@@ -10,6 +10,8 @@ interface OANDAConnectionStatusProps {
   isConnected?: boolean;
   lastConnectedAt?: string | null;
   accountInfo?: any | null;
+  retryCount?: number;
+  isAutoReconnecting?: boolean;
 }
 
 const OANDAConnectionStatus: React.FC<OANDAConnectionStatusProps> = ({
@@ -18,15 +20,40 @@ const OANDAConnectionStatus: React.FC<OANDAConnectionStatusProps> = ({
   accountId,
   isConnected = false,
   lastConnectedAt,
-  accountInfo
+  accountInfo,
+  retryCount = 0,
+  isAutoReconnecting = false
 }) => {
-  if (connectionStatus === 'testing') {
+  if (connectionStatus === 'testing' || isAutoReconnecting) {
     return (
       <div className="flex items-center gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
         <Clock className="h-4 w-4 text-blue-400 animate-spin" />
         <span className="text-blue-300 text-sm">
-          Testing connection to OANDA {environment} environment...
+          {isAutoReconnecting 
+            ? `Auto-reconnecting to OANDA... ${retryCount > 0 ? `(Attempt ${retryCount}/3)` : ''}`
+            : `Testing connection to OANDA ${environment} environment...`
+          }
         </span>
+      </div>
+    );
+  }
+
+  if (connectionStatus === 'error' && !isConnected) {
+    return (
+      <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+        <AlertTriangle className="h-4 w-4 text-red-400" />
+        <span className="text-red-300 text-sm">
+          {retryCount >= 3 
+            ? "Auto-reconnect failed. Please reconnect manually." 
+            : "Connection failed"
+          }
+        </span>
+        {retryCount > 0 && retryCount < 3 && (
+          <Badge variant="outline" className="border-red-500/30 text-red-300">
+            <RotateCcw className="h-3 w-3 mr-1" />
+            Retrying...
+          </Badge>
+        )}
       </div>
     );
   }

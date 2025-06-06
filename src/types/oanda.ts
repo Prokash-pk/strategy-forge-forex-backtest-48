@@ -1,4 +1,3 @@
-
 export interface OANDAConfig {
   accountId: string;
   apiKey: string;
@@ -40,3 +39,8 @@ export interface StrategySettings {
 }
 
 export type ConnectionStatus = 'idle' | 'testing' | 'success' | 'error';
+
+export interface ConnectionProps {
+  retryCount?: number;
+  isAutoReconnecting?: boolean;
+}

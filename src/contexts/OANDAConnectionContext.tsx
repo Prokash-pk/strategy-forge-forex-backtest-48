@@ -8,6 +8,8 @@ interface OANDAConnectionState {
   lastConnectedAt: string | null;
   connectionError: string | null;
   accountInfo: any | null;
+  retryCount: number;
+  isAutoReconnecting: boolean;
 }
 
 interface OANDAConnectionContextType extends OANDAConnectionState {
@@ -27,6 +29,8 @@ const OANDAConnectionContext = createContext<OANDAConnectionContextType | undefi
 
 const OANDA_CONNECTION_KEY = 'oanda_connection_state';
 const CONNECTION_HEARTBEAT_INTERVAL = 60000; // 60 seconds
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY = 3000; // 3 seconds
 
 export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { toast } = useToast();
@@ -42,7 +46,9 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
           connectionStatus: 'idle',
           lastConnectedAt: parsed.lastConnectedAt || null,
           connectionError: null,
-          accountInfo: parsed.accountInfo || null
+          accountInfo: parsed.accountInfo || null,
+          retryCount: 0,
+          isAutoReconnecting: false
         };
       } catch (error) {
         console.error('Failed to parse saved connection state:', error);
@@ -54,7 +60,9 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
       connectionStatus: 'idle',
       lastConnectedAt: null,
       connectionError: null,
-      accountInfo: null
+      accountInfo: null,
+      retryCount: 0,
+      isAutoReconnecting: false
     };
   });
 
@@ -137,7 +145,9 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
         connectionStatus: 'success',
         lastConnectedAt: new Date().toISOString(),
         accountInfo: data.account,
-        connectionError: null
+        connectionError: null,
+        retryCount: 0,
+        isAutoReconnecting: false
       });
 
       toast({
@@ -154,7 +164,8 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
         isConnected: false,
         connectionStatus: 'error',
         connectionError: errorMessage,
-        accountInfo: null
+        accountInfo: null,
+        isAutoReconnecting: false
       });
 
       toast({
@@ -171,7 +182,9 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
       connectionStatus: 'idle',
       connectionError: null,
       accountInfo: null,
-      lastConnectedAt: null
+      lastConnectedAt: null,
+      retryCount: 0,
+      isAutoReconnecting: false
     });
     
     localStorage.removeItem(OANDA_CONNECTION_KEY);
@@ -187,29 +200,89 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
       return;
     }
 
+    // Don't attempt auto-reconnect if already connected or already trying
+    if (connectionState.isConnected || connectionState.isAutoReconnecting) {
+      return;
+    }
+
     console.log('🔄 Attempting auto-reconnect to OANDA...');
     
-    try {
-      await testOANDAConnection(config);
-      
-      setConnectionState({
-        isConnected: true,
-        connectionStatus: 'success',
-        lastConnectedAt: new Date().toISOString(),
-        connectionError: null
-      });
+    setConnectionState({ 
+      isAutoReconnecting: true,
+      connectionStatus: 'testing'
+    });
 
-      console.log('✅ Auto-reconnect successful');
-      
-    } catch (error) {
-      console.log('⚠️ Auto-reconnect failed, manual connection required');
-      setConnectionState({
-        isConnected: false,
-        connectionStatus: 'idle',
-        connectionError: null
-      });
+    for (let attempt = 1; attempt <= MAX_RETRY_ATTEMPTS; attempt++) {
+      try {
+        console.log(`🔄 Auto-reconnect attempt ${attempt}/${MAX_RETRY_ATTEMPTS}`);
+        
+        const data = await testOANDAConnection(config);
+        
+        setConnectionState({
+          isConnected: true,
+          connectionStatus: 'success',
+          lastConnectedAt: new Date().toISOString(),
+          accountInfo: data.account,
+          connectionError: null,
+          retryCount: 0,
+          isAutoReconnecting: false
+        });
+
+        console.log(`✅ Auto-reconnect successful on attempt ${attempt}`);
+        
+        toast({
+          title: "🔄 Auto-Reconnected",
+          description: `Successfully reconnected to OANDA ${config.environment} account`,
+        });
+        
+        return;
+        
+      } catch (error) {
+        console.log(`⚠️ Auto-reconnect attempt ${attempt} failed:`, error);
+        
+        setConnectionState(prev => ({
+          ...prev,
+          retryCount: attempt
+        }));
+
+        // If this was the last attempt, set error state
+        if (attempt === MAX_RETRY_ATTEMPTS) {
+          setConnectionState({
+            isConnected: false,
+            connectionStatus: 'error',
+            connectionError: 'Auto-reconnect failed after 3 attempts. Please manually reconnect.',
+            retryCount: attempt,
+            isAutoReconnecting: false
+          });
+
+          toast({
+            title: "⚠️ Auto-Reconnect Failed",
+            description: "Please manually reconnect to OANDA",
+            variant: "destructive",
+          });
+        } else {
+          // Wait before next attempt
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+        }
+      }
     }
   };
+
+  // Auto-reconnect on mount if configuration exists and we were previously connected
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('oanda_config');
+    if (!savedConfig) return;
+
+    try {
+      const config = JSON.parse(savedConfig);
+      if (config.accountId && config.apiKey && connectionState.lastConnectedAt) {
+        console.log('🔄 Auto-reconnecting on app load...');
+        autoReconnect(config);
+      }
+    } catch (error) {
+      console.warn('Failed to parse saved config for auto-reconnect:', error);
+    }
+  }, []); // Only run once on mount
 
   // Connection health check heartbeat
   useEffect(() => {
@@ -227,12 +300,11 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
           console.log('💓 OANDA connection heartbeat OK');
         }
       } catch (error) {
-        console.warn('💔 OANDA connection heartbeat failed, marking as disconnected');
-        setConnectionState({
-          isConnected: false,
-          connectionStatus: 'error',
-          connectionError: 'Connection lost during heartbeat check'
-        });
+        console.warn('💔 OANDA connection heartbeat failed, attempting auto-reconnect...');
+        
+        // Try to auto-reconnect on heartbeat failure
+        const config = JSON.parse(savedConfig);
+        autoReconnect(config);
       }
     }, CONNECTION_HEARTBEAT_INTERVAL);
 

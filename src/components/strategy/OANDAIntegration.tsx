@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -41,7 +40,9 @@ const OANDAIntegration: React.FC = () => {
     handleShowGuide,
     loadSelectedStrategy,
     loadSavedConfigs,
-    loadSavedStrategies
+    loadSavedStrategies,
+    retryCount,
+    isAutoReconnecting
   } = useOANDAIntegration();
 
   return (
@@ -122,6 +123,10 @@ const OANDAIntegration: React.FC = () => {
                 canStartTesting={Boolean(canStartTesting)}
                 isForwardTestingActive={Boolean(isForwardTestingActive)}
                 connectionStatusIcon={ConnectionStatusIcon ? <ConnectionStatusIcon className="h-4 w-4" /> : null}
+                connectionProps={{
+                  retryCount,
+                  isAutoReconnecting
+                }}
               />
             </TabsContent>
 
