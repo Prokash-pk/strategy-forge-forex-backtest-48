@@ -1,7 +1,9 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { OANDAMarketDataService } from './oandaMarketDataService';
 import { PythonExecutor } from './pythonExecutor';
 import { SignalProcessor } from './trading/signalProcessor';
+import { ConsoleLogger } from './autoTesting/consoleLogger';
 import { OANDAConfig, StrategySettings } from '@/types/oanda';
 
 export interface ForwardTestingSession {
@@ -27,6 +29,7 @@ export class ForwardTestingService {
   private activeSessions: Map<string, ForwardTestingSession> = new Map();
   private signalProcessor: SignalProcessor;
   private executionIntervals: Map<string, NodeJS.Timeout> = new Map();
+  private consoleLogInterval: NodeJS.Timeout | null = null;
 
   private constructor() {
     this.signalProcessor = SignalProcessor.getInstance();
@@ -50,6 +53,9 @@ export class ForwardTestingService {
       console.log('📊 Strategy:', strategy.strategy_name);
       console.log('🏦 OANDA Account:', config.accountId);
       console.log('🌍 Environment:', config.environment);
+
+      // Configure console logger
+      ConsoleLogger.setConfiguration(config, strategy);
 
       // Initialize the signal processor with trade bridge
       const bridgeInitialized = await this.signalProcessor.initializeTradeBridge(config.strategyId);
@@ -84,8 +90,12 @@ export class ForwardTestingService {
         last_execution: new Date().toISOString()
       });
 
+      // Start console logging cycle
+      this.startConsoleLogging();
+
       console.log('✅ Forward testing session started successfully');
       console.log('🤖 Trade execution is now LIVE - signals will be converted to real trades');
+      console.log('📝 Console logging active - check console every minute for strategy evaluation');
       
       // Start the execution loop immediately
       await this.startExecutionLoop(sessionId, strategy);
@@ -112,12 +122,42 @@ export class ForwardTestingService {
     }
   }
 
+  private startConsoleLogging(): void {
+    if (this.consoleLogInterval) {
+      clearInterval(this.consoleLogInterval);
+    }
+
+    console.log('📝 Starting console logging cycle - updates every 60 seconds');
+    
+    // Start immediate logging
+    setTimeout(() => {
+      ConsoleLogger.runConsoleLogCycle();
+    }, 2000); // Give 2 seconds for initialization
+
+    // Set up periodic console logging every 1 minute
+    this.consoleLogInterval = setInterval(() => {
+      ConsoleLogger.runConsoleLogCycle();
+    }, 60 * 1000); // Every 60 seconds
+  }
+
+  private stopConsoleLogging(): void {
+    if (this.consoleLogInterval) {
+      clearInterval(this.consoleLogInterval);
+      this.consoleLogInterval = null;
+      console.log('🛑 Console logging stopped');
+    }
+    ConsoleLogger.clearConfiguration();
+  }
+
   async stopForwardTesting(): Promise<void> {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       console.log('🛑 Stopping all forward testing sessions...');
+
+      // Stop console logging
+      this.stopConsoleLogging();
 
       // Clear execution intervals
       this.executionIntervals.forEach((interval, sessionId) => {

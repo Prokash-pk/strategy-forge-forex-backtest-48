@@ -1,5 +1,7 @@
 
 import React from 'react';
+import { Button } from '@/components/ui/button';
+import { ConsoleLogger } from '@/services/autoTesting/consoleLogger';
 
 interface StrategySettings {
   id: string;
@@ -27,12 +29,17 @@ export const DebugInformation: React.FC<DebugInformationProps> = ({
   config,
   isButtonDisabled
 }) => {
-  // Always show debug in development
+  // Always show debug in development or when explicitly requested
   const showDebug = process.env.NODE_ENV === 'development' || window.location.search.includes('debug=true');
   
   if (!showDebug) {
     return null;
   }
+
+  const handleTestConsoleLog = async () => {
+    console.log('🧪 Testing console log cycle manually...');
+    await ConsoleLogger.runConsoleLogCycle();
+  };
 
   return (
     <div className="p-3 bg-slate-700/30 rounded text-xs font-mono">
@@ -47,8 +54,22 @@ export const DebugInformation: React.FC<DebugInformationProps> = ({
         <div>• API Key: <span className={config.apiKey ? 'text-green-400' : 'text-red-400'}>{config.apiKey ? 'Set' : 'Missing'}</span></div>
         <div>• Button Disabled: <span className={isButtonDisabled ? 'text-red-400' : 'text-green-400'}>{isButtonDisabled ? 'Yes' : 'No'}</span></div>
       </div>
+      
+      <div className="mt-3 pt-2 border-t border-slate-600">
+        <Button 
+          onClick={handleTestConsoleLog}
+          size="sm"
+          variant="outline"
+          className="text-xs h-6 px-2 bg-slate-600 hover:bg-slate-500"
+        >
+          🧪 Test Console Log
+        </Button>
+      </div>
+      
       <div className="mt-2 pt-2 border-t border-slate-600">
         <div className="text-yellow-300 text-xs">💡 Add ?debug=true to URL to always show this panel</div>
+        <div className="text-green-300 text-xs mt-1">📝 Console logs appear every minute when trading is active</div>
+        <div className="text-blue-300 text-xs">🧪 Use the test button above to check console logging manually</div>
       </div>
     </div>
   );

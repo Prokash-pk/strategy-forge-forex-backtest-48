@@ -2,6 +2,7 @@
 import { OANDAConfig, StrategySettings } from '@/types/oanda';
 import { StrategyTestRunner } from './testRunner';
 import { TestLogger } from './testLogger';
+import { ConsoleLogger } from './consoleLogger';
 import { AutoTestResult } from './types';
 
 export class AutoStrategyTester {
@@ -34,12 +35,16 @@ export class AutoStrategyTester {
     this.currentConfig = config;
     this.currentStrategy = strategy;
     
+    // Configure console logger
+    ConsoleLogger.setConfiguration(config, strategy);
+    
     TestLogger.logTestStart(strategy.strategy_name, strategy.symbol, intervalSeconds);
 
     console.log('🚀 AutoStrategyTester started');
     console.log('📊 Strategy:', strategy.strategy_name);
     console.log('📈 Symbol:', strategy.symbol);
     console.log('⏰ Interval:', intervalSeconds, 'seconds');
+    console.log('📝 Console logging enabled - detailed evaluations every minute');
 
     // Initial test
     await StrategyTestRunner.runSingleTest(config, strategy);
@@ -60,23 +65,19 @@ export class AutoStrategyTester {
       clearInterval(this.loggingInterval);
     }
 
+    console.log('📝 Starting enhanced console logging - updates every minute');
+
     // Start immediate logging
     if (this.currentConfig && this.currentStrategy) {
-      TestLogger.logStrategyTestingCycle(
-        this.currentConfig,
-        this.currentStrategy,
-        this.isForwardTestingActive
-      );
+      setTimeout(() => {
+        ConsoleLogger.runConsoleLogCycle();
+      }, 3000); // Give 3 seconds for initialization
     }
 
     // Set up periodic console logging every 1 minute
     this.loggingInterval = setInterval(async () => {
       if (this.isRunning && this.currentConfig && this.currentStrategy) {
-        await TestLogger.logStrategyTestingCycle(
-          this.currentConfig,
-          this.currentStrategy,
-          this.isForwardTestingActive
-        );
+        await ConsoleLogger.runConsoleLogCycle();
       }
     }, 60 * 1000); // Every 60 seconds
   }
@@ -95,6 +96,9 @@ export class AutoStrategyTester {
     this.isRunning = false;
     this.currentConfig = null;
     this.currentStrategy = null;
+    
+    // Clear console logger configuration
+    ConsoleLogger.clearConfiguration();
     
     TestLogger.logTestStop();
     console.log('🛑 AutoStrategyTester stopped');
