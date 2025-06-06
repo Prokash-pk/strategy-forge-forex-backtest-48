@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Play, Square, Zap, TrendingUp, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Play, Square, Zap, TrendingUp, AlertTriangle, CheckCircle, DollarSign } from 'lucide-react';
 
 interface AutoTradeExecutorProps {
   strategy: any;
@@ -25,21 +25,22 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
   const [autoExecuteEnabled, setAutoExecuteEnabled] = useState(false);
   const [isExecuting, setIsExecuting] = useState(false);
   const [lastExecution, setLastExecution] = useState<Date | null>(null);
-  const [executionCount, setExecutionCount] = useState(0);
+  const [realTradeCount, setRealTradeCount] = useState(0);
+  const [accountBalance, setAccountBalance] = useState<number | null>(null);
 
-  // Auto-execute trades every 5 minutes when enabled
+  // Auto-execute REAL trades every 5 minutes when enabled
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
     if (isActive && autoExecuteEnabled && strategy && oandaConfig.accountId) {
-      console.log('🚀 Auto-execution enabled - will check for signals every 5 minutes');
+      console.log('🚀 REAL AUTO-EXECUTION enabled - will execute REAL trades every 5 minutes');
       
       // Execute immediately when enabled
-      executeStrategyIfSignal();
+      executeRealTradeStrategy();
       
       // Then every 5 minutes
       interval = setInterval(() => {
-        executeStrategyIfSignal();
+        executeRealTradeStrategy();
       }, 5 * 60 * 1000); // 5 minutes
     }
 
@@ -48,16 +49,21 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
     };
   }, [isActive, autoExecuteEnabled, strategy, oandaConfig]);
 
-  const executeStrategyIfSignal = async () => {
+  // Load real trade statistics on mount
+  useEffect(() => {
+    loadRealTradeStats();
+  }, []);
+
+  const executeRealTradeStrategy = async () => {
     if (!strategy || !oandaConfig.accountId || !oandaConfig.apiKey || isExecuting) {
       return;
     }
 
     setIsExecuting(true);
     try {
-      console.log('🔍 Checking for strategy signals...');
+      console.log('🔍 Checking for REAL trading signals...');
       
-      // Call the forward testing function to execute strategy
+      // Call the updated forward testing function that executes REAL trades
       const { data, error } = await supabase.functions.invoke('oanda-forward-testing', {
         body: {
           action: 'execute_now',
@@ -82,28 +88,36 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
       });
 
       if (error) {
-        console.error('❌ Strategy execution error:', error);
-        throw new Error(error.message || 'Strategy execution failed');
+        console.error('❌ REAL trade execution error:', error);
+        throw new Error(error.message || 'REAL trade execution failed');
       }
 
-      console.log('✅ Strategy execution response:', data);
+      console.log('✅ REAL trade execution response:', data);
       setLastExecution(new Date());
-      setExecutionCount(prev => prev + 1);
       
-      // Only show toast if actual trade was executed
-      if (data?.trade_executed) {
+      // Update real trade count if a trade was executed
+      if (data?.trade_executed && data?.execution_type === 'REAL_TRADE') {
+        setRealTradeCount(prev => prev + 1);
+        
         toast({
-          title: "🚀 Trade Executed!",
-          description: `${data.signal_type} signal executed for ${strategy.symbol}`,
+          title: "🚀 REAL Trade Executed!",
+          description: `${data.signal_type} signal executed for ${strategy.symbol} - Order ID: ${data.trade_result?.orderId}`,
         });
+
+        // Refresh account balance after trade
+        await refreshAccountBalance();
+      } else if (data?.signal_detected) {
+        console.log(`📊 Signal detected (${data.signal_type}) but no trade executed: ${data.reason}`);
+      } else {
+        console.log('📊 No signals detected - monitoring continues');
       }
 
     } catch (error) {
-      console.error('❌ Auto-execution error:', error);
-      // Don't show error toasts for routine checks that find no signals
+      console.error('❌ REAL auto-execution error:', error);
+      // Only show error toasts for actual failures, not routine "no signal" results
       if (error instanceof Error && !error.message.includes('No signal')) {
         toast({
-          title: "❌ Execution Error",
+          title: "❌ REAL Trade Execution Error",
           description: error.message,
           variant: "destructive",
         });
@@ -123,7 +137,47 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
       return;
     }
 
-    await executeStrategyIfSignal();
+    await executeRealTradeStrategy();
+  };
+
+  const loadRealTradeStats = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Count real trades from trading logs
+      const { data: logs, error } = await supabase
+        .from('trading_logs')
+        .select('trade_data')
+        .eq('user_id', user.id)
+        .eq('log_type', 'trade_execution')
+        .not('trade_data->execution_type', 'is', null);
+
+      if (!error && logs) {
+        const realTrades = logs.filter(log => 
+          log.trade_data?.execution_type === 'REAL_TRADE'
+        );
+        setRealTradeCount(realTrades.length);
+      }
+
+      // Load account balance if configured
+      await refreshAccountBalance();
+    } catch (error) {
+      console.error('Failed to load real trade stats:', error);
+    }
+  };
+
+  const refreshAccountBalance = async () => {
+    try {
+      if (!oandaConfig.accountId || !oandaConfig.apiKey) return;
+
+      // This should call a service to get real account balance
+      // For now, we'll indicate that this needs to be implemented
+      console.log('💰 Account balance refresh would call OANDA API here');
+      
+    } catch (error) {
+      console.error('Failed to refresh account balance:', error);
+    }
   };
 
   const isConfigured = Boolean(
@@ -137,11 +191,11 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white">
           <TrendingUp className="h-5 w-5" />
-          Automatic Trade Executor
+          REAL Trade Auto-Executor
           {isActive && (
             <Badge variant="default" className="bg-emerald-600">
               <Zap className="h-3 w-3 mr-1" />
-              Live
+              LIVE
             </Badge>
           )}
         </CardTitle>
@@ -150,7 +204,7 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
         {/* Configuration Status */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <h4 className="text-white font-medium">Configuration Status</h4>
+            <h4 className="text-white font-medium">REAL Trading Status</h4>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 {strategy?.strategy_name ? (
@@ -176,14 +230,20 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
           </div>
           
           <div className="space-y-2">
-            <h4 className="text-white font-medium">Execution Stats</h4>
+            <h4 className="text-white font-medium">REAL Trade Statistics</h4>
             <div className="space-y-1">
-              <div className="text-slate-300 text-sm">
-                Total Executions: {executionCount}
+              <div className="text-slate-300 text-sm flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-emerald-400" />
+                Real Trades Executed: {realTradeCount}
               </div>
               {lastExecution && (
                 <div className="text-slate-400 text-xs">
-                  Last: {lastExecution.toLocaleTimeString()}
+                  Last Execution: {lastExecution.toLocaleTimeString()}
+                </div>
+              )}
+              {accountBalance !== null && (
+                <div className="text-slate-300 text-sm">
+                  Account Balance: ${accountBalance.toLocaleString()}
                 </div>
               )}
             </div>
@@ -193,9 +253,12 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
         {/* Auto-Execute Toggle */}
         <div className="flex items-center justify-between p-4 bg-slate-700/50 rounded-lg">
           <div>
-            <h4 className="text-white font-medium">Auto-Execute Trades</h4>
+            <h4 className="text-white font-medium">Auto-Execute REAL Trades</h4>
             <p className="text-slate-400 text-sm">
-              Automatically execute trades when strategy signals are detected (every 5 minutes)
+              Automatically execute REAL trades on OANDA when strategy signals are detected (every 5 minutes)
+            </p>
+            <p className="text-yellow-400 text-xs mt-1">
+              ⚠️ This will place REAL orders on your OANDA account
             </p>
           </div>
           <Switch
@@ -218,12 +281,12 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
             {isActive ? (
               <>
                 <Square className="h-4 w-4 mr-2" />
-                Stop Trading
+                Stop REAL Trading
               </>
             ) : (
               <>
                 <Play className="h-4 w-4 mr-2" />
-                Start Trading
+                Start REAL Trading
               </>
             )}
           </Button>
@@ -235,7 +298,17 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
             className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10"
           >
             <Zap className="h-4 w-4 mr-2" />
-            Execute Now
+            Execute REAL Trade Now
+          </Button>
+
+          <Button
+            onClick={refreshAccountBalance}
+            disabled={isExecuting || !isConfigured}
+            variant="outline"
+            className="border-green-500/30 text-green-300 hover:bg-green-500/10"
+          >
+            <DollarSign className="h-4 w-4 mr-2" />
+            Refresh Balance
           </Button>
         </div>
 
@@ -248,21 +321,24 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
                 Configuration Required
               </p>
               <p className="text-yellow-400 text-xs mt-1">
-                Please select a strategy and configure OANDA connection to enable trading.
+                Please select a strategy and configure OANDA connection to enable REAL trading.
               </p>
             </div>
           </div>
         )}
 
         {isActive && autoExecuteEnabled && (
-          <div className="flex items-start gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <Zap className="h-4 w-4 text-emerald-400 mt-0.5" />
+          <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <Zap className="h-4 w-4 text-red-400 mt-0.5" />
             <div>
-              <p className="text-emerald-300 text-sm font-medium">
-                Auto-Trading Active
+              <p className="text-red-300 text-sm font-medium">
+                REAL Auto-Trading Active
               </p>
-              <p className="text-emerald-400 text-xs mt-1">
-                System will automatically check for signals and execute trades every 5 minutes.
+              <p className="text-red-400 text-xs mt-1">
+                • System will automatically execute REAL trades on your OANDA account every 5 minutes<br />
+                • Only high confidence signals (≥70%) will trigger trades<br />
+                • All trades will use proper risk management and position sizing<br />
+                • Real orders will include automatic stop loss and take profit levels
               </p>
             </div>
           </div>

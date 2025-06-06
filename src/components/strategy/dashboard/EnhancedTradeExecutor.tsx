@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Play, Square, Zap, TrendingUp, Clock } from 'lucide-react';
+import { Play, Square, Zap, TrendingUp, Clock, DollarSign, AlertTriangle } from 'lucide-react';
 
 interface EnhancedTradeExecutorProps {
   strategy: any;
@@ -25,7 +25,7 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
   const [isExecuting, setIsExecuting] = useState(false);
   const [lastExecution, setLastExecution] = useState<Date | null>(null);
 
-  const executeStrategySignals = async () => {
+  const executeRealStrategySignals = async () => {
     if (!strategy || !oandaConfig.accountId || !oandaConfig.apiKey) {
       toast({
         title: "Configuration Required",
@@ -37,9 +37,9 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
 
     setIsExecuting(true);
     try {
-      console.log('🚀 Executing strategy signals for live trading...');
+      console.log('🚀 Executing REAL strategy signals for live trading...');
       
-      // Call the forward testing function to trigger immediate execution
+      // Call the updated forward testing function that executes REAL trades
       const { data, error } = await supabase.functions.invoke('oanda-forward-testing', {
         body: {
           action: 'execute_now',
@@ -64,19 +64,31 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
       });
 
       if (error) {
-        throw new Error(error.message || 'Strategy execution failed');
+        throw new Error(error.message || 'REAL strategy execution failed');
       }
 
-      console.log('✅ Strategy execution response:', data);
+      console.log('✅ REAL strategy execution response:', data);
       setLastExecution(new Date());
       
-      toast({
-        title: "✅ Strategy Executed",
-        description: `Strategy "${strategy.strategy_name}" executed successfully. Check trade monitor for results.`,
-      });
+      if (data?.trade_executed && data?.execution_type === 'REAL_TRADE') {
+        toast({
+          title: "✅ REAL Trade Executed!",
+          description: `${data.signal_type} order executed for ${strategy.symbol}. Order ID: ${data.trade_result?.orderId}. Check your OANDA account for confirmation.`,
+        });
+      } else if (data?.signal_detected) {
+        toast({
+          title: "📊 Signal Detected",
+          description: `${data.signal_type} signal detected for ${strategy.symbol} but no trade executed: ${data.reason}`,
+        });
+      } else {
+        toast({
+          title: "📊 Strategy Analyzed",
+          description: `No trading signals detected for ${strategy.symbol}. Monitoring continues.`,
+        });
+      }
 
     } catch (error) {
-      console.error('❌ Strategy execution error:', error);
+      console.error('❌ REAL strategy execution error:', error);
       toast({
         title: "❌ Execution Failed",
         description: error instanceof Error ? error.message : 'Unknown error occurred',
@@ -87,7 +99,7 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
     }
   };
 
-  const testStrategy = async () => {
+  const generateTestSignal = async () => {
     if (!strategy) return;
     
     setIsExecuting(true);
@@ -95,7 +107,7 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Create a test signal and log it
+      // Create a test signal log (not a real trade)
       const testSignal = {
         action: Math.random() > 0.5 ? 'BUY' : 'SELL',
         symbol: strategy.symbol?.replace('/', '_') || 'EUR_USD',
@@ -103,19 +115,19 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
         price: 1.0950 + (Math.random() - 0.5) * 0.01,
         strategy_name: strategy.strategy_name,
         timestamp: new Date().toISOString(),
-        status: 'executed',
-        transaction_id: `test_${Date.now()}`,
-        test_mode: true
+        status: 'test_signal',
+        confidence: Math.floor(Math.random() * 30) + 60, // 60-90% confidence
+        execution_type: 'TEST_SIGNAL'
       };
 
-      // Log the test trade
+      // Log the test signal (NOT a real trade)
       const { error } = await supabase
         .from('trading_logs')
         .insert({
           user_id: user.id,
           session_id: crypto.randomUUID(),
-          log_type: 'trade_execution',
-          message: `Test signal generated: ${testSignal.action} ${testSignal.units} units of ${testSignal.symbol} at ${testSignal.price}`,
+          log_type: 'info',
+          message: `Test signal generated: ${testSignal.action} ${testSignal.units} units of ${testSignal.symbol} at ${testSignal.price.toFixed(5)} (${testSignal.confidence}% confidence)`,
           trade_data: testSignal
         });
 
@@ -126,11 +138,11 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
       setLastExecution(new Date());
       toast({
         title: "🧪 Test Signal Generated",
-        description: `${testSignal.action} signal for ${testSignal.symbol} at ${testSignal.price.toFixed(5)}`,
+        description: `${testSignal.action} signal for ${testSignal.symbol} at ${testSignal.price.toFixed(5)} (${testSignal.confidence}% confidence)`,
       });
 
     } catch (error) {
-      console.error('Test strategy error:', error);
+      console.error('Test signal generation error:', error);
       toast({
         title: "Test Failed",
         description: "Failed to generate test signal",
@@ -146,7 +158,7 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white">
           <TrendingUp className="h-5 w-5" />
-          Strategy Execution Control
+          REAL Strategy Execution Control
           {isActive && (
             <Badge variant="default" className="bg-emerald-600">
               <Zap className="h-3 w-3 mr-1" />
@@ -164,6 +176,9 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
             </p>
             <p className="text-slate-500 text-xs">
               Symbol: {strategy?.symbol || 'N/A'} • Timeframe: {strategy?.timeframe || 'N/A'}
+            </p>
+            <p className="text-slate-500 text-xs">
+              Environment: {oandaConfig?.environment || 'Not configured'}
             </p>
           </div>
           
@@ -207,36 +222,37 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
           </Button>
 
           <Button
-            onClick={executeStrategySignals}
+            onClick={executeRealStrategySignals}
             disabled={isExecuting || !strategy}
             variant="outline"
             className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10"
           >
-            <Zap className="h-4 w-4 mr-2" />
-            Execute Now
+            <DollarSign className="h-4 w-4 mr-2" />
+            Execute REAL Trade Now
           </Button>
 
           <Button
-            onClick={testStrategy}
+            onClick={generateTestSignal}
             disabled={isExecuting || !strategy}
             variant="outline"
             className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
           >
             <TrendingUp className="h-4 w-4 mr-2" />
-            Test Signal
+            Generate Test Signal
           </Button>
         </div>
 
         {isActive && (
-          <div className="flex items-start gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <Zap className="h-4 w-4 text-emerald-400 mt-0.5" />
+          <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5" />
             <div>
-              <p className="text-emerald-300 text-sm font-medium">
-                Live Trading Active
+              <p className="text-red-300 text-sm font-medium">
+                REAL Trading Active
               </p>
-              <p className="text-emerald-400 text-xs mt-1">
-                Strategy signals are being executed automatically every 5 minutes.
-                Use "Execute Now" to trigger immediate execution or "Test Signal" to generate test data.
+              <p className="text-red-400 text-xs mt-1">
+                Strategy signals are being monitored for REAL trade execution every 5 minutes.
+                Use "Execute REAL Trade Now" to check for signals immediately or "Generate Test Signal" to create test data.
+                ⚠️ REAL trades will be placed on your OANDA account.
               </p>
             </div>
           </div>
