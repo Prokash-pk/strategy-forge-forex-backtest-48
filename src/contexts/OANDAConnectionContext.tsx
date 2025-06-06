@@ -66,8 +66,9 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
     };
   });
 
+  // Fixed: The type issue was in this function
   const setConnectionState = (updates: Partial<OANDAConnectionState>) => {
-    setConnectionStateInternal(prev => {
+    setConnectionStateInternal((prev: OANDAConnectionState) => {
       const newState = { ...prev, ...updates };
       
       // Persist to localStorage

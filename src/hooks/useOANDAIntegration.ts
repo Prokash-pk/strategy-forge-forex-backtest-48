@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
@@ -29,7 +30,9 @@ export const useOANDAIntegration = () => {
     accountInfo,
     handleTestConnection,
     resetConnectionStatus,
-    autoReconnect
+    autoReconnect,
+    retryCount,
+    isAutoReconnecting
   } = useOANDAConnection();
 
   const {
@@ -128,6 +131,8 @@ export const useOANDAIntegration = () => {
     canStartTesting,
     isForwardTestingActive,
     connectionStatusIcon,
+    retryCount,
+    isAutoReconnecting,
     handleConfigChange: handleConfigChangeWithAutoReconnect,
     handleTestConnection: handleEnhancedTestConnection,
     handleSaveConfig,
