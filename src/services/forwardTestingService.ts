@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { OANDAMarketDataService } from './oandaMarketDataService';
 import { PythonExecutor } from './pythonExecutor';
@@ -89,7 +88,7 @@ export class ForwardTestingService {
       console.log('🤖 Trade execution is now LIVE - signals will be converted to real trades');
       
       // Start the execution loop immediately
-      this.startExecutionLoop(sessionId, strategy);
+      await this.startExecutionLoop(sessionId, strategy);
 
       // Log the start event
       await supabase.from('trading_logs').insert({
@@ -143,51 +142,6 @@ export class ForwardTestingService {
     }
   }
 
-  async getForwardTestingStats(): Promise<ForwardTestingStats> {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return {
-          totalTrades: 0,
-          successfulTrades: 0,
-          failedTrades: 0
-        };
-      }
-
-      // Get stats from trading_logs
-      const { data: logs } = await supabase
-        .from('trading_logs')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('timestamp', { ascending: false });
-
-      const totalTrades = logs?.filter(log => log.log_type === 'trade_execution').length || 0;
-      const successfulTrades = logs?.filter(log => 
-        log.log_type === 'trade_execution' && 
-        log.message.includes('successfully')
-      ).length || 0;
-      const failedTrades = logs?.filter(log => 
-        log.log_type === 'trade_error'
-      ).length || 0;
-      
-      const lastExecution = logs?.[0]?.timestamp;
-
-      return {
-        totalTrades,
-        successfulTrades,
-        failedTrades,
-        lastExecution
-      };
-    } catch (error) {
-      console.error('❌ Error getting forward testing stats:', error);
-      return {
-        totalTrades: 0,
-        successfulTrades: 0,
-        failedTrades: 0
-      };
-    }
-  }
-
   private async startExecutionLoop(sessionId: string, strategy: StrategySettings): Promise<void> {
     const session = this.activeSessions.get(sessionId);
     if (!session || !session.enabled) return;
@@ -206,6 +160,7 @@ export class ForwardTestingService {
       }
 
       try {
+        console.log(`🔍 Checking signals for session: ${sessionId}`);
         await this.checkAndExecuteSignals(session, strategy);
       } catch (error) {
         console.error(`❌ Error in execution loop for ${sessionId}:`, error);
@@ -213,13 +168,14 @@ export class ForwardTestingService {
     };
 
     // Execute immediately first time
-    executeSignalCheck();
+    console.log(`🚀 Executing initial signal check for session: ${sessionId}`);
+    await executeSignalCheck();
 
-    // Then schedule regular executions every 2 minutes
-    const interval = setInterval(executeSignalCheck, 2 * 60 * 1000);
+    // Then schedule regular executions every 1 minute for faster testing
+    const interval = setInterval(executeSignalCheck, 60 * 1000);
     this.executionIntervals.set(sessionId, interval);
 
-    console.log(`⏰ Execution loop scheduled every 2 minutes for session: ${sessionId}`);
+    console.log(`⏰ Execution loop scheduled every 1 minute for session: ${sessionId}`);
   }
 
   private async checkAndExecuteSignals(session: ForwardTestingSession, strategy: StrategySettings): Promise<void> {
@@ -333,20 +289,19 @@ export class ForwardTestingService {
   }
 
   async getActiveSessions(): Promise<ForwardTestingSession[]> {
-    // Also check database for active sessions in case of page refresh
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return Array.from(this.activeSessions.values());
 
+      // Get active sessions from database and restore them
       const { data: dbSessions } = await supabase
         .from('trading_sessions')
         .select('*')
         .eq('user_id', user.id)
         .eq('is_active', true);
 
-      // Sync with database sessions
       if (dbSessions && dbSessions.length > 0) {
-        dbSessions.forEach(dbSession => {
+        for (const dbSession of dbSessions) {
           if (!this.activeSessions.has(dbSession.id)) {
             const session: ForwardTestingSession = {
               id: dbSession.id,
@@ -358,14 +313,73 @@ export class ForwardTestingService {
               startTime: dbSession.created_at
             };
             this.activeSessions.set(dbSession.id, session);
-            console.log(`♻️ Restored active session from database: ${dbSession.id}`);
+            
+            // Restart execution loop for restored session
+            if (session.enabled) {
+              const strategy = {
+                id: dbSession.strategy_id,
+                strategy_name: dbSession.strategy_id,
+                strategy_code: dbSession.strategy_code,
+                symbol: dbSession.symbol,
+                timeframe: dbSession.timeframe
+              } as StrategySettings;
+              
+              console.log(`♻️ Restored and restarting session: ${dbSession.id}`);
+              await this.startExecutionLoop(dbSession.id, strategy);
+            }
           }
-        });
+        }
       }
+
+      return Array.from(this.activeSessions.values());
     } catch (error) {
       console.error('Error syncing active sessions:', error);
+      return Array.from(this.activeSessions.values());
     }
+  }
 
-    return Array.from(this.activeSessions.values());
+  async getForwardTestingStats(): Promise<ForwardTestingStats> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        return {
+          totalTrades: 0,
+          successfulTrades: 0,
+          failedTrades: 0
+        };
+      }
+
+      // Get stats from trading_logs
+      const { data: logs } = await supabase
+        .from('trading_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false });
+
+      const totalTrades = logs?.filter(log => log.log_type === 'trade_execution').length || 0;
+      const successfulTrades = logs?.filter(log => 
+        log.log_type === 'trade_execution' && 
+        log.message.includes('successfully')
+      ).length || 0;
+      const failedTrades = logs?.filter(log => 
+        log.log_type === 'trade_error'
+      ).length || 0;
+      
+      const lastExecution = logs?.[0]?.timestamp;
+
+      return {
+        totalTrades,
+        successfulTrades,
+        failedTrades,
+        lastExecution
+      };
+    } catch (error) {
+      console.error('❌ Error getting forward testing stats:', error);
+      return {
+        totalTrades: 0,
+        successfulTrades: 0,
+        failedTrades: 0
+      };
+    }
   }
 }

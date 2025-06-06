@@ -117,7 +117,7 @@ export const useOANDAForwardTesting = () => {
           setIsForwardTestingActive(true);
           console.log('🚀 REAL TRADING ACTIVATED - strategies will execute actual trades');
           console.log('💰 All strategy signals will now be converted to live OANDA trades');
-          console.log('🤖 Trading operates autonomously - signals monitored every 2 minutes');
+          console.log('🤖 Trading operates autonomously - signals monitored every minute');
           
           // Enable auto-start for future sessions
           localStorage.setItem('autoStartForwardTesting', 'true');
