@@ -8,6 +8,7 @@ import OANDAStrategySettings from './OANDAStrategySettings';
 import OANDAForwardTestingControl from './OANDAForwardTestingControl';
 import OANDATradingDashboard from './OANDATradingDashboard';
 import OANDAPriceMonitorControl from './OANDAPriceMonitorControl';
+import ForwardTestingDiagnostic from './ForwardTestingDiagnostic';
 import { useOANDAIntegration } from '@/hooks/useOANDAIntegration';
 
 const OANDAIntegration: React.FC = () => {
@@ -84,7 +85,7 @@ const OANDAIntegration: React.FC = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="config" className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-slate-700">
+            <TabsList className="grid w-full grid-cols-6 bg-slate-700">
               <TabsTrigger value="config" className="data-[state=active]:bg-slate-600">
                 Configuration
               </TabsTrigger>
@@ -99,6 +100,9 @@ const OANDAIntegration: React.FC = () => {
               </TabsTrigger>
               <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-600">
                 Dashboard
+              </TabsTrigger>
+              <TabsTrigger value="diagnostic" className="data-[state=active]:bg-slate-600">
+                Diagnostic
               </TabsTrigger>
             </TabsList>
 
@@ -173,6 +177,10 @@ const OANDAIntegration: React.FC = () => {
                 oandaConfig={config}
                 onToggleForwardTesting={handleToggleForwardTesting}
               />
+            </TabsContent>
+
+            <TabsContent value="diagnostic" className="mt-6">
+              <ForwardTestingDiagnostic />
             </TabsContent>
           </Tabs>
         </CardContent>
