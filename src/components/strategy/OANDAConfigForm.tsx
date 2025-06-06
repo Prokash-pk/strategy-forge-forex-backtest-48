@@ -26,6 +26,9 @@ interface OANDAConfigFormProps {
   onTestTrade: () => void;
   connectionStatus: 'idle' | 'testing' | 'success' | 'error';
   connectionError: string;
+  isConnected?: boolean;
+  lastConnectedAt?: string | null;
+  accountInfo?: any | null;
   isLoading: boolean;
   isTestingTrade: boolean;
   canStartTesting: boolean;
@@ -45,6 +48,9 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
   onTestTrade,
   connectionStatus,
   connectionError,
+  isConnected = false,
+  lastConnectedAt,
+  accountInfo,
   isLoading,
   isTestingTrade,
   canStartTesting,
@@ -53,32 +59,21 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
 }) => {
   const { savedStrategies, loadSavedStrategies } = useOANDAStrategies();
   
-  // Fix: Properly check if credentials are configured
   const isConfiguredForTesting = Boolean(config.accountId?.trim() && config.apiKey?.trim());
 
-  console.log('OANDAConfigForm Debug:', {
-    accountId: config.accountId,
-    apiKey: config.apiKey ? 'SET' : 'NOT_SET',
-    isConfiguredForTesting,
-    connectionStatus,
-    canStartTesting,
-    isTestingTrade,
-    isForwardTestingActive
-  });
-
   const handleConnectOANDA = async () => {
-    // First test the connection
+    // Test the connection
     await onTestConnection();
     
-    // If connection is successful, save the config
-    if (connectionStatus === 'success' || isConfiguredForTesting) {
+    // Connection status is now managed globally and will persist
+    // Save the config for future auto-reconnection
+    if (isConfiguredForTesting) {
       await onSaveConfig();
     }
   };
 
   const handleRefreshAll = () => {
     loadSavedStrategies();
-    // Trigger refresh of configs from parent
   };
 
   return (
@@ -108,11 +103,14 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Connection Status */}
+          {/* Enhanced Connection Status */}
           <OANDAConnectionStatus 
             connectionStatus={connectionStatus}
             environment={config.environment}
             accountId={config.accountId}
+            isConnected={isConnected}
+            lastConnectedAt={lastConnectedAt}
+            accountInfo={accountInfo}
           />
 
           {/* Environment Selection */}
@@ -131,7 +129,7 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
             onApiKeyChange={(value) => onConfigChange('apiKey', value)}
           />
 
-          {/* Action Buttons - Use the corrected isConfiguredForTesting */}
+          {/* Action Buttons */}
           <OANDAActionButtons
             isConfigured={isConfiguredForTesting}
             connectionStatus={connectionStatus}

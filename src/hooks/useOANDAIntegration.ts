@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
@@ -24,8 +25,12 @@ export const useOANDAIntegration = () => {
   const {
     connectionStatus,
     connectionError,
+    isConnected,
+    lastConnectedAt,
+    accountInfo,
     handleTestConnection,
-    resetConnectionStatus
+    resetConnectionStatus,
+    autoReconnect
   } = useOANDAConnection();
 
   const {
@@ -61,29 +66,43 @@ export const useOANDAIntegration = () => {
     connectionStatusIcon
   } = useOANDAState(config, selectedStrategy, connectionStatus);
 
-  // Load saved strategies on mount and log the process
+  // Auto-reconnect on mount if configuration exists
   useEffect(() => {
-    console.log('useOANDAIntegration: Loading strategies on mount');
+    console.log('useOANDAIntegration: Initializing...');
     loadSavedStrategies();
     loadSelectedStrategy();
+    
+    // Auto-reconnect if we have valid config and were previously connected
+    if (config.accountId && config.apiKey && !isConnected && lastConnectedAt) {
+      console.log('🔄 Auto-reconnecting to OANDA...');
+      autoReconnect(config);
+    }
   }, []);
 
-  // Reset connection status when credentials change, but don't stop keepalive
-  const handleConfigChangeWithReset = (field: keyof typeof config, value: any) => {
-    handleConfigChange(field, value);
-    if (field === 'accountId' || field === 'apiKey' || field === 'environment') {
-      resetConnectionStatus();
-      // Note: keepalive will automatically restart with new config via useOANDAKeepalive
+  // Auto-reconnect when config changes and we have valid credentials
+  useEffect(() => {
+    if (config.accountId && config.apiKey && !isConnected) {
+      console.log('🔄 Config updated, attempting auto-reconnect...');
+      autoReconnect(config);
     }
+  }, [config.accountId, config.apiKey, config.environment]);
+
+  const handleConfigChangeWithAutoReconnect = (field: keyof typeof config, value: any) => {
+    handleConfigChange(field, value);
+    // Auto-reconnect will be triggered by the useEffect above
   };
 
   const handleShowGuide = () => {
     console.log('Show OANDA setup guide');
   };
 
-  // Wrapper function that provides the required parameters
   const handleToggleForwardTesting = () => {
     return baseHandleToggleForwardTesting(config, selectedStrategy, canStartTesting);
+  };
+
+  // Enhanced connection test that maintains persistent state
+  const handleEnhancedTestConnection = async () => {
+    await handleTestConnection(config);
   };
 
   // Use logging hook
@@ -97,17 +116,14 @@ export const useOANDAIntegration = () => {
     isForwardTestingActive
   );
 
-  // Enhanced connection test that maintains keepalive
-  const handleEnhancedTestConnection = async () => {
-    await handleTestConnection(config);
-    // Keepalive will automatically boost after successful connection
-  };
-
   return {
     config,
     savedConfigs,
     connectionStatus,
     connectionError,
+    isConnected,
+    lastConnectedAt,
+    accountInfo,
     savedStrategies,
     selectedStrategy,
     isLoading,
@@ -116,10 +132,7 @@ export const useOANDAIntegration = () => {
     canStartTesting,
     isForwardTestingActive,
     connectionStatusIcon,
-    // Enhanced keepalive info
-    isKeepaliveActive,
-    keepaliveStatus: getKeepaliveStatus(),
-    handleConfigChange: handleConfigChangeWithReset,
+    handleConfigChange: handleConfigChangeWithAutoReconnect,
     handleTestConnection: handleEnhancedTestConnection,
     handleSaveConfig,
     handleSaveNewConfig,
@@ -133,7 +146,7 @@ export const useOANDAIntegration = () => {
     loadSelectedStrategy,
     loadSavedConfigs,
     loadSavedStrategies,
-    // New keepalive control methods
+    autoReconnect: () => autoReconnect(config),
     forceRestartKeepalive: forceRestart
   };
 };

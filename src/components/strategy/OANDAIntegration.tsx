@@ -3,7 +3,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, CheckCircle, Settings, TrendingUp } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Settings, TrendingUp, Wifi } from 'lucide-react';
 import OANDAConfigForm from './OANDAConfigForm';
 import OANDAStrategySettings from './OANDAStrategySettings';
 import OANDAForwardTestingControl from './OANDAForwardTestingControl';
@@ -17,6 +17,9 @@ const OANDAIntegration: React.FC = () => {
     savedConfigs,
     connectionStatus,
     connectionError,
+    isConnected,
+    lastConnectedAt,
+    accountInfo,
     savedStrategies,
     selectedStrategy,
     isLoading,
@@ -51,10 +54,16 @@ const OANDAIntegration: React.FC = () => {
               OANDA Live Trading Integration
             </div>
             <div className="flex items-center gap-2">
-              {connectionStatus === 'success' && (
+              {isConnected && (
+                <Badge variant="default" className="bg-emerald-600">
+                  <Wifi className="h-3 w-3 mr-1" />
+                  Connected
+                </Badge>
+              )}
+              {connectionStatus === 'success' && !isConnected && (
                 <Badge variant="default" className="bg-emerald-600">
                   <CheckCircle className="h-3 w-3 mr-1" />
-                  Connected
+                  Ready
                 </Badge>
               )}
               {connectionStatus === 'error' && (
@@ -105,6 +114,9 @@ const OANDAIntegration: React.FC = () => {
                 onTestTrade={handleTestTrade}
                 connectionStatus={connectionStatus}
                 connectionError={connectionError || ''}
+                isConnected={isConnected}
+                lastConnectedAt={lastConnectedAt}
+                accountInfo={accountInfo}
                 isLoading={Boolean(isLoading)}
                 isTestingTrade={Boolean(isTestingTrade)}
                 canStartTesting={Boolean(canStartTesting)}
