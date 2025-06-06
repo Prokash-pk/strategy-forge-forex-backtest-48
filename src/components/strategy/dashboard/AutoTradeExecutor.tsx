@@ -151,12 +151,17 @@ const AutoTradeExecutor: React.FC<AutoTradeExecutorProps> = ({
         .select('trade_data')
         .eq('user_id', user.id)
         .eq('log_type', 'trade_execution')
-        .not('trade_data->execution_type', 'is', null);
+        .not('trade_data', 'is', null);
 
       if (!error && logs) {
-        const realTrades = logs.filter(log => 
-          log.trade_data?.execution_type === 'REAL_TRADE'
-        );
+        const realTrades = logs.filter(log => {
+          // Safely check if trade_data is an object and has execution_type property
+          if (log.trade_data && typeof log.trade_data === 'object' && !Array.isArray(log.trade_data)) {
+            const tradeData = log.trade_data as Record<string, any>;
+            return tradeData.execution_type === 'REAL_TRADE';
+          }
+          return false;
+        });
         setRealTradeCount(realTrades.length);
       }
 
