@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Square, Zap } from 'lucide-react';
+import { Square, Zap, Loader2 } from 'lucide-react';
 
 interface StrategySettings {
   id: string;
@@ -23,6 +23,18 @@ export const TradingActionButton: React.FC<TradingActionButtonProps> = ({
   isButtonDisabled,
   onToggleForwardTesting
 }) => {
+  const [isLoading, setIsLoading] = React.useState(false);
+
+  const handleClick = async () => {
+    setIsLoading(true);
+    try {
+      await onToggleForwardTesting();
+    } finally {
+      // Add a small delay to show feedback
+      setTimeout(() => setIsLoading(false), 500);
+    }
+  };
+
   return (
     <div className="flex items-center justify-between">
       <div>
@@ -47,14 +59,19 @@ export const TradingActionButton: React.FC<TradingActionButtonProps> = ({
         )}
       </div>
       <Button
-        onClick={onToggleForwardTesting}
-        disabled={isButtonDisabled && !isForwardTestingActive}
+        onClick={handleClick}
+        disabled={(isButtonDisabled && !isForwardTestingActive) || isLoading}
         className={isForwardTestingActive 
-          ? "bg-red-600 hover:bg-red-700" 
-          : "bg-emerald-600 hover:bg-emerald-700"
+          ? "bg-red-600 hover:bg-red-700 min-w-[140px]" 
+          : "bg-emerald-600 hover:bg-emerald-700 min-w-[140px]"
         }
       >
-        {isForwardTestingActive ? (
+        {isLoading ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            {isForwardTestingActive ? "Stopping..." : "Starting..."}
+          </>
+        ) : isForwardTestingActive ? (
           <>
             <Square className="h-4 w-4 mr-2" />
             Stop Live Trading

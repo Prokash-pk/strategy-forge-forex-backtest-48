@@ -18,21 +18,35 @@ export const useButtonState = (
   connectionStatus: string,
   config: Config
 ) => {
+  // More granular checks for better debugging
+  const hasValidStrategy = Boolean(selectedStrategy?.strategy_name && selectedStrategy?.symbol);
+  const hasValidConnection = connectionStatus === 'success';
+  const hasValidCredentials = Boolean(config.accountId && config.apiKey);
+  
   // Determine if the button should be disabled
   const isButtonDisabled = !isConfigured || 
-                           !selectedStrategy || 
-                           connectionStatus !== 'success' ||
-                           !config.accountId ||
-                           !config.apiKey;
+                           !hasValidStrategy || 
+                           !hasValidConnection ||
+                           !hasValidCredentials;
 
-  console.log('🔍 Button state debug:', {
+  console.log('🔍 Enhanced button state debug:', {
     isConfigured,
-    selectedStrategy: !!selectedStrategy,
+    hasValidStrategy,
+    strategyName: selectedStrategy?.strategy_name || 'None',
+    strategySymbol: selectedStrategy?.symbol || 'None',
+    hasValidConnection,
     connectionStatus,
-    accountId: !!config.accountId,
-    apiKey: !!config.apiKey,
-    isButtonDisabled
+    hasValidCredentials,
+    accountIdPresent: !!config.accountId,
+    apiKeyPresent: !!config.apiKey,
+    environment: config.environment,
+    finalButtonDisabled: isButtonDisabled
   });
 
-  return { isButtonDisabled };
+  return { 
+    isButtonDisabled,
+    hasValidStrategy,
+    hasValidConnection,
+    hasValidCredentials 
+  };
 };
