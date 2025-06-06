@@ -1,6 +1,5 @@
-
 import { useToast } from '@/hooks/use-toast';
-import { OANDAConnectionState, OANDAConfig, MAX_RETRY_ATTEMPTS, RETRY_DELAY } from './types';
+import { OANDAConnectionState, OANDAConfig, MAX_RETRY_ATTEMPTS, RETRY_DELAY, OANDA_CONNECTION_KEY } from './types';
 import { testOANDAConnection } from './connectionUtils';
 
 export function useOANDAConnectionOperations(
