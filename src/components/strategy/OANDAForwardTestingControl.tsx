@@ -18,6 +18,8 @@ interface OANDAForwardTestingControlProps {
   selectedStrategy: StrategySettings | null;
   config: {
     environment: 'practice' | 'live';
+    accountId?: string;
+    apiKey?: string;
   };
   canStartTesting: boolean;
   isConfigured: boolean;
@@ -44,6 +46,24 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
     localStorage.setItem('autoStartForwardTesting', String(newValue));
     window.location.reload(); // Simple way to update state
   };
+
+  // Determine if the button should be disabled
+  const isButtonDisabled = !isConfigured || 
+                           !selectedStrategy || 
+                           connectionStatus !== 'success' ||
+                           !config.accountId ||
+                           !config.apiKey;
+
+  console.log('🔍 Button state debug:', {
+    isConfigured,
+    selectedStrategy: !!selectedStrategy,
+    connectionStatus,
+    accountId: !!config.accountId,
+    apiKey: !!config.apiKey,
+    isButtonDisabled,
+    canStartTesting,
+    isForwardTestingActive
+  });
 
   return (
     <Card className="bg-slate-800 border-slate-700">
@@ -119,20 +139,20 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
                   ✅ Executing REAL trades with {selectedStrategy?.strategy_name}
                   <br />
                   <span className="text-emerald-400 text-xs">
-                    💰 Strategy signals = ACTUAL OANDA trades every 5 minutes
+                    💰 Strategy signals = ACTUAL OANDA trades every 1 minute
                   </span>
                 </>
               ) : (
                 "Live trading is currently stopped - no real trades will be executed"
               )}
             </p>
-            {canStartTesting && !isForwardTestingActive && (
+            {!isButtonDisabled && !isForwardTestingActive && (
               <p className="text-emerald-400 text-sm mt-1">✅ Ready to start live trading</p>
             )}
           </div>
           <Button
             onClick={onToggleForwardTesting}
-            disabled={!canStartTesting && !isForwardTestingActive}
+            disabled={isButtonDisabled && !isForwardTestingActive}
             className={isForwardTestingActive 
               ? "bg-red-600 hover:bg-red-700" 
               : "bg-emerald-600 hover:bg-emerald-700"
@@ -162,7 +182,7 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
               <p className="text-emerald-400 text-xs mt-1">
                 • Your strategy is executing REAL trades on OANDA<br />
                 • Every strategy signal becomes an actual trade<br />
-                • Trades execute automatically every 5 minutes<br />
+                • Trades execute automatically every 1 minute<br />
                 • Check your OANDA account for trade confirmations<br />
                 • Money is at risk - monitor your account balance
               </p>
@@ -170,7 +190,20 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
           </div>
         )}
 
-        {!canStartTesting && !isForwardTestingActive && (
+        {/* Debug Information */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="p-2 bg-slate-700/30 rounded text-xs text-slate-400">
+            <div>Debug Info:</div>
+            <div>• Configured: {isConfigured ? 'Yes' : 'No'}</div>
+            <div>• Strategy: {selectedStrategy ? 'Selected' : 'None'}</div>
+            <div>• Connection: {connectionStatus}</div>
+            <div>• Account ID: {config.accountId ? 'Set' : 'Missing'}</div>
+            <div>• API Key: {config.apiKey ? 'Set' : 'Missing'}</div>
+            <div>• Button Disabled: {isButtonDisabled ? 'Yes' : 'No'}</div>
+          </div>
+        )}
+
+        {(isButtonDisabled && !isForwardTestingActive) && (
           <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
             <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5" />
             <div>
@@ -181,6 +214,8 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
                   ? "Test OANDA connection first to enable live trading."
                   : !selectedStrategy
                   ? "Select a strategy above to enable live trading."
+                  : !config.accountId || !config.apiKey
+                  ? "Complete OANDA configuration (Account ID and API Key required)."
                   : "Ready to start live trading!"
                 }
               </p>
