@@ -7,9 +7,11 @@ import { AutoTestResult } from './types';
 export class AutoStrategyTester {
   private static instance: AutoStrategyTester;
   private testInterval: NodeJS.Timeout | null = null;
+  private loggingInterval: NodeJS.Timeout | null = null;
   private isRunning: boolean = false;
   private currentConfig: OANDAConfig | null = null;
   private currentStrategy: StrategySettings | null = null;
+  private isForwardTestingActive: boolean = false;
 
   static getInstance(): AutoStrategyTester {
     if (!AutoStrategyTester.instance) {
@@ -48,6 +50,35 @@ export class AutoStrategyTester {
         await StrategyTestRunner.runSingleTest(this.currentConfig, this.currentStrategy);
       }
     }, intervalSeconds * 1000);
+
+    // Start the console logging cycle (every 1 minute)
+    this.startConsoleLogging();
+  }
+
+  private startConsoleLogging() {
+    if (this.loggingInterval) {
+      clearInterval(this.loggingInterval);
+    }
+
+    // Start immediate logging
+    if (this.currentConfig && this.currentStrategy) {
+      TestLogger.logStrategyTestingCycle(
+        this.currentConfig,
+        this.currentStrategy,
+        this.isForwardTestingActive
+      );
+    }
+
+    // Set up periodic console logging every 1 minute
+    this.loggingInterval = setInterval(async () => {
+      if (this.isRunning && this.currentConfig && this.currentStrategy) {
+        await TestLogger.logStrategyTestingCycle(
+          this.currentConfig,
+          this.currentStrategy,
+          this.isForwardTestingActive
+        );
+      }
+    }, 60 * 1000); // Every 60 seconds
   }
 
   stopAutoTesting() {
@@ -55,12 +86,19 @@ export class AutoStrategyTester {
       clearInterval(this.testInterval);
       this.testInterval = null;
     }
+    
+    if (this.loggingInterval) {
+      clearInterval(this.loggingInterval);
+      this.loggingInterval = null;
+    }
+    
     this.isRunning = false;
     this.currentConfig = null;
     this.currentStrategy = null;
     
     TestLogger.logTestStop();
     console.log('🛑 AutoStrategyTester stopped');
+    console.log('🛑 Console logging stopped');
   }
 
   async runSingleTest(config: OANDAConfig, strategy: StrategySettings): Promise<AutoTestResult> {
@@ -75,13 +113,23 @@ export class AutoStrategyTester {
     return {
       isRunning: this.isRunning,
       hasInterval: !!this.testInterval,
+      hasLoggingInterval: !!this.loggingInterval,
       currentStrategy: this.currentStrategy?.strategy_name || null,
-      currentSymbol: this.currentStrategy?.symbol || null
+      currentSymbol: this.currentStrategy?.symbol || null,
+      isForwardTestingActive: this.isForwardTestingActive
     };
+  }
+
+  // Update forward testing status
+  setForwardTestingStatus(isActive: boolean) {
+    this.isForwardTestingActive = isActive;
+    console.log(`🔄 Forward testing status updated: ${isActive ? 'ACTIVE' : 'INACTIVE'}`);
   }
 
   // Auto-start the tester when conditions are met
   autoStart(config: OANDAConfig, strategy: StrategySettings, isForwardTestingActive: boolean) {
+    this.setForwardTestingStatus(isForwardTestingActive);
+    
     if (!this.isRunning && config && strategy && isForwardTestingActive) {
       console.log('🎯 Auto-starting AutoStrategyTester - forward testing is active');
       this.startAutoTesting(config, strategy, 60); // Test every minute when forward testing is active
