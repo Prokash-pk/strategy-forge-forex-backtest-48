@@ -65,19 +65,17 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
     };
   });
 
-  // Fixed: The type issue is in this function - modify to correctly handle all scenarios
+  // Fixed: The type issue is in this function - completely rewritten to fix the typing issue
   const setConnectionState = (updates: Partial<OANDAConnectionState>) => {
-    if (typeof updates === 'function') {
-      // This is a safeguard in case a function is passed instead of an object
-      console.error('Function passed to setConnectionState instead of object');
+    // Make sure we're working with the proper update type
+    if (typeof updates !== 'object' || updates === null) {
+      console.error('Invalid updates passed to setConnectionState:', updates);
       return;
     }
     
-    // Ensure we're passing an object to setConnectionStateInternal, not a function
-    const updatesObject: Partial<OANDAConnectionState> = updates;
-    
-    setConnectionStateInternal(prev => {
-      const newState = { ...prev, ...updatesObject };
+    // Use a simple object spread to update the state
+    setConnectionStateInternal((prev) => {
+      const newState = { ...prev, ...updates };
       
       // Persist to localStorage
       localStorage.setItem(OANDA_CONNECTION_KEY, JSON.stringify({
