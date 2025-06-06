@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Play, Square, AlertTriangle, CheckCircle, Globe, Zap } from 'lucide-react';
+import { Play, Square, AlertTriangle, CheckCircle, Globe, Zap, Settings } from 'lucide-react';
 
 interface StrategySettings {
   id: string;
@@ -36,14 +36,23 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
   onToggleForwardTesting,
   onShowGuide
 }) => {
+  // Auto-start preference management
+  const autoStartEnabled = localStorage.getItem('autoStartForwardTesting') === 'true';
+  
+  const toggleAutoStart = () => {
+    const newValue = !autoStartEnabled;
+    localStorage.setItem('autoStartForwardTesting', String(newValue));
+    window.location.reload(); // Simple way to update state
+  };
+
   return (
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white">
           {isForwardTestingActive ? (
             <>
-              <Zap className="h-5 w-5 text-emerald-400" />
-              Autonomous Trading System
+              <Zap className="h-5 w-5 text-emerald-400 animate-pulse" />
+              Autonomous Trading System - ACTIVE
             </>
           ) : (
             <>
@@ -66,12 +75,12 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
           <div className="flex items-center gap-2">
             <Badge 
               variant={isForwardTestingActive ? "default" : "secondary"}
-              className={isForwardTestingActive ? "bg-emerald-600" : "bg-slate-600"}
+              className={isForwardTestingActive ? "bg-emerald-600 animate-pulse" : "bg-slate-600"}
             >
               {isForwardTestingActive ? (
                 <>
                   <Zap className="h-3 w-3 mr-1" />
-                  Autonomous
+                  Live Trading
                 </>
               ) : (
                 "Inactive"
@@ -81,6 +90,23 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
         </div>
 
         <Separator className="bg-slate-600" />
+
+        {/* Auto-start setting */}
+        <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
+          <div>
+            <h4 className="text-white text-sm font-medium">Auto-Start Trading</h4>
+            <p className="text-slate-400 text-xs">Automatically start when strategy and OANDA are ready</p>
+          </div>
+          <Button
+            variant={autoStartEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={toggleAutoStart}
+            className={autoStartEnabled ? "bg-emerald-600 hover:bg-emerald-700" : ""}
+          >
+            <Settings className="h-3 w-3 mr-1" />
+            {autoStartEnabled ? "ON" : "OFF"}
+          </Button>
+        </div>
 
         <div className="flex items-center justify-between">
           <div>
@@ -106,6 +132,7 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
           </div>
           <Button
             onClick={onToggleForwardTesting}
+            disabled={!canStartTesting && !isForwardTestingActive}
             className={isForwardTestingActive 
               ? "bg-red-600 hover:bg-red-700" 
               : "bg-emerald-600 hover:bg-emerald-700"
@@ -114,12 +141,12 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
             {isForwardTestingActive ? (
               <>
                 <Square className="h-4 w-4 mr-2" />
-                Stop Autonomous Trading
+                Stop Trading
               </>
             ) : (
               <>
                 <Zap className="h-4 w-4 mr-2" />
-                Start Autonomous Trading
+                Start Trading
               </>
             )}
           </Button>
@@ -127,10 +154,10 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
 
         {isForwardTestingActive && (
           <div className="flex items-start gap-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-            <Zap className="h-4 w-4 text-emerald-400 mt-0.5" />
+            <Zap className="h-4 w-4 text-emerald-400 mt-0.5 animate-pulse" />
             <div>
               <p className="text-emerald-300 text-sm font-medium">
-                Autonomous Trading Active
+                🚀 Autonomous Trading Active
               </p>
               <p className="text-emerald-400 text-xs mt-1">
                 • Strategy runs autonomously on our servers 24/7<br />
@@ -149,11 +176,11 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
             <div>
               <p className="text-amber-300 text-sm">
                 {!isConfigured 
-                  ? "Autonomous trading will attempt to start with current settings. Configure OANDA credentials for optimal performance."
+                  ? "Configure OANDA credentials and select a strategy to enable autonomous trading."
                   : connectionStatus !== 'success'
-                  ? "Autonomous trading will attempt to start. Test connection first for validation."
+                  ? "Test OANDA connection first to enable autonomous trading."
                   : !selectedStrategy
-                  ? "Autonomous trading will attempt to start. Select a strategy for better results."
+                  ? "Select a strategy above to enable autonomous trading."
                   : "Ready to start autonomous trading!"
                 }
               </p>

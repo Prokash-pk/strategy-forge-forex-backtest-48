@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
@@ -40,6 +40,7 @@ export const useOANDAIntegration = () => {
     selectedStrategy,
     loadSelectedStrategy,
     loadSavedStrategies,
+    loadStrategyById,
     handleLoadStrategy,
     handleDeleteStrategy
   } = useOANDAStrategies();
@@ -52,7 +53,8 @@ export const useOANDAIntegration = () => {
   const {
     isForwardTestingActive,
     setIsForwardTestingActive,
-    handleToggleForwardTesting: baseHandleToggleForwardTesting
+    handleToggleForwardTesting: baseHandleToggleForwardTesting,
+    autoStartForwardTesting
   } = useOANDAForwardTesting();
 
   const { 
@@ -68,7 +70,7 @@ export const useOANDAIntegration = () => {
     connectionStatusIcon
   } = useOANDAState(config, selectedStrategy, connectionStatus);
 
-  // Auto-reconnect on mount if configuration exists
+  // Initialize and restore state on mount
   useEffect(() => {
     console.log('useOANDAIntegration: Initializing...');
     loadSavedStrategies();
@@ -80,29 +82,43 @@ export const useOANDAIntegration = () => {
 
   // Auto-reconnect when config changes and we have valid credentials
   useEffect(() => {
-    if (config.accountId && config.apiKey && !isConnected) {
+    if (config.accountId && config.apiKey && !isConnected && !isAutoReconnecting) {
       console.log('🔄 Config updated, attempting auto-reconnect...');
       autoReconnect(config);
     }
   }, [config.accountId, config.apiKey, config.environment]);
 
-  const handleConfigChangeWithAutoReconnect = (field: keyof typeof config, value: any) => {
+  // Auto-start forward testing when ready (improved responsiveness)
+  useEffect(() => {
+    if (isConnected && selectedStrategy && canStartTesting && !isForwardTestingActive) {
+      console.log('🎯 Conditions met for auto-start - checking preferences...');
+      
+      // Use a small delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        autoStartForwardTesting(config, selectedStrategy, isConnected);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected, selectedStrategy, canStartTesting, isForwardTestingActive]);
+
+  const handleConfigChangeWithAutoReconnect = useCallback((field: keyof typeof config, value: any) => {
     handleConfigChange(field, value);
     // Auto-reconnect will be triggered by the useEffect above
-  };
+  }, [handleConfigChange]);
 
-  const handleShowGuide = () => {
+  const handleShowGuide = useCallback(() => {
     console.log('Show OANDA setup guide');
-  };
+  }, []);
 
-  const handleToggleForwardTesting = () => {
+  const handleToggleForwardTesting = useCallback(() => {
     return baseHandleToggleForwardTesting(config, selectedStrategy, canStartTesting);
-  };
+  }, [baseHandleToggleForwardTesting, config, selectedStrategy, canStartTesting]);
 
   // Enhanced connection test that maintains persistent state
-  const handleEnhancedTestConnection = async () => {
+  const handleEnhancedTestConnection = useCallback(async () => {
     await handleTestConnection(config);
-  };
+  }, [handleTestConnection, config]);
 
   // Use logging hook
   useOANDALogging(

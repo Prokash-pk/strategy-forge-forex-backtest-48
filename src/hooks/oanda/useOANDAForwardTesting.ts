@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
@@ -44,6 +45,47 @@ export const useOANDAForwardTesting = () => {
     return () => clearInterval(interval);
   }, []);
 
+  // Auto-start forward testing when strategy and OANDA are ready
+  const autoStartForwardTesting = async (
+    config: OANDAConfig,
+    selectedStrategy: StrategySettings | null,
+    oandaConnected: boolean
+  ) => {
+    // Only auto-start if not already active and conditions are met
+    if (isForwardTestingActive || !oandaConnected || !selectedStrategy) {
+      return;
+    }
+
+    // Check if user has previously enabled auto-start
+    const autoStartEnabled = localStorage.getItem('autoStartForwardTesting') === 'true';
+    if (!autoStartEnabled) {
+      console.log('⏸️ Auto-start disabled by user preference');
+      return;
+    }
+
+    console.log('🚀 Auto-starting forward testing - conditions met:', {
+      oandaConnected,
+      strategyReady: !!selectedStrategy,
+      currentlyActive: isForwardTestingActive
+    });
+
+    try {
+      const service = ForwardTestingService.getInstance();
+      await service.startForwardTesting({
+        strategyId: selectedStrategy.id,
+        oandaAccountId: config.accountId,
+        oandaApiKey: config.apiKey,
+        environment: config.environment,
+        enabled: true
+      }, selectedStrategy);
+      
+      setIsForwardTestingActive(true);
+      console.log('✅ AUTO-STARTED AUTONOMOUS TRADING - operates 24/7 independently');
+    } catch (error) {
+      console.error('Failed to auto-start autonomous trading:', error);
+    }
+  };
+
   const handleToggleForwardTesting = async (
     config: OANDAConfig,
     selectedStrategy: StrategySettings | null,
@@ -56,6 +98,9 @@ export const useOANDAForwardTesting = () => {
       await service.stopForwardTesting();
       setIsForwardTestingActive(false);
       console.log('🛑 Autonomous trading stopped');
+      
+      // Disable auto-start when manually stopped
+      localStorage.setItem('autoStartForwardTesting', 'false');
     } else {
       // Start autonomous trading
       if (canStartTesting && selectedStrategy) {
@@ -71,6 +116,9 @@ export const useOANDAForwardTesting = () => {
           setIsForwardTestingActive(true);
           console.log('🚀 AUTONOMOUS TRADING ACTIVATED - operates 24/7 independently');
           console.log('💻 You can now close your browser/computer safely');
+          
+          // Enable auto-start for future sessions
+          localStorage.setItem('autoStartForwardTesting', 'true');
         } catch (error) {
           console.error('Failed to start autonomous trading:', error);
           // Keep the state as false if starting failed
@@ -82,6 +130,7 @@ export const useOANDAForwardTesting = () => {
   return {
     isForwardTestingActive,
     setIsForwardTestingActive,
-    handleToggleForwardTesting
+    handleToggleForwardTesting,
+    autoStartForwardTesting
   };
 };

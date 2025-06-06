@@ -17,7 +17,7 @@ export async function testOANDAConnection(config: OANDAConfig): Promise<any> {
   });
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // Increased to 8 seconds
 
   try {
     const response = await fetch(`${baseUrl}/v3/accounts/${config.accountId}`, {
@@ -25,6 +25,7 @@ export async function testOANDAConnection(config: OANDAConfig): Promise<any> {
       headers: {
         'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
+        'Accept-Datetime-Format': 'UNIX'
       },
       signal: controller.signal
     });
@@ -32,8 +33,25 @@ export async function testOANDAConnection(config: OANDAConfig): Promise<any> {
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.errorMessage || `HTTP ${response.status}: ${response.statusText}`);
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.errorMessage || errorMessage;
+        
+        // Provide specific guidance for common errors
+        if (response.status === 401) {
+          errorMessage = 'Invalid API key. Please check your OANDA API credentials.';
+        } else if (response.status === 403) {
+          errorMessage = 'Access forbidden. Please verify your API key has proper permissions.';
+        } else if (response.status === 404) {
+          errorMessage = 'Account not found. Please verify your Account ID is correct.';
+        }
+      } catch (parseError) {
+        console.warn('Could not parse error response:', parseError);
+      }
+      
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
@@ -44,8 +62,18 @@ export async function testOANDAConnection(config: OANDAConfig): Promise<any> {
     clearTimeout(timeoutId);
     
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Connection timeout - please check your internet connection and try again');
+      throw new Error('Connection timeout (8s) - OANDA servers may be slow. Please try again or check your internet connection.');
     }
+    
+    // Enhanced error logging
+    console.error('❌ OANDA connection failed:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      config: {
+        environment: config.environment,
+        accountId: config.accountId,
+        hasApiKey: !!config.apiKey
+      }
+    });
     
     throw error;
   }
