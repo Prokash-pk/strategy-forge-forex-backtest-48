@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
@@ -80,7 +79,8 @@ export const useOANDAForwardTesting = () => {
       }, selectedStrategy);
       
       setIsForwardTestingActive(true);
-      console.log('✅ AUTO-STARTED AUTONOMOUS TRADING - operates 24/7 independently');
+      console.log('✅ AUTO-STARTED REAL TRADING - strategies will execute actual trades');
+      console.log('💰 All signals from your strategy will be converted to live OANDA trades');
     } catch (error) {
       console.error('Failed to auto-start autonomous trading:', error);
     }
@@ -97,7 +97,7 @@ export const useOANDAForwardTesting = () => {
       // Stop autonomous trading
       await service.stopForwardTesting();
       setIsForwardTestingActive(false);
-      console.log('🛑 Autonomous trading stopped');
+      console.log('🛑 Real trading stopped - no more trades will be executed');
       
       // Disable auto-start when manually stopped
       localStorage.setItem('autoStartForwardTesting', 'false');
@@ -114,13 +114,14 @@ export const useOANDAForwardTesting = () => {
           }, selectedStrategy);
           
           setIsForwardTestingActive(true);
-          console.log('🚀 AUTONOMOUS TRADING ACTIVATED - operates 24/7 independently');
-          console.log('💻 You can now close your browser/computer safely');
+          console.log('🚀 REAL TRADING ACTIVATED - strategies will execute actual trades');
+          console.log('💰 All strategy signals will now be converted to live OANDA trades');
+          console.log('🤖 Trading operates autonomously - you can close browser safely');
           
           // Enable auto-start for future sessions
           localStorage.setItem('autoStartForwardTesting', 'true');
         } catch (error) {
-          console.error('Failed to start autonomous trading:', error);
+          console.error('Failed to start real trading:', error);
           // Keep the state as false if starting failed
         }
       }

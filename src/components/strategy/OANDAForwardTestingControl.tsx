@@ -52,12 +52,12 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
           {isForwardTestingActive ? (
             <>
               <Zap className="h-5 w-5 text-emerald-400 animate-pulse" />
-              Autonomous Trading System - ACTIVE
+              LIVE TRADING ACTIVE - Real Trades Being Executed
             </>
           ) : (
             <>
               <Square className="h-5 w-5" />
-              Autonomous Trading Control
+              Live Trading Control
             </>
           )}
         </CardTitle>
@@ -80,7 +80,7 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
               {isForwardTestingActive ? (
                 <>
                   <Zap className="h-3 w-3 mr-1" />
-                  Live Trading
+                  LIVE TRADES
                 </>
               ) : (
                 "Inactive"
@@ -111,23 +111,23 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
         <div className="flex items-center justify-between">
           <div>
             <h4 className="text-white font-medium mb-1">
-              {isForwardTestingActive ? "Autonomous Trading Status" : "Trading Control"}
+              {isForwardTestingActive ? "Live Trading Status" : "Trading Control"}
             </h4>
             <p className="text-slate-400 text-sm">
               {isForwardTestingActive ? (
                 <>
-                  ✅ Running autonomously 24/7 with {selectedStrategy?.strategy_name}
+                  ✅ Executing REAL trades with {selectedStrategy?.strategy_name}
                   <br />
                   <span className="text-emerald-400 text-xs">
-                    🤖 Operates independently - computer can be shut down
+                    💰 Strategy signals = ACTUAL OANDA trades every 5 minutes
                   </span>
                 </>
               ) : (
-                "Autonomous trading is currently stopped"
+                "Live trading is currently stopped - no real trades will be executed"
               )}
             </p>
             {canStartTesting && !isForwardTestingActive && (
-              <p className="text-emerald-400 text-sm mt-1">✅ Ready to start autonomous trading</p>
+              <p className="text-emerald-400 text-sm mt-1">✅ Ready to start live trading</p>
             )}
           </div>
           <Button
@@ -141,12 +141,12 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
             {isForwardTestingActive ? (
               <>
                 <Square className="h-4 w-4 mr-2" />
-                Stop Trading
+                Stop Live Trading
               </>
             ) : (
               <>
                 <Zap className="h-4 w-4 mr-2" />
-                Start Trading
+                Start Live Trading
               </>
             )}
           </Button>
@@ -157,14 +157,14 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
             <Zap className="h-4 w-4 text-emerald-400 mt-0.5 animate-pulse" />
             <div>
               <p className="text-emerald-300 text-sm font-medium">
-                🚀 Autonomous Trading Active
+                🚀 LIVE TRADING ACTIVE
               </p>
               <p className="text-emerald-400 text-xs mt-1">
-                • Strategy runs autonomously on our servers 24/7<br />
-                • Trading continues when you close browser/shut down computer<br />
-                • OANDA credentials securely stored server-side<br />
-                • Trades execute automatically every 5 minutes via cron job<br />
-                • Zero dependency on your internet connection or device
+                • Your strategy is executing REAL trades on OANDA<br />
+                • Every strategy signal becomes an actual trade<br />
+                • Trades execute automatically every 5 minutes<br />
+                • Check your OANDA account for trade confirmations<br />
+                • Money is at risk - monitor your account balance
               </p>
             </div>
           </div>
@@ -176,12 +176,12 @@ const OANDAForwardTestingControl: React.FC<OANDAForwardTestingControlProps> = ({
             <div>
               <p className="text-amber-300 text-sm">
                 {!isConfigured 
-                  ? "Configure OANDA credentials and select a strategy to enable autonomous trading."
+                  ? "Configure OANDA credentials and select a strategy to enable live trading."
                   : connectionStatus !== 'success'
-                  ? "Test OANDA connection first to enable autonomous trading."
+                  ? "Test OANDA connection first to enable live trading."
                   : !selectedStrategy
-                  ? "Select a strategy above to enable autonomous trading."
-                  : "Ready to start autonomous trading!"
+                  ? "Select a strategy above to enable live trading."
+                  : "Ready to start live trading!"
                 }
               </p>
               {!isConfigured && (
