@@ -27,6 +27,7 @@ export class ForwardTestingService {
   private static instance: ForwardTestingService;
   private activeSessions: Map<string, ForwardTestingSession> = new Map();
   private signalProcessor: SignalProcessor;
+  private executionIntervals: Map<string, NodeJS.Timeout> = new Map();
 
   private constructor() {
     this.signalProcessor = SignalProcessor.getInstance();
@@ -69,7 +70,7 @@ export class ForwardTestingService {
 
       this.activeSessions.set(sessionId, session);
 
-      // Save session to trading_sessions table (using existing table)
+      // Save session to trading_sessions table
       await supabase.from('trading_sessions').upsert({
         id: sessionId,
         user_id: user.id,
@@ -87,8 +88,24 @@ export class ForwardTestingService {
       console.log('✅ Forward testing session started successfully');
       console.log('🤖 Trade execution is now LIVE - signals will be converted to real trades');
       
-      // Start the execution loop
+      // Start the execution loop immediately
       this.startExecutionLoop(sessionId, strategy);
+
+      // Log the start event
+      await supabase.from('trading_logs').insert({
+        user_id: user.id,
+        session_id: sessionId,
+        log_type: 'info',
+        message: `Forward testing started for strategy: ${strategy.strategy_name}`,
+        trade_data: {
+          session_start: {
+            strategy_name: strategy.strategy_name,
+            symbol: strategy.symbol,
+            environment: config.environment,
+            timestamp: new Date().toISOString()
+          }
+        } as any
+      });
 
     } catch (error) {
       console.error('❌ Failed to start forward testing:', error);
@@ -103,10 +120,17 @@ export class ForwardTestingService {
 
       console.log('🛑 Stopping all forward testing sessions...');
 
+      // Clear execution intervals
+      this.executionIntervals.forEach((interval, sessionId) => {
+        clearInterval(interval);
+        console.log(`⏹️ Stopped execution interval for session: ${sessionId}`);
+      });
+      this.executionIntervals.clear();
+
       // Clear active sessions
       this.activeSessions.clear();
 
-      // Update database using existing trading_sessions table
+      // Update database
       await supabase
         .from('trading_sessions')
         .update({ is_active: false, updated_at: new Date().toISOString() })
@@ -173,6 +197,11 @@ export class ForwardTestingService {
     const executeSignalCheck = async () => {
       if (!this.activeSessions.has(sessionId)) {
         console.log(`⏹️ Session ${sessionId} no longer active, stopping execution loop`);
+        const interval = this.executionIntervals.get(sessionId);
+        if (interval) {
+          clearInterval(interval);
+          this.executionIntervals.delete(sessionId);
+        }
         return;
       }
 
@@ -181,15 +210,16 @@ export class ForwardTestingService {
       } catch (error) {
         console.error(`❌ Error in execution loop for ${sessionId}:`, error);
       }
-
-      // Schedule next execution (every 5 minutes)
-      if (this.activeSessions.has(sessionId)) {
-        setTimeout(executeSignalCheck, 5 * 60 * 1000); // 5 minutes
-      }
     };
 
-    // Start the loop
+    // Execute immediately first time
     executeSignalCheck();
+
+    // Then schedule regular executions every 2 minutes
+    const interval = setInterval(executeSignalCheck, 2 * 60 * 1000);
+    this.executionIntervals.set(sessionId, interval);
+
+    console.log(`⏰ Execution loop scheduled every 2 minutes for session: ${sessionId}`);
   }
 
   private async checkAndExecuteSignals(session: ForwardTestingSession, strategy: StrategySettings): Promise<void> {
@@ -259,6 +289,27 @@ export class ForwardTestingService {
           .eq('id', session.id);
       } else {
         console.log('📊 No trade signals detected - monitoring continues...');
+        
+        // Log the monitoring activity
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase.from('trading_logs').insert({
+            user_id: user.id,
+            session_id: session.id,
+            log_type: 'info',
+            message: `Signal monitoring: No entry signals for ${strategy.symbol} at ${marketData.close[latestIndex]}`,
+            trade_data: {
+              monitoring: {
+                strategy_name: strategy.strategy_name,
+                symbol: strategy.symbol,
+                current_price: marketData.close[latestIndex],
+                has_entry: hasEntry,
+                direction: direction,
+                timestamp: new Date().toISOString()
+              }
+            } as any
+          });
+        }
       }
 
     } catch (error) {
@@ -270,7 +321,7 @@ export class ForwardTestingService {
         await supabase.from('trading_logs').insert({
           user_id: user.id,
           session_id: session.id,
-          log_type: 'error',
+          log_type: 'trade_error',
           message: `Signal check error: ${error instanceof Error ? error.message : 'Unknown error'}`,
           trade_data: {
             error_details: String(error),
@@ -282,6 +333,39 @@ export class ForwardTestingService {
   }
 
   async getActiveSessions(): Promise<ForwardTestingSession[]> {
+    // Also check database for active sessions in case of page refresh
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return Array.from(this.activeSessions.values());
+
+      const { data: dbSessions } = await supabase
+        .from('trading_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      // Sync with database sessions
+      if (dbSessions && dbSessions.length > 0) {
+        dbSessions.forEach(dbSession => {
+          if (!this.activeSessions.has(dbSession.id)) {
+            const session: ForwardTestingSession = {
+              id: dbSession.id,
+              strategyId: dbSession.strategy_id,
+              accountId: dbSession.oanda_account_id,
+              apiKey: dbSession.oanda_api_key,
+              environment: dbSession.environment as 'practice' | 'live',
+              enabled: dbSession.is_active,
+              startTime: dbSession.created_at
+            };
+            this.activeSessions.set(dbSession.id, session);
+            console.log(`♻️ Restored active session from database: ${dbSession.id}`);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error syncing active sessions:', error);
+    }
+
     return Array.from(this.activeSessions.values());
   }
 }

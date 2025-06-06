@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { ForwardTestingService } from '@/services/forwardTestingService';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
@@ -7,40 +6,41 @@ import { OANDAConfig, StrategySettings } from '@/types/oanda';
 export const useOANDAForwardTesting = () => {
   const [isForwardTestingActive, setIsForwardTestingActive] = useState(false);
 
-  // Check autonomous server-side trading status on mount and periodically
+  // Check status more frequently and restore active sessions
   useEffect(() => {
-    const checkAutonomousTradingStatus = async () => {
+    const checkForwardTestingStatus = async () => {
       try {
-        // Check server-side autonomous trading sessions - completely independent of client
-        const activeSessions = await ServerForwardTestingService.getActiveSessions();
-        const isAutonomousActive = activeSessions.length > 0;
+        const service = ForwardTestingService.getInstance();
+        const activeSessions = await service.getActiveSessions();
         
-        // Update UI state to reflect autonomous trading status
-        setIsForwardTestingActive(isAutonomousActive);
+        // Check if any sessions are active
+        const hasActiveSessions = activeSessions.length > 0 && activeSessions.some(session => session.enabled);
         
-        console.log('🤖 Autonomous trading status check:', {
-          autonomousActive: isAutonomousActive,
-          totalActiveSessions: activeSessions.length,
-          status: isAutonomousActive ? 'RUNNING AUTONOMOUSLY' : 'INACTIVE'
+        setIsForwardTestingActive(hasActiveSessions);
+        
+        console.log('🔍 Forward testing status check:', {
+          activeSessions: activeSessions.length,
+          isActive: hasActiveSessions,
+          sessions: activeSessions.map(s => ({ id: s.id, enabled: s.enabled }))
         });
 
-        if (isAutonomousActive) {
-          console.log('✅ AUTONOMOUS TRADING IS ACTIVE');
-          console.log('🚀 Trading operations running independently on server 24/7');
-          console.log('💻 No client connection required - fully autonomous');
+        if (hasActiveSessions) {
+          console.log('✅ FORWARD TESTING IS ACTIVE');
+          console.log('🚀 Trading operations running - monitoring for signals');
         } else {
-          console.log('⏸️ No autonomous trading sessions detected');
+          console.log('⏸️ No active forward testing sessions detected');
         }
       } catch (error) {
-        console.error('Failed to check autonomous trading status:', error);
+        console.error('Failed to check forward testing status:', error);
         setIsForwardTestingActive(false);
       }
     };
 
-    checkAutonomousTradingStatus();
+    // Initial check
+    checkForwardTestingStatus();
     
-    // Check autonomous status every 30 seconds to stay in sync with server
-    const interval = setInterval(checkAutonomousTradingStatus, 30000);
+    // Check status every 10 seconds to stay in sync
+    const interval = setInterval(checkForwardTestingStatus, 10000);
     
     return () => clearInterval(interval);
   }, []);
@@ -83,7 +83,7 @@ export const useOANDAForwardTesting = () => {
       console.log('✅ AUTO-STARTED REAL TRADING - strategies will execute actual trades');
       console.log('💰 All signals from your strategy will be converted to live OANDA trades');
     } catch (error) {
-      console.error('Failed to auto-start autonomous trading:', error);
+      console.error('Failed to auto-start forward testing:', error);
     }
   };
 
@@ -95,7 +95,7 @@ export const useOANDAForwardTesting = () => {
     const service = ForwardTestingService.getInstance();
     
     if (isForwardTestingActive) {
-      // Stop autonomous trading
+      // Stop forward testing
       await service.stopForwardTesting();
       setIsForwardTestingActive(false);
       console.log('🛑 Real trading stopped - no more trades will be executed');
@@ -103,7 +103,7 @@ export const useOANDAForwardTesting = () => {
       // Disable auto-start when manually stopped
       localStorage.setItem('autoStartForwardTesting', 'false');
     } else {
-      // Start autonomous trading
+      // Start forward testing
       if (canStartTesting && selectedStrategy) {
         try {
           await service.startForwardTesting({
@@ -117,7 +117,7 @@ export const useOANDAForwardTesting = () => {
           setIsForwardTestingActive(true);
           console.log('🚀 REAL TRADING ACTIVATED - strategies will execute actual trades');
           console.log('💰 All strategy signals will now be converted to live OANDA trades');
-          console.log('🤖 Trading operates autonomously - you can close browser safely');
+          console.log('🤖 Trading operates autonomously - signals monitored every 2 minutes');
           
           // Enable auto-start for future sessions
           localStorage.setItem('autoStartForwardTesting', 'true');
