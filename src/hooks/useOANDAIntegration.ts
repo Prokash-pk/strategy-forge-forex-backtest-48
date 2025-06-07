@@ -1,3 +1,4 @@
+
 import { useEffect, useCallback } from 'react';
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
@@ -95,12 +96,27 @@ export const useOANDAIntegration = () => {
   useEffect(() => {
     const autoTester = AutoStrategyTester.getInstance();
     
-    if (isConnected && selectedStrategy && config.accountId) {
+    if (isConnected && selectedStrategy && config.accountId && isForwardTestingActive) {
+      console.log('🚀 Starting AutoStrategyTester with console logging...');
       autoTester.autoStart(config, selectedStrategy, isForwardTestingActive);
-    } else if (autoTester.isActive()) {
+    } else if (autoTester.isActive() && !isForwardTestingActive) {
+      console.log('⏸️ Stopping AutoStrategyTester - forward testing inactive');
       autoTester.stopAutoTesting();
     }
   }, [isConnected, selectedStrategy, isForwardTestingActive, config]);
+
+  // Log status changes for debugging
+  useEffect(() => {
+    console.log('🔄 Integration Status Update:');
+    console.log('   - Connected:', isConnected);
+    console.log('   - Strategy:', selectedStrategy?.strategy_name || 'None');
+    console.log('   - Forward Testing:', isForwardTestingActive ? 'ACTIVE' : 'INACTIVE');
+    console.log('   - Can Start Testing:', canStartTesting);
+    
+    if (isForwardTestingActive && selectedStrategy) {
+      console.log('✅ All conditions met - console logs should appear every minute');
+    }
+  }, [isConnected, selectedStrategy?.strategy_name, isForwardTestingActive, canStartTesting]);
 
   const handleConfigChangeWithAutoReconnect = useCallback((field: keyof typeof config, value: any) => {
     handleConfigChange(field, value);
@@ -111,8 +127,18 @@ export const useOANDAIntegration = () => {
   }, []);
 
   const handleToggleForwardTesting = useCallback(() => {
-    return baseHandleToggleForwardTesting(config, selectedStrategy, canStartTesting);
-  }, [baseHandleToggleForwardTesting, config, selectedStrategy, canStartTesting]);
+    console.log('🔄 Toggling forward testing...');
+    const result = baseHandleToggleForwardTesting(config, selectedStrategy, canStartTesting);
+    
+    // Log the action
+    if (isForwardTestingActive) {
+      console.log('⏸️ Forward testing will be stopped - console logs will stop');
+    } else {
+      console.log('🚀 Forward testing will be started - console logs will begin in ~10 seconds');
+    }
+    
+    return result;
+  }, [baseHandleToggleForwardTesting, config, selectedStrategy, canStartTesting, isForwardTestingActive]);
 
   const handleEnhancedTestConnection = useCallback(async () => {
     await handleTestConnection(config);
