@@ -8,18 +8,27 @@ export const useOANDAStrategies = () => {
   const { toast } = useToast();
   const [savedStrategies, setSavedStrategies] = useState<StrategySettings[]>([]);
   const [selectedStrategy, setSelectedStrategy] = useState<StrategySettings | null>(null);
+  const [isLoadingStrategies, setIsLoadingStrategies] = useState(true);
 
-  // Load selected strategy on component mount
+  // Load saved strategies immediately on mount
   useEffect(() => {
-    loadSelectedStrategy();
-    loadSavedStrategies();
+    const initializeStrategies = async () => {
+      setIsLoadingStrategies(true);
+      await Promise.all([
+        loadSavedStrategies(),
+        loadSelectedStrategy()
+      ]);
+      setIsLoadingStrategies(false);
+    };
+
+    initializeStrategies();
   }, []);
 
   // Auto-restore strategy on login/session restore
   useEffect(() => {
     const checkAuthAndRestoreStrategy = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user && !selectedStrategy) {
+      if (user && !selectedStrategy && savedStrategies.length === 0) {
         const activeStrategyId = localStorage.getItem('activeStrategyId');
         if (activeStrategyId) {
           console.log('🔄 Restoring strategy after login:', activeStrategyId);
@@ -29,15 +38,13 @@ export const useOANDAStrategies = () => {
     };
 
     checkAuthAndRestoreStrategy();
-  }, [selectedStrategy]);
+  }, [selectedStrategy, savedStrategies.length]);
 
   const loadSelectedStrategy = () => {
     const saved = localStorage.getItem('selected_strategy_settings');
-    console.log('Loading selected strategy from localStorage:', saved);
     if (saved) {
       try {
         const strategySettings = JSON.parse(saved);
-        console.log('Parsed strategy settings:', strategySettings);
         setSelectedStrategy(strategySettings);
         
         // Also save the active strategy ID for cross-session persistence
@@ -81,6 +88,7 @@ export const useOANDAStrategies = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         console.log('No user found, cannot load strategies');
+        setSavedStrategies([]);
         return;
       }
 
@@ -90,17 +98,19 @@ export const useOANDAStrategies = () => {
         .from('strategy_results')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50); // Limit for better performance
 
       if (error) {
         console.error('Error loading strategies:', error);
         throw error;
       }
       
-      console.log('Loaded strategies from database:', data);
+      console.log('Loaded strategies from database:', data?.length || 0, 'strategies');
       setSavedStrategies(data || []);
     } catch (error) {
       console.error('Failed to load saved strategies:', error);
+      setSavedStrategies([]);
       toast({
         title: "Failed to Load Strategies",
         description: "Could not load your saved strategies. Please try again.",
@@ -192,6 +202,7 @@ export const useOANDAStrategies = () => {
   return {
     savedStrategies,
     selectedStrategy,
+    isLoadingStrategies,
     loadSelectedStrategy,
     loadSavedStrategies,
     loadStrategyById,

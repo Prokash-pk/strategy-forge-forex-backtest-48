@@ -39,6 +39,7 @@ export const useOANDAIntegration = () => {
   const {
     savedStrategies,
     selectedStrategy,
+    isLoadingStrategies,
     loadSelectedStrategy,
     loadSavedStrategies,
     loadStrategyById,
@@ -70,13 +71,6 @@ export const useOANDAIntegration = () => {
     canStartTesting,
     connectionStatusIcon
   } = useOANDAState(config, selectedStrategy, connectionStatus);
-
-  // Initialize and restore state on mount
-  useEffect(() => {
-    console.log('useOANDAIntegration: Initializing...');
-    loadSavedStrategies();
-    loadSelectedStrategy();
-  }, []);
 
   // Auto-reconnect when config changes and we have valid credentials
   useEffect(() => {
@@ -147,6 +141,7 @@ export const useOANDAIntegration = () => {
     accountInfo,
     savedStrategies,
     selectedStrategy,
+    isLoadingStrategies,
     isLoading,
     isTestingTrade,
     isConfigured,

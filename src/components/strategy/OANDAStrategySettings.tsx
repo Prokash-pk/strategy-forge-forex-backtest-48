@@ -3,7 +3,8 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { BarChart3, Trash2, TrendingUp } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { BarChart3, Trash2, TrendingUp, Loader2 } from 'lucide-react';
 
 interface StrategySettings {
   id: string;
@@ -33,6 +34,7 @@ interface StrategySettings {
 interface OANDAStrategySettingsProps {
   savedStrategies: StrategySettings[];
   selectedStrategy: StrategySettings | null;
+  isLoadingStrategies?: boolean;
   onLoadStrategy: (strategy: StrategySettings) => void;
   onDeleteStrategy: (strategyId: string) => void;
   onRefresh: () => void;
@@ -41,10 +43,43 @@ interface OANDAStrategySettingsProps {
 const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
   savedStrategies,
   selectedStrategy,
+  isLoadingStrategies = false,
   onLoadStrategy,
   onDeleteStrategy,
   onRefresh
 }) => {
+  // Loading state with skeletons
+  if (isLoadingStrategies) {
+    return (
+      <Card className="bg-slate-800 border-slate-700">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <BarChart3 className="h-5 w-5" />
+            Strategy Settings
+            <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-slate-400 text-sm">
+            Loading your saved strategies...
+          </p>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="p-3 bg-slate-900 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <Skeleton className="h-5 w-48 bg-slate-700" />
+                  <Skeleton className="h-6 w-20 bg-slate-700" />
+                </div>
+                <Skeleton className="h-4 w-full bg-slate-700 mb-2" />
+                <Skeleton className="h-4 w-3/4 bg-slate-700" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (savedStrategies.length === 0) {
     return (
       <Card className="bg-slate-800 border-slate-700">
@@ -54,10 +89,18 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
             Strategy Settings
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <p className="text-slate-400 text-sm">
             No saved strategies found. Please create and save a strategy first.
           </p>
+          <Button
+            onClick={onRefresh}
+            variant="outline"
+            size="sm"
+            className="border-slate-600 text-slate-300 hover:text-white"
+          >
+            Refresh Strategies
+          </Button>
         </CardContent>
       </Card>
     );
@@ -84,12 +127,25 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
               High Return Found!
             </Badge>
           )}
+          <span className="text-sm text-slate-400 ml-auto">
+            {savedStrategies.length} strategies
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-slate-400 text-sm">
-          Select a saved strategy with specific settings for forward testing. The trades will be executed based on these settings.
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-slate-400 text-sm">
+            Select a saved strategy with specific settings for forward testing. The trades will be executed based on these settings.
+          </p>
+          <Button
+            onClick={onRefresh}
+            variant="outline"
+            size="sm"
+            className="border-slate-600 text-slate-300 hover:text-white"
+          >
+            Refresh
+          </Button>
+        </div>
         
         {highReturnStrategy && (
           <div className="p-4 bg-emerald-500/20 border border-emerald-500/40 rounded-lg">
