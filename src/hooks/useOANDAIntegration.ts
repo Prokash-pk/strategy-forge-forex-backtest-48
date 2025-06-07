@@ -1,4 +1,3 @@
-
 import { useEffect, useCallback } from 'react';
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
@@ -40,7 +39,6 @@ export const useOANDAIntegration = () => {
     savedStrategies,
     selectedStrategy,
     isLoadingStrategies,
-    loadSelectedStrategy,
     loadSavedStrategies,
     loadStrategyById,
     handleLoadStrategy,
@@ -161,7 +159,6 @@ export const useOANDAIntegration = () => {
     handleDeleteStrategy,
     handleToggleForwardTesting,
     handleShowGuide,
-    loadSelectedStrategy,
     loadSavedConfigs,
     loadSavedStrategies,
     autoReconnect: () => autoReconnect(config),
