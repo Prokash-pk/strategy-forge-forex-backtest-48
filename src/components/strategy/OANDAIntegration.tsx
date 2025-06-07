@@ -41,7 +41,6 @@ const OANDAIntegration: React.FC = () => {
     handleDeleteStrategy,
     handleToggleForwardTesting,
     handleShowGuide,
-    loadSelectedStrategy,
     loadSavedConfigs,
     loadSavedStrategies,
     retryCount,
@@ -143,10 +142,7 @@ const OANDAIntegration: React.FC = () => {
                 isLoadingStrategies={isLoadingStrategies}
                 onLoadStrategy={handleLoadStrategy}
                 onDeleteStrategy={handleDeleteStrategy}
-                onRefresh={() => {
-                  loadSelectedStrategy();
-                  loadSavedStrategies();
-                }}
+                onRefresh={loadSavedStrategies}
               />
             </TabsContent>
 
