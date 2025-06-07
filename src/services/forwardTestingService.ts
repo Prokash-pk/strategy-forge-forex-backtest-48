@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { OANDAMarketDataService } from './oandaMarketDataService';
 import { PythonExecutor } from './pythonExecutor';
@@ -49,19 +48,22 @@ export class ForwardTestingService {
 
       const sessionId = `${user.id}_${config.strategyId}`;
       
-      console.log('🚀 Starting forward testing session:', sessionId);
+      console.log('🚀 Starting LIVE TRADING session:', sessionId);
       console.log('📊 Strategy:', strategy.strategy_name);
       console.log('🏦 OANDA Account:', config.accountId);
       console.log('🌍 Environment:', config.environment);
+      console.log('⚡ CRITICAL: This will execute REAL trades automatically');
 
-      // Configure console logger
+      // Configure console logger FIRST
       ConsoleLogger.setConfiguration(config, strategy);
 
-      // Initialize the signal processor with trade bridge
+      // Initialize the signal processor with trade bridge - CRITICAL FOR TRADE EXECUTION
+      console.log('🔧 Initializing trade bridge for REAL trading...');
       const bridgeInitialized = await this.signalProcessor.initializeTradeBridge(config.strategyId);
       if (!bridgeInitialized) {
-        throw new Error('Failed to initialize trade bridge - check OANDA configuration');
+        throw new Error('❌ CRITICAL: Failed to initialize trade bridge - NO TRADES WILL EXECUTE');
       }
+      console.log('✅ Trade bridge initialized - LIVE TRADING READY');
 
       const session: ForwardTestingSession = {
         id: sessionId,
@@ -90,34 +92,36 @@ export class ForwardTestingService {
         last_execution: new Date().toISOString()
       });
 
-      // Start console logging cycle
-      this.startConsoleLogging();
-
-      console.log('✅ Forward testing session started successfully');
-      console.log('🤖 Trade execution is now LIVE - signals will be converted to real trades');
-      console.log('📝 Console logging active - check console every minute for strategy evaluation');
-      
-      // Start the execution loop immediately
+      // Start execution loop IMMEDIATELY - this is what executes actual trades
+      console.log('🎯 Starting LIVE TRADE execution loop...');
       await this.startExecutionLoop(sessionId, strategy);
 
+      // Start console logging cycle for monitoring
+      this.startConsoleLogging();
+
+      console.log('✅ LIVE TRADING session started successfully');
+      console.log('🚨 SYSTEM IS NOW LIVE - Will execute real trades based on strategy signals');
+      console.log('📊 Check console every 30 seconds for trade evaluation updates');
+      
       // Log the start event
       await supabase.from('trading_logs').insert({
         user_id: user.id,
         session_id: sessionId,
         log_type: 'info',
-        message: `Forward testing started for strategy: ${strategy.strategy_name}`,
+        message: `LIVE TRADING STARTED: ${strategy.strategy_name} on ${strategy.symbol}`,
         trade_data: {
           session_start: {
             strategy_name: strategy.strategy_name,
             symbol: strategy.symbol,
             environment: config.environment,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            live_trading: true
           }
         } as any
       });
 
     } catch (error) {
-      console.error('❌ Failed to start forward testing:', error);
+      console.error('❌ CRITICAL: Failed to start live trading:', error);
       throw error;
     }
   }
@@ -127,24 +131,24 @@ export class ForwardTestingService {
       clearInterval(this.consoleLogInterval);
     }
 
-    console.log('📝 Starting console logging cycle - updates every 60 seconds');
+    console.log('📝 Starting console monitoring - updates every 30 seconds');
     
     // Start immediate logging
     setTimeout(() => {
       ConsoleLogger.runConsoleLogCycle();
-    }, 2000); // Give 2 seconds for initialization
+    }, 2000);
 
-    // Set up periodic console logging every 1 minute
+    // Set up periodic console logging every 30 seconds for better monitoring
     this.consoleLogInterval = setInterval(() => {
       ConsoleLogger.runConsoleLogCycle();
-    }, 60 * 1000); // Every 60 seconds
+    }, 30 * 1000);
   }
 
   private stopConsoleLogging(): void {
     if (this.consoleLogInterval) {
       clearInterval(this.consoleLogInterval);
       this.consoleLogInterval = null;
-      console.log('🛑 Console logging stopped');
+      console.log('🛑 Console monitoring stopped');
     }
     ConsoleLogger.clearConfiguration();
   }
@@ -154,15 +158,15 @@ export class ForwardTestingService {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      console.log('🛑 Stopping all forward testing sessions...');
+      console.log('🛑 STOPPING LIVE TRADING - No more automatic trades will be executed');
 
       // Stop console logging
       this.stopConsoleLogging();
 
-      // Clear execution intervals
+      // Clear execution intervals - CRITICAL to stop trade execution
       this.executionIntervals.forEach((interval, sessionId) => {
         clearInterval(interval);
-        console.log(`⏹️ Stopped execution interval for session: ${sessionId}`);
+        console.log(`⏹️ Stopped trade execution for session: ${sessionId}`);
       });
       this.executionIntervals.clear();
 
@@ -176,21 +180,25 @@ export class ForwardTestingService {
         .eq('user_id', user.id)
         .eq('is_active', true);
 
-      console.log('✅ Forward testing stopped');
+      console.log('✅ LIVE TRADING STOPPED - System is now safe');
     } catch (error) {
-      console.error('❌ Error stopping forward testing:', error);
+      console.error('❌ Error stopping live trading:', error);
     }
   }
 
   private async startExecutionLoop(sessionId: string, strategy: StrategySettings): Promise<void> {
     const session = this.activeSessions.get(sessionId);
-    if (!session || !session.enabled) return;
+    if (!session || !session.enabled) {
+      console.log(`❌ Session ${sessionId} not active - cannot start execution`);
+      return;
+    }
 
-    console.log(`🔄 Starting execution loop for session: ${sessionId}`);
+    console.log(`🎯 Starting LIVE TRADE execution loop for: ${sessionId}`);
+    console.log(`📊 Strategy: ${strategy.strategy_name} on ${strategy.symbol}`);
 
-    const executeSignalCheck = async () => {
+    const executeTradeCheck = async () => {
       if (!this.activeSessions.has(sessionId)) {
-        console.log(`⏹️ Session ${sessionId} no longer active, stopping execution loop`);
+        console.log(`⏹️ Session ${sessionId} ended - stopping trade execution`);
         const interval = this.executionIntervals.get(sessionId);
         if (interval) {
           clearInterval(interval);
@@ -200,30 +208,37 @@ export class ForwardTestingService {
       }
 
       try {
-        console.log(`🔍 Checking signals for session: ${sessionId}`);
+        const now = new Date().toLocaleTimeString();
+        console.log(`🔍 [${now}] EXECUTING LIVE TRADE CHECK for ${strategy.strategy_name}`);
+        
+        // CRITICAL: This is where actual trades are evaluated and executed
         await this.checkAndExecuteSignals(session, strategy);
+        
       } catch (error) {
-        console.error(`❌ Error in execution loop for ${sessionId}:`, error);
+        console.error(`❌ [${new Date().toLocaleTimeString()}] TRADE EXECUTION ERROR:`, error);
       }
     };
 
     // Execute immediately first time
-    console.log(`🚀 Executing initial signal check for session: ${sessionId}`);
-    await executeSignalCheck();
+    console.log(`🚀 Executing IMMEDIATE trade check for: ${sessionId}`);
+    await executeTradeCheck();
 
-    // Then schedule regular executions every 1 minute for faster testing
-    const interval = setInterval(executeSignalCheck, 60 * 1000);
+    // Schedule regular executions every 30 seconds for faster signal detection
+    const interval = setInterval(executeTradeCheck, 30 * 1000);
     this.executionIntervals.set(sessionId, interval);
 
-    console.log(`⏰ Execution loop scheduled every 1 minute for session: ${sessionId}`);
+    console.log(`⏰ LIVE TRADING scheduled every 30 seconds for: ${sessionId}`);
+    console.log(`🚨 SYSTEM IS LIVE - Real trades will be executed automatically`);
   }
 
   private async checkAndExecuteSignals(session: ForwardTestingSession, strategy: StrategySettings): Promise<void> {
     try {
-      console.log(`📈 Checking signals for strategy: ${strategy.strategy_name}`);
+      const now = new Date().toLocaleTimeString();
+      console.log(`📈 [${now}] Analyzing ${strategy.strategy_name} for LIVE TRADE signals`);
 
       // Convert symbol to OANDA format
       const oandaSymbol = OANDAMarketDataService.convertSymbolToOANDA(strategy.symbol);
+      console.log(`🔄 Fetching LIVE data for: ${oandaSymbol}`);
 
       // Fetch latest market data
       const marketData = await OANDAMarketDataService.fetchLiveMarketData(
@@ -231,13 +246,16 @@ export class ForwardTestingService {
         session.apiKey,
         session.environment,
         oandaSymbol,
-        'M1', // 1-minute candles
-        100   // Last 100 candles
+        'M1',
+        100
       );
 
-      console.log(`📊 Fetched ${marketData.close.length} data points for analysis`);
+      console.log(`📊 Received ${marketData.close.length} data points for analysis`);
+      const currentPrice = marketData.close[marketData.close.length - 1];
+      console.log(`💰 Current ${strategy.symbol} price: ${currentPrice}`);
 
       // Execute strategy logic
+      console.log(`🧠 Running strategy algorithm...`);
       const strategyResult = await PythonExecutor.executeStrategy(
         strategy.strategy_code,
         marketData
@@ -248,68 +266,78 @@ export class ForwardTestingService {
       const hasEntry = strategyResult.entry && strategyResult.entry[latestIndex];
       const direction = strategyResult.direction && strategyResult.direction[latestIndex];
       
-      console.log(`🔍 Signal check result:`, {
-        hasEntry,
-        direction,
-        currentPrice: marketData.close[latestIndex],
+      console.log(`🔍 Signal Analysis Result:`, {
+        hasEntry: !!hasEntry,
+        direction: direction || 'NONE',
+        currentPrice,
         timestamp: new Date().toISOString()
       });
 
-      // Process signal if entry is detected
+      // CRITICAL: Process signal for LIVE TRADE execution
       if (hasEntry && direction && (direction === 'BUY' || direction === 'SELL')) {
-        console.log(`🚨 TRADE SIGNAL DETECTED: ${direction} ${strategy.symbol}`);
+        console.log(`🚨 🚨 🚨 LIVE TRADE SIGNAL DETECTED 🚨 🚨 🚨`);
+        console.log(`🎯 Action: ${direction} ${strategy.symbol} at ${currentPrice}`);
 
         const signal = {
           signal: direction as 'BUY' | 'SELL',
           symbol: strategy.symbol,
-          currentPrice: marketData.close[latestIndex],
+          currentPrice: currentPrice,
           timestamp: new Date().toISOString(),
-          confidence: 0.8, // Default confidence
+          confidence: 0.8,
           strategyName: strategy.strategy_name
         };
 
-        // Execute the trade through signal processor
+        console.log(`⚡ EXECUTING LIVE TRADE via SignalProcessor...`);
+        
+        // CRITICAL: Execute the LIVE TRADE through signal processor
         const result = await this.signalProcessor.processSignal(signal);
         
         if (result.tradeExecuted) {
-          console.log('✅ REAL TRADE EXECUTED SUCCESSFULLY!');
+          console.log('✅ ✅ ✅ LIVE TRADE EXECUTED SUCCESSFULLY! ✅ ✅ ✅');
+          console.log(`💰 Trade details: ${direction} ${strategy.symbol} at ${currentPrice}`);
         } else {
-          console.log('❌ Trade execution failed:', result.message);
+          console.log('❌ ❌ ❌ LIVE TRADE EXECUTION FAILED ❌ ❌ ❌');
+          console.log(`🔧 Reason: ${result.message}`);
         }
 
-        // Update session last execution time
+        // Update session execution time
         session.lastExecutionTime = new Date().toISOString();
         await supabase
           .from('trading_sessions')
           .update({ last_execution: session.lastExecutionTime })
           .eq('id', session.id);
+          
       } else {
-        console.log('📊 No trade signals detected - monitoring continues...');
+        console.log(`📊 [${now}] No trade signals - continuing to monitor...`);
+        console.log(`🔍 Entry: ${!!hasEntry}, Direction: ${direction || 'NONE'}`);
         
-        // Log the monitoring activity
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from('trading_logs').insert({
-            user_id: user.id,
-            session_id: session.id,
-            log_type: 'info',
-            message: `Signal monitoring: No entry signals for ${strategy.symbol} at ${marketData.close[latestIndex]}`,
-            trade_data: {
-              monitoring: {
-                strategy_name: strategy.strategy_name,
-                symbol: strategy.symbol,
-                current_price: marketData.close[latestIndex],
-                has_entry: hasEntry,
-                direction: direction,
-                timestamp: new Date().toISOString()
-              }
-            } as any
-          });
+        // Log monitoring activity every 10th check to avoid spam
+        if (Math.random() < 0.1) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await supabase.from('trading_logs').insert({
+              user_id: user.id,
+              session_id: session.id,
+              log_type: 'info',
+              message: `LIVE MONITORING: No signals for ${strategy.symbol} at ${currentPrice}`,
+              trade_data: {
+                monitoring: {
+                  strategy_name: strategy.strategy_name,
+                  symbol: strategy.symbol,
+                  current_price: currentPrice,
+                  has_entry: hasEntry,
+                  direction: direction,
+                  timestamp: new Date().toISOString(),
+                  live_trading: true
+                }
+              } as any
+            });
+          }
         }
       }
 
     } catch (error) {
-      console.error('❌ Error checking signals:', error);
+      console.error(`❌ [${new Date().toLocaleTimeString()}] LIVE TRADE CHECK ERROR:`, error);
       
       // Log the error
       const { data: { user } } = await supabase.auth.getUser();
@@ -317,11 +345,12 @@ export class ForwardTestingService {
         await supabase.from('trading_logs').insert({
           user_id: user.id,
           session_id: session.id,
-          log_type: 'trade_error',
-          message: `Signal check error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          log_type: 'error',
+          message: `LIVE TRADE ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`,
           trade_data: {
             error_details: String(error),
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            live_trading: true
           } as any
         });
       }
@@ -364,7 +393,7 @@ export class ForwardTestingService {
                 timeframe: dbSession.timeframe
               } as StrategySettings;
               
-              console.log(`♻️ Restored and restarting session: ${dbSession.id}`);
+              console.log(`♻️ Restored and restarting LIVE TRADING session: ${dbSession.id}`);
               await this.startExecutionLoop(dbSession.id, strategy);
             }
           }
@@ -402,7 +431,7 @@ export class ForwardTestingService {
         log.message.includes('successfully')
       ).length || 0;
       const failedTrades = logs?.filter(log => 
-        log.log_type === 'trade_error'
+        log.log_type === 'error'
       ).length || 0;
       
       const lastExecution = logs?.[0]?.timestamp;

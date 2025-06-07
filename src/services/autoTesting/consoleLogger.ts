@@ -10,26 +10,29 @@ export class ConsoleLogger {
   static setConfiguration(config: OANDAConfig, strategy: StrategySettings) {
     this.currentConfig = config;
     this.currentStrategy = strategy;
-    console.log('🔧 Console logger configured for:', strategy.strategy_name);
+    console.log('🔧 Console logger configured for LIVE TRADING:', strategy.strategy_name);
   }
 
   static async runConsoleLogCycle(): Promise<void> {
     const now = new Date().toLocaleTimeString();
-    console.log(`\n⏰ [${now}] Strategy Evaluation Cycle`);
-    console.log('═'.repeat(50));
+    console.log(`\n🕒 [${now}] === LIVE TRADING MONITOR ===`);
+    console.log('═'.repeat(60));
 
     if (!this.currentConfig || !this.currentStrategy) {
-      console.log(`[${now}] ⚠️ No strategy configuration available.`);
+      console.log(`[${now}] ⚠️ CRITICAL: No strategy configuration available for monitoring.`);
+      console.log('🔧 Ensure forward testing is properly started and configured');
       return;
     }
 
     try {
-      console.log(`🔍 Checking ${this.currentStrategy.strategy_name}...`);
+      console.log(`🔍 LIVE MONITORING: ${this.currentStrategy.strategy_name}`);
       console.log(`📊 Symbol: ${this.currentStrategy.symbol}`);
+      console.log(`🏦 OANDA Account: ${this.currentConfig.accountId}`);
+      console.log(`🌍 Environment: ${this.currentConfig.environment}`);
 
       // Convert symbol to OANDA format
       const oandaSymbol = OANDAMarketDataService.convertSymbolToOANDA(this.currentStrategy.symbol);
-      console.log(`🔄 Fetching live data for: ${oandaSymbol}`);
+      console.log(`🔄 Fetching LIVE market data for: ${oandaSymbol}`);
 
       // Fetch latest market data
       const marketData = await OANDAMarketDataService.fetchLiveMarketData(
@@ -44,11 +47,11 @@ export class ConsoleLogger {
       const latestIndex = marketData.close.length - 1;
       const currentPrice = marketData.close[latestIndex];
       
-      console.log(`📈 Current Price: ${currentPrice}`);
+      console.log(`💰 LIVE Price: ${currentPrice}`);
       console.log(`📊 Latest Candle: O:${marketData.open[latestIndex]} H:${marketData.high[latestIndex]} L:${marketData.low[latestIndex]} C:${currentPrice}`);
 
       // Execute strategy logic
-      console.log(`🧠 Evaluating strategy signals...`);
+      console.log(`🧠 Analyzing strategy for LIVE TRADE signals...`);
       const strategyResult = await PythonExecutor.executeStrategy(
         this.currentStrategy.strategy_code,
         marketData
@@ -58,43 +61,47 @@ export class ConsoleLogger {
       const hasEntry = strategyResult.entry && strategyResult.entry[latestIndex];
       const direction = strategyResult.direction && strategyResult.direction[latestIndex];
 
-      console.log(`🔍 Signal Analysis:`);
+      console.log(`🔍 LIVE Signal Analysis:`);
       console.log(`   Entry Signal: ${hasEntry ? '✅ DETECTED' : '❌ NOT DETECTED'}`);
       console.log(`   Direction: ${direction || 'NONE'}`);
 
       if (hasEntry && direction && (direction === 'BUY' || direction === 'SELL')) {
-        console.log(`\n🚨 🚨 🚨 TRADE SIGNAL DETECTED 🚨 🚨 🚨`);
-        console.log(`🎯 Action: ${direction} ${this.currentStrategy.symbol}`);
+        console.log(`\n🚨 🚨 🚨 LIVE TRADE SIGNAL DETECTED 🚨 🚨 🚨`);
+        console.log(`🎯 LIVE TRADE Action: ${direction} ${this.currentStrategy.symbol}`);
         console.log(`💰 Entry Price: ${currentPrice}`);
-        console.log(`🚀 This signal would trigger a REAL trade!`);
+        console.log(`⚡ THIS WILL EXECUTE A REAL TRADE ON OANDA!`);
+        console.log(`🚀 Signal being processed by live trading system...`);
       } else {
-        console.log(`\n❌ No valid entry signal at this time.`);
-        console.log(`🔍 Strategy monitoring continues...`);
+        console.log(`\n📊 No trade signals detected - system continues monitoring`);
+        console.log(`🔍 Waiting for valid entry conditions...`);
         
-        // Log technical indicators if available
+        // Log additional technical indicators for debugging
         if (strategyResult.rsi && strategyResult.rsi[latestIndex]) {
-          console.log(`📊 RSI: ${strategyResult.rsi[latestIndex].toFixed(2)}`);
+          console.log(`📈 RSI: ${strategyResult.rsi[latestIndex].toFixed(2)}`);
         }
         if (strategyResult.ema_fast && strategyResult.ema_fast[latestIndex]) {
-          console.log(`📈 EMA Fast: ${strategyResult.ema_fast[latestIndex].toFixed(5)}`);
+          console.log(`📊 EMA Fast: ${strategyResult.ema_fast[latestIndex].toFixed(5)}`);
         }
         if (strategyResult.ema_slow && strategyResult.ema_slow[latestIndex]) {
-          console.log(`📉 EMA Slow: ${strategyResult.ema_slow[latestIndex].toFixed(5)}`);
+          console.log(`📊 EMA Slow: ${strategyResult.ema_slow[latestIndex].toFixed(5)}`);
         }
       }
 
+      console.log(`\n⏰ Next check in 30 seconds...`);
+
     } catch (error) {
-      console.error(`❌ [${now}] Strategy evaluation error:`, error);
-      console.log(`🔧 Check your OANDA credentials and network connection.`);
+      console.error(`❌ [${now}] LIVE TRADING MONITOR ERROR:`, error);
+      console.log(`🔧 Check OANDA credentials and network connection`);
+      console.log(`⚠️ LIVE TRADING may be affected - verify system status`);
     }
 
-    console.log('═'.repeat(50));
+    console.log('═'.repeat(60));
   }
 
   static clearConfiguration() {
     this.currentConfig = null;
     this.currentStrategy = null;
-    console.log('🧹 Console logger configuration cleared');
+    console.log('🧹 LIVE TRADING monitor configuration cleared');
   }
 }
 
@@ -103,6 +110,7 @@ export const runConsoleLogCycle = () => ConsoleLogger.runConsoleLogCycle();
 
 // Bind to window for manual testing
 if (typeof window !== 'undefined') {
-  (window as any).testStrategyCycle = runConsoleLogCycle;
-  (window as any).consoleLogger = ConsoleLogger;
+  (window as any).testLiveTradingCycle = runConsoleLogCycle;
+  (window as any).liveConsoleLogger = ConsoleLogger;
+  console.log('🧪 Debug functions available: testLiveTradingCycle(), liveConsoleLogger');
 }

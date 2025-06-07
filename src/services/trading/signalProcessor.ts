@@ -26,37 +26,42 @@ export class SignalProcessor {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.error('❌ No authenticated user found');
+        console.error('❌ CRITICAL: No authenticated user found - cannot initialize trade bridge');
         return false;
       }
 
+      console.log('🔧 Creating trade bridge for LIVE trading...');
       this.tradeBridge = await SignalToTradeBridge.createFromSavedConfig(strategyId, user.id);
       
       if (!this.tradeBridge) {
-        console.error('❌ Failed to create trade bridge - check OANDA configuration');
+        console.error('❌ CRITICAL: Failed to create trade bridge - NO TRADES WILL BE EXECUTED');
+        console.error('🔧 Check OANDA configuration and ensure credentials are saved');
         return false;
       }
 
-      console.log('✅ Trade bridge initialized successfully');
+      console.log('✅ LIVE TRADE BRIDGE INITIALIZED - Ready to execute real trades');
       return true;
     } catch (error) {
-      console.error('❌ Error initializing trade bridge:', error);
+      console.error('❌ CRITICAL ERROR initializing trade bridge:', error);
       return false;
     }
   }
 
   async processSignal(signal: ProcessedSignal): Promise<{ success: boolean; message: string; tradeExecuted: boolean }> {
+    console.log('🎯 PROCESSING LIVE TRADE SIGNAL:', signal);
+    
     if (!this.tradeBridge) {
-      console.error('❌ Trade bridge not initialized');
+      const errorMsg = 'CRITICAL: Trade bridge not initialized - CANNOT EXECUTE TRADES';
+      console.error('❌', errorMsg);
       return { 
         success: false, 
-        message: 'Trade bridge not initialized - cannot execute trades', 
+        message: errorMsg, 
         tradeExecuted: false 
       };
     }
 
     try {
-      console.log('🔄 Processing signal for trade execution:', signal);
+      console.log('🚀 EXECUTING LIVE TRADE through trade bridge...');
 
       // Convert to trade bridge format
       const strategySignal = {
@@ -67,17 +72,23 @@ export class SignalProcessor {
         strategyName: signal.strategyName
       };
 
-      // Execute the trade
+      console.log('📊 Trade signal details:', strategySignal);
+
+      // CRITICAL: Execute the LIVE TRADE
       const result = await this.tradeBridge.processSignal(strategySignal);
       
       // Log the execution result
       await this.logTradeExecution(signal, result);
 
       if (result.success) {
-        console.log('✅ REAL TRADE EXECUTED:', result.message);
-        console.log('💰 Trade ID:', result.tradeId);
+        console.log('✅ ✅ ✅ LIVE TRADE EXECUTED SUCCESSFULLY ✅ ✅ ✅');
+        console.log('💰 Trade details:', result.message);
+        if (result.tradeId) {
+          console.log('🆔 Trade ID:', result.tradeId);
+        }
       } else {
-        console.log('❌ Trade execution failed:', result.message);
+        console.log('❌ ❌ ❌ LIVE TRADE EXECUTION FAILED ❌ ❌ ❌');
+        console.log('🔧 Failure reason:', result.message);
       }
 
       return {
@@ -87,7 +98,7 @@ export class SignalProcessor {
       };
 
     } catch (error) {
-      const errorMessage = `Signal processing error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      const errorMessage = `LIVE TRADE PROCESSING ERROR: ${error instanceof Error ? error.message : 'Unknown error'}`;
       console.error('❌', errorMessage);
       
       await this.logTradeExecution(signal, { success: false, message: errorMessage });
@@ -108,8 +119,8 @@ export class SignalProcessor {
       await supabase.from('trading_logs').insert({
         user_id: user.id,
         session_id: crypto.randomUUID(),
-        log_type: result.success ? 'trade_execution' : 'trade_error',
-        message: `SIGNAL PROCESSING: ${signal.signal} ${signal.symbol} at ${signal.currentPrice} - ${result.message}`,
+        log_type: result.success ? 'info' : 'error',
+        message: `LIVE TRADE EXECUTION: ${signal.signal} ${signal.symbol} at ${signal.currentPrice} - ${result.message}`,
         trade_data: {
           signal_data: {
             signal: signal.signal,
@@ -125,7 +136,8 @@ export class SignalProcessor {
             tradeId: result.tradeId
           },
           timestamp: new Date().toISOString(),
-          trade_executed: result.success
+          trade_executed: result.success,
+          live_trading: true
         } as any
       });
     } catch (error) {
