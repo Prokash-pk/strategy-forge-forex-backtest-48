@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, Trash2, TrendingUp, Loader2 } from 'lucide-react';
+import { BarChart3, Trash2, TrendingUp, Loader2, RefreshCw } from 'lucide-react';
 
 interface StrategySettings {
   id: string;
@@ -48,7 +48,7 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
   onDeleteStrategy,
   onRefresh
 }) => {
-  // Loading state with skeletons
+  // Loading state with minimal skeletons for faster rendering
   if (isLoadingStrategies) {
     return (
       <Card className="bg-slate-800 border-slate-700">
@@ -59,27 +59,26 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
             <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-slate-400 text-sm">
-            Loading your saved strategies...
-          </p>
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="p-3 bg-slate-900 rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <Skeleton className="h-5 w-48 bg-slate-700" />
-                  <Skeleton className="h-6 w-20 bg-slate-700" />
-                </div>
-                <Skeleton className="h-4 w-full bg-slate-700 mb-2" />
-                <Skeleton className="h-4 w-3/4 bg-slate-700" />
-              </div>
-            ))}
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-4 w-64 bg-slate-700" />
+            <Skeleton className="h-8 w-16 bg-slate-700" />
           </div>
+          {[1, 2].map((i) => (
+            <div key={i} className="p-3 bg-slate-900 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <Skeleton className="h-5 w-40 bg-slate-700" />
+                <Skeleton className="h-6 w-16 bg-slate-700" />
+              </div>
+              <Skeleton className="h-4 w-full bg-slate-700" />
+            </div>
+          ))}
         </CardContent>
       </Card>
     );
   }
 
+  // Quick empty state
   if (savedStrategies.length === 0) {
     return (
       <Card className="bg-slate-800 border-slate-700">
@@ -89,30 +88,26 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
             Strategy Settings
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-slate-400 text-sm">
-            No saved strategies found. Please create and save a strategy first.
-          </p>
+        <CardContent className="text-center py-8">
+          <p className="text-slate-400 mb-4">No strategies found. Create and save a strategy first.</p>
           <Button
             onClick={onRefresh}
             variant="outline"
             size="sm"
             className="border-slate-600 text-slate-300 hover:text-white"
           >
-            Refresh Strategies
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
           </Button>
         </CardContent>
       </Card>
     );
   }
 
-  // Highlight Smart Momentum Strategy with high returns
-  const smartMomentumStrategies = savedStrategies.filter(s => 
-    s.strategy_name?.toLowerCase().includes('smart momentum')
-  );
-  
-  const highReturnStrategy = smartMomentumStrategies.find(s => 
-    s.total_return && s.total_return > 60 && s.total_return < 65
+  // Find high-return strategy quickly
+  const highReturnStrategy = savedStrategies.find(s => 
+    s.strategy_name?.toLowerCase().includes('smart momentum') && 
+    s.total_return && s.total_return > 60
   );
 
   return (
@@ -135,7 +130,7 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <p className="text-slate-400 text-sm">
-            Select a saved strategy with specific settings for forward testing. The trades will be executed based on these settings.
+            Select a strategy for forward testing. Trades will execute based on these settings.
           </p>
           <Button
             onClick={onRefresh}
@@ -143,156 +138,79 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
             size="sm"
             className="border-slate-600 text-slate-300 hover:text-white"
           >
+            <RefreshCw className="h-4 w-4 mr-1" />
             Refresh
           </Button>
         </div>
         
-        {highReturnStrategy && (
-          <div className="p-4 bg-emerald-500/20 border border-emerald-500/40 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-emerald-400 font-medium flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                {highReturnStrategy.strategy_name}
-              </h4>
-              <Badge className="bg-emerald-500 text-white">
-                {highReturnStrategy.total_return?.toFixed(1)}% Return
-              </Badge>
-            </div>
-            <p className="text-emerald-300 text-sm mb-3">
-              🎯 This is your Smart Momentum Strategy with ~62% return!
-            </p>
-            <Button
-              onClick={() => onLoadStrategy(highReturnStrategy)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              Load High-Return Strategy
-            </Button>
-          </div>
-        )}
-        
+        {/* Selected strategy display */}
         {selectedStrategy && (
           <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
             <h4 className="text-emerald-400 font-medium mb-3">{selectedStrategy.strategy_name}</h4>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-slate-300">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm text-slate-300">
               <div>
                 <span className="text-slate-400">Symbol:</span>
                 <div className="font-medium">{selectedStrategy.symbol}</div>
               </div>
               <div>
-                <span className="text-slate-400">Timeframe:</span>
-                <div className="font-medium">{selectedStrategy.timeframe}</div>
-              </div>
-              <div>
-                <span className="text-slate-400">Initial Balance:</span>
-                <div className="font-medium">${selectedStrategy.initial_balance?.toLocaleString()}</div>
-              </div>
-              <div>
-                <span className="text-slate-400">Risk per Trade:</span>
+                <span className="text-slate-400">Risk:</span>
                 <div className="font-medium">{selectedStrategy.risk_per_trade}%</div>
               </div>
               <div>
                 <span className="text-slate-400">Stop Loss:</span>
                 <div className="font-medium">{selectedStrategy.stop_loss} pips</div>
               </div>
-              <div>
-                <span className="text-slate-400">Take Profit:</span>
-                <div className="font-medium">{selectedStrategy.take_profit} pips</div>
-              </div>
-              <div>
-                <span className="text-slate-400">Risk/Reward:</span>
-                <div className="font-medium">{selectedStrategy.risk_reward_ratio}:1</div>
-              </div>
-              <div>
-                <span className="text-slate-400">Max Position:</span>
-                <div className="font-medium">{selectedStrategy.max_position_size?.toLocaleString()}</div>
-              </div>
-              {selectedStrategy.win_rate && (
-                <div>
-                  <span className="text-slate-400">Win Rate:</span>
-                  <div className="font-medium text-emerald-400">{selectedStrategy.win_rate.toFixed(1)}%</div>
-                </div>
-              )}
               {selectedStrategy.total_return !== undefined && (
                 <div>
-                  <span className="text-slate-400">Total Return:</span>
+                  <span className="text-slate-400">Return:</span>
                   <div className={`font-medium ${selectedStrategy.total_return >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {selectedStrategy.total_return >= 0 ? '+' : ''}{selectedStrategy.total_return.toFixed(1)}%
                   </div>
                 </div>
               )}
-              {selectedStrategy.profit_factor && (
-                <div>
-                  <span className="text-slate-400">Profit Factor:</span>
-                  <div className="font-medium">{selectedStrategy.profit_factor.toFixed(2)}</div>
-                </div>
-              )}
-              {selectedStrategy.max_drawdown && (
-                <div>
-                  <span className="text-slate-400">Max Drawdown:</span>
-                  <div className="font-medium text-red-400">{selectedStrategy.max_drawdown.toFixed(1)}%</div>
-                </div>
-              )}
-            </div>
-            <div className="mt-3 flex items-center gap-2">
-              <Badge variant={selectedStrategy.reverse_signals ? "destructive" : "secondary"} className="text-xs">
-                {selectedStrategy.reverse_signals ? "Reverse Signals" : "Normal Signals"}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {selectedStrategy.position_sizing_mode}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {selectedStrategy.risk_model}
-              </Badge>
             </div>
           </div>
         )}
         
-        <div className="space-y-3 max-h-48 overflow-y-auto">
-          {savedStrategies.map((strategySettings) => (
-            <div key={strategySettings.id} className={`flex items-center justify-between p-3 rounded-lg ${
-              strategySettings.id === highReturnStrategy?.id 
-                ? 'bg-emerald-900/50 border border-emerald-500/30' 
-                : 'bg-slate-900'
-            }`}>
-              <div className="flex-1">
+        {/* Strategy list - simplified for faster rendering */}
+        <div className="space-y-3 max-h-64 overflow-y-auto">
+          {savedStrategies.slice(0, 10).map((strategy) => (
+            <div key={strategy.id} className="flex items-center justify-between p-3 bg-slate-900 rounded-lg">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-white font-medium">{strategySettings.strategy_name}</h4>
-                  {strategySettings.id === highReturnStrategy?.id && (
+                  <h4 className="text-white font-medium truncate">{strategy.strategy_name}</h4>
+                  {strategy.total_return && strategy.total_return > 60 && (
                     <Badge className="bg-emerald-500 text-white text-xs">
                       <TrendingUp className="h-3 w-3 mr-1" />
-                      62% Return
+                      {strategy.total_return.toFixed(0)}%
                     </Badge>
                   )}
                 </div>
-                <p className="text-slate-400 text-sm">
-                  {strategySettings.symbol} • {strategySettings.timeframe} • Risk: {strategySettings.risk_per_trade}%
-                  {strategySettings.win_rate && ` • Win Rate: ${strategySettings.win_rate.toFixed(1)}%`}
-                  {strategySettings.total_return !== undefined && (
-                    <span className={strategySettings.total_return >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                      {' '}• Return: {strategySettings.total_return >= 0 ? '+' : ''}{strategySettings.total_return.toFixed(1)}%
+                <p className="text-slate-400 text-sm truncate">
+                  {strategy.symbol} • {strategy.timeframe} • Risk: {strategy.risk_per_trade}%
+                  {strategy.total_return !== undefined && (
+                    <span className={strategy.total_return >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+                      {' '}• {strategy.total_return >= 0 ? '+' : ''}{strategy.total_return.toFixed(1)}%
                     </span>
                   )}
                 </p>
-                <p className="text-slate-500 text-xs">
-                  SL: {strategySettings.stop_loss} | TP: {strategySettings.take_profit} | R/R: {strategySettings.risk_reward_ratio}:1
-                </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 ml-3">
                 <Button
-                  variant={selectedStrategy?.id === strategySettings.id ? "default" : "outline"}
+                  variant={selectedStrategy?.id === strategy.id ? "default" : "outline"}
                   size="sm"
-                  onClick={() => onLoadStrategy(strategySettings)}
-                  className={selectedStrategy?.id === strategySettings.id 
+                  onClick={() => onLoadStrategy(strategy)}
+                  className={selectedStrategy?.id === strategy.id 
                     ? "bg-emerald-600 hover:bg-emerald-700" 
                     : "border-slate-600 text-slate-300 hover:text-white"
                   }
                 >
-                  {selectedStrategy?.id === strategySettings.id ? "Selected" : "Select"}
+                  {selectedStrategy?.id === strategy.id ? "Selected" : "Select"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => onDeleteStrategy(strategySettings.id)}
+                  onClick={() => onDeleteStrategy(strategy.id)}
                   className="border-red-600 text-red-400 hover:bg-red-600 hover:text-white"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -301,6 +219,12 @@ const OANDAStrategySettings: React.FC<OANDAStrategySettingsProps> = ({
             </div>
           ))}
         </div>
+        
+        {savedStrategies.length > 10 && (
+          <p className="text-slate-500 text-xs text-center">
+            Showing first 10 strategies. Use refresh to see all.
+          </p>
+        )}
       </CardContent>
     </Card>
   );

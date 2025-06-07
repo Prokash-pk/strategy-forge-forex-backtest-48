@@ -8,52 +8,62 @@ export const useOANDAStrategies = () => {
   const { toast } = useToast();
   const [savedStrategies, setSavedStrategies] = useState<StrategySettings[]>([]);
   const [selectedStrategy, setSelectedStrategy] = useState<StrategySettings | null>(null);
-  const [isLoadingStrategies, setIsLoadingStrategies] = useState(true);
+  const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
 
-  // Load saved strategies immediately on mount
+  // Simplified initialization - load strategies and selected strategy in parallel
   useEffect(() => {
     const initializeStrategies = async () => {
       setIsLoadingStrategies(true);
-      await Promise.all([
-        loadSavedStrategies(),
-        loadSelectedStrategy()
-      ]);
-      setIsLoadingStrategies(false);
+      
+      try {
+        // Load selected strategy from localStorage immediately
+        const savedSelectedStrategy = localStorage.getItem('selected_strategy_settings');
+        if (savedSelectedStrategy) {
+          try {
+            const strategySettings = JSON.parse(savedSelectedStrategy);
+            setSelectedStrategy(strategySettings);
+          } catch (error) {
+            console.warn('Failed to parse saved strategy from localStorage:', error);
+            localStorage.removeItem('selected_strategy_settings');
+          }
+        }
+
+        // Load saved strategies from database
+        await loadSavedStrategies();
+      } catch (error) {
+        console.error('Failed to initialize strategies:', error);
+      } finally {
+        setIsLoadingStrategies(false);
+      }
     };
 
     initializeStrategies();
   }, []);
 
-  // Auto-restore strategy on login/session restore
-  useEffect(() => {
-    const checkAuthAndRestoreStrategy = async () => {
+  const loadSavedStrategies = async () => {
+    try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user && !selectedStrategy && savedStrategies.length === 0) {
-        const activeStrategyId = localStorage.getItem('activeStrategyId');
-        if (activeStrategyId) {
-          console.log('🔄 Restoring strategy after login:', activeStrategyId);
-          await loadStrategyById(activeStrategyId);
-        }
+      if (!user) {
+        setSavedStrategies([]);
+        return;
       }
-    };
 
-    checkAuthAndRestoreStrategy();
-  }, [selectedStrategy, savedStrategies.length]);
+      const { data, error } = await supabase
+        .from('strategy_results')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(20); // Reduced limit for faster loading
 
-  const loadSelectedStrategy = () => {
-    const saved = localStorage.getItem('selected_strategy_settings');
-    if (saved) {
-      try {
-        const strategySettings = JSON.parse(saved);
-        setSelectedStrategy(strategySettings);
-        
-        // Also save the active strategy ID for cross-session persistence
-        if (strategySettings.id) {
-          localStorage.setItem('activeStrategyId', strategySettings.id);
-        }
-      } catch (error) {
-        console.error('Failed to load selected strategy:', error);
+      if (error) {
+        console.error('Error loading strategies:', error);
+        throw error;
       }
+      
+      setSavedStrategies(data || []);
+    } catch (error) {
+      console.error('Failed to load saved strategies:', error);
+      setSavedStrategies([]);
     }
   };
 
@@ -75,7 +85,6 @@ export const useOANDAStrategies = () => {
       }
 
       if (data) {
-        console.log('✅ Strategy loaded by ID:', data);
         handleLoadStrategy(data);
       }
     } catch (error) {
@@ -83,45 +92,7 @@ export const useOANDAStrategies = () => {
     }
   };
 
-  const loadSavedStrategies = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log('No user found, cannot load strategies');
-        setSavedStrategies([]);
-        return;
-      }
-
-      console.log('Loading saved strategies for user:', user.id);
-
-      const { data, error } = await supabase
-        .from('strategy_results')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50); // Limit for better performance
-
-      if (error) {
-        console.error('Error loading strategies:', error);
-        throw error;
-      }
-      
-      console.log('Loaded strategies from database:', data?.length || 0, 'strategies');
-      setSavedStrategies(data || []);
-    } catch (error) {
-      console.error('Failed to load saved strategies:', error);
-      setSavedStrategies([]);
-      toast({
-        title: "Failed to Load Strategies",
-        description: "Could not load your saved strategies. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleLoadStrategy = (strategySettings: StrategySettings) => {
-    console.log('Loading strategy:', strategySettings);
-    
     const completeStrategy: StrategySettings = {
       id: strategySettings.id,
       strategy_name: strategySettings.strategy_name,
@@ -151,11 +122,9 @@ export const useOANDAStrategies = () => {
     localStorage.setItem('selected_strategy_settings', JSON.stringify(completeStrategy));
     localStorage.setItem('activeStrategyId', completeStrategy.id);
     
-    console.log('✅ Strategy loaded and persisted:', completeStrategy);
-    
     toast({
-      title: "Strategy Settings Loaded",
-      description: `Loaded strategy: ${completeStrategy.strategy_name} with all settings`,
+      title: "Strategy Loaded",
+      description: `${completeStrategy.strategy_name} loaded successfully`,
     });
   };
 
@@ -183,7 +152,7 @@ export const useOANDAStrategies = () => {
 
       toast({
         title: "Strategy Deleted",
-        description: "The strategy has been successfully deleted",
+        description: "Strategy deleted successfully",
       });
 
       // Reload the strategies list
@@ -203,7 +172,6 @@ export const useOANDAStrategies = () => {
     savedStrategies,
     selectedStrategy,
     isLoadingStrategies,
-    loadSelectedStrategy,
     loadSavedStrategies,
     loadStrategyById,
     handleLoadStrategy,
