@@ -1,4 +1,3 @@
-
 export interface OANDACandle {
   time: string;
   bid: {
@@ -37,11 +36,15 @@ export class OANDAMarketDataService {
       throw new Error('Missing OANDA credentials or instrument');
     }
 
+    // Convert symbol to proper OANDA format BEFORE making the request
+    const oandaInstrument = this.convertSymbolToOANDA(instrument);
+    console.log(`🔄 Converting symbol: ${instrument} → ${oandaInstrument}`);
+
     const baseUrl = environment === 'practice' 
       ? 'https://api-fxpractice.oanda.com'
       : 'https://api-fxtrade.oanda.com';
 
-    console.log(`🔄 Fetching live market data for ${instrument} from OANDA ${environment}`);
+    console.log(`🔄 Fetching live market data for ${oandaInstrument} from OANDA ${environment}`);
 
     // Create abort controller for timeout
     const controller = new AbortController();
@@ -49,7 +52,7 @@ export class OANDAMarketDataService {
 
     try {
       const response = await fetch(
-        `${baseUrl}/v3/instruments/${instrument}/candles?count=${count}&granularity=${granularity}&price=MBA`,
+        `${baseUrl}/v3/instruments/${oandaInstrument}/candles?count=${count}&granularity=${granularity}&price=MBA`,
         {
           method: 'GET',
           headers: {
@@ -76,26 +79,26 @@ export class OANDAMarketDataService {
           } else if (response.status === 403) {
             errorMessage = 'OANDA API access forbidden. Verify your API key permissions.';
           } else if (response.status === 404) {
-            errorMessage = `Instrument ${instrument} not found. Check the symbol format.`;
+            errorMessage = `Instrument ${oandaInstrument} not found. Check the symbol format.`;
           } else if (response.status === 400) {
-            errorMessage = `Bad request to OANDA API. Check instrument format: ${instrument}`;
+            errorMessage = `Bad request to OANDA API. Invalid instrument format: ${oandaInstrument} (converted from ${instrument})`;
           }
         } catch (parseError) {
           console.warn('Could not parse OANDA error response:', parseError);
         }
         
-        console.error(`❌ OANDA API Error for ${instrument}:`, errorMessage);
+        console.error(`❌ OANDA API Error for ${oandaInstrument}:`, errorMessage);
         throw new Error(errorMessage);
       }
 
       const data: OANDAMarketData = await response.json();
       
       if (!data.candles || data.candles.length === 0) {
-        console.warn(`⚠️ No candles received for ${instrument}`);
-        throw new Error(`No market data available for ${instrument}`);
+        console.warn(`⚠️ No candles received for ${oandaInstrument}`);
+        throw new Error(`No market data available for ${oandaInstrument}`);
       }
 
-      console.log(`✅ Fetched ${data.candles.length} candles for ${instrument}`);
+      console.log(`✅ Fetched ${data.candles.length} candles for ${oandaInstrument}`);
 
       // Convert OANDA format to our internal format
       const marketData = {
@@ -150,27 +153,49 @@ export class OANDAMarketDataService {
   }
 
   static convertSymbolToOANDA(symbol: string): string {
-    // Convert various symbol formats to OANDA format
+    console.log(`🔧 Converting symbol to OANDA format: ${symbol}`);
+    
+    // If already in OANDA format, return as-is
+    if (symbol.includes('_') && symbol.length === 7) {
+      console.log(`✅ Symbol already in OANDA format: ${symbol}`);
+      return symbol;
+    }
+    
     let oandaSymbol = symbol;
     
+    // Remove common suffixes
     if (symbol.includes('=X')) {
       // Yahoo Finance format like USDJPY=X
       oandaSymbol = symbol.replace('=X', '');
+      console.log(`🔧 Removed =X suffix: ${symbol} → ${oandaSymbol}`);
     }
     
     if (symbol.includes('/')) {
       // Format like EUR/USD
       oandaSymbol = symbol.replace('/', '_');
-    } else if (symbol.length === 6 && !symbol.includes('_')) {
-      // Format like EURUSD - convert to EUR_USD
-      oandaSymbol = `${symbol.slice(0, 3)}_${symbol.slice(3)}`;
+      console.log(`🔧 Replaced / with _: ${symbol} → ${oandaSymbol}`);
+    } else if (oandaSymbol.length === 6 && !oandaSymbol.includes('_')) {
+      // Format like EURUSD or USDJPY - convert to EUR_USD or USD_JPY
+      const baseCurrency = oandaSymbol.slice(0, 3);
+      const quoteCurrency = oandaSymbol.slice(3);
+      oandaSymbol = `${baseCurrency}_${quoteCurrency}`;
+      console.log(`🔧 Added underscore: ${symbol} → ${oandaSymbol}`);
     }
 
-    // Validate the format
-    if (!oandaSymbol.includes('_') || oandaSymbol.length < 7) {
+    // Final validation
+    if (!oandaSymbol.includes('_') || oandaSymbol.length !== 7) {
       console.warn(`⚠️ Potentially invalid OANDA symbol format: ${oandaSymbol}`);
+      console.log(`Expected format: XXX_YYY (7 characters with underscore)`);
+      
+      // Try to fix common cases
+      if (oandaSymbol.length === 6) {
+        const fixed = `${oandaSymbol.slice(0, 3)}_${oandaSymbol.slice(3)}`;
+        console.log(`🔧 Auto-fixing 6-char symbol: ${oandaSymbol} → ${fixed}`);
+        oandaSymbol = fixed;
+      }
     }
 
+    console.log(`✅ Final OANDA symbol: ${oandaSymbol}`);
     return oandaSymbol;
   }
 

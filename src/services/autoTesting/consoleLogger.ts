@@ -1,4 +1,3 @@
-
 import { OANDAMarketDataService } from '../oandaMarketDataService';
 import { PythonExecutor } from '../pythonExecutor';
 import { OANDAConfig, StrategySettings } from '@/types/oanda';
@@ -27,12 +26,22 @@ export class ConsoleLogger {
 
     try {
       console.log(`🔍 LIVE MONITORING: ${this.currentStrategy.strategy_name}`);
-      console.log(`📊 Symbol: ${this.currentStrategy.symbol}`);
+      console.log(`📊 Original Symbol: ${this.currentStrategy.symbol}`);
       console.log(`🏦 OANDA Account: ${this.currentConfig.accountId}`);
       console.log(`🌍 Environment: ${this.currentConfig.environment}`);
 
-      // Convert symbol to OANDA format and validate
+      // Convert symbol to OANDA format and log the conversion
       const oandaSymbol = OANDAMarketDataService.convertSymbolToOANDA(this.currentStrategy.symbol);
+      console.log(`🔄 OANDA Symbol: ${oandaSymbol} (converted from ${this.currentStrategy.symbol})`);
+
+      // Validate the converted symbol before making the API call
+      if (!oandaSymbol.includes('_') || oandaSymbol.length !== 7) {
+        console.error(`❌ Invalid OANDA symbol format: ${oandaSymbol}`);
+        console.log('Expected format: XXX_YYY (e.g., USD_JPY, EUR_USD)');
+        console.log('🔧 Please check your strategy symbol configuration');
+        return;
+      }
+
       console.log(`🔄 Fetching LIVE market data for: ${oandaSymbol}`);
 
       // Use retry mechanism for better reliability
@@ -121,6 +130,10 @@ export class ConsoleLogger {
           console.log(`🔑 Fix: Update your OANDA API key in the Configuration tab`);
         } else if (error.message.includes('404') || error.message.includes('not found')) {
           console.log(`🔧 Fix: Check the symbol format (${this.currentStrategy.symbol}) in Strategy settings`);
+          console.log(`Expected: 6-letter format like USDJPY, EURUSD, GBPUSD`);
+        } else if (error.message.includes('400') || error.message.includes('Invalid value specified for')) {
+          console.log(`🔧 Fix: Invalid symbol format - ${this.currentStrategy.symbol}`);
+          console.log(`Try using: USDJPY, EURUSD, GBPUSD format (no slashes, equals signs, or underscores)`);
         } else if (error.message.includes('timeout')) {
           console.log(`🌐 Fix: Check your internet connection and try again`);
         } else {
