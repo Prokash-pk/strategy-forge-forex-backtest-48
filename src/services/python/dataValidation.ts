@@ -50,13 +50,24 @@ def validate_and_convert_market_data(market_data_dict):
     return data_dict
 
 def extract_reverse_signals_flag(market_data_dict):
-    """Extract reverse_signals flag from market data"""
+    """Extract reverse_signals flag from market data with safer access"""
     try:
-        reverse_signals = market_data_dict.get('reverse_signals', False)
+        # Use safer access methods for different data structures
+        if hasattr(market_data_dict, 'get'):
+            reverse_signals = market_data_dict.get('reverse_signals', False)
+        elif hasattr(market_data_dict, '__getitem__'):
+            try:
+                reverse_signals = market_data_dict['reverse_signals']
+            except (KeyError, TypeError):
+                reverse_signals = False
+        else:
+            reverse_signals = getattr(market_data_dict, 'reverse_signals', False)
+        
         if hasattr(reverse_signals, 'to_py'):
             reverse_signals = reverse_signals.to_py()
         reverse_signals = bool(reverse_signals)
-    except:
+    except Exception as e:
+        print(f"Warning: Could not extract reverse_signals flag: {e}")
         reverse_signals = False
     
     return reverse_signals

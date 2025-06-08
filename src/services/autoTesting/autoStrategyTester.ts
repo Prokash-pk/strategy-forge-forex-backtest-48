@@ -13,6 +13,8 @@ export class AutoStrategyTester {
   private currentConfig: OANDAConfig | null = null;
   private currentStrategy: StrategySettings | null = null;
   private isForwardTestingActive: boolean = false;
+  private lastLogTime: number = 0;
+  private logFrequencyMs: number = 5 * 60 * 1000; // 5 minutes instead of 1 minute
 
   static getInstance(): AutoStrategyTester {
     if (!AutoStrategyTester.instance) {
@@ -24,7 +26,7 @@ export class AutoStrategyTester {
   async startAutoTesting(
     config: OANDAConfig,
     strategy: StrategySettings,
-    intervalSeconds: number = 30
+    intervalSeconds: number = 300 // Increased to 5 minutes
   ) {
     if (this.isRunning) {
       console.log('🔄 Auto-testing already running');
@@ -34,6 +36,7 @@ export class AutoStrategyTester {
     this.isRunning = true;
     this.currentConfig = config;
     this.currentStrategy = strategy;
+    this.lastLogTime = 0; // Reset log timer
     
     // Configure console logger
     ConsoleLogger.setConfiguration(config, strategy);
@@ -44,19 +47,23 @@ export class AutoStrategyTester {
     console.log('📊 Strategy:', strategy.strategy_name);
     console.log('📈 Symbol:', strategy.symbol);
     console.log('⏰ Test Interval:', intervalSeconds, 'seconds');
-    console.log('📝 Console logging enabled - detailed evaluations every minute');
+    console.log('📝 Console logging enabled - detailed evaluations every 5 minutes');
 
-    // Initial test
-    await StrategyTestRunner.runSingleTest(config, strategy);
+    // Initial test (delayed to avoid startup spam)
+    setTimeout(async () => {
+      if (this.isRunning && this.currentConfig && this.currentStrategy) {
+        await StrategyTestRunner.runSingleTest(this.currentConfig, this.currentStrategy);
+      }
+    }, 10000); // 10 second delay
 
-    // Set up periodic testing
+    // Set up periodic testing with longer intervals
     this.testInterval = setInterval(async () => {
       if (this.isRunning && this.currentConfig && this.currentStrategy) {
         await StrategyTestRunner.runSingleTest(this.currentConfig, this.currentStrategy);
       }
     }, intervalSeconds * 1000);
 
-    // Start the console logging cycle (every 1 minute)
+    // Start the console logging cycle (every 5 minutes)
     this.startConsoleLogging();
 
     // Bind to window for manual testing
@@ -72,23 +79,27 @@ export class AutoStrategyTester {
       clearInterval(this.loggingInterval);
     }
 
-    console.log('📝 Starting enhanced console logging - updates every minute');
-    console.log('🕒 Next log will appear in 10 seconds...');
+    console.log('📝 Starting enhanced console logging - updates every 5 minutes');
+    console.log('🕒 Next log will appear in 30 seconds...');
 
-    // Start logging after a short delay to give time for setup
+    // Start logging after a delay to give time for setup
     setTimeout(() => {
       if (this.isRunning && this.currentConfig && this.currentStrategy) {
         ConsoleLogger.runConsoleLogCycle();
+        this.lastLogTime = Date.now();
       }
-    }, 10000); // 10 seconds initial delay
+    }, 30000); // 30 seconds initial delay
 
-    // Set up periodic console logging every 1 minute
+    // Set up periodic console logging every 5 minutes
     this.loggingInterval = setInterval(async () => {
-      if (this.isRunning && this.currentConfig && this.currentStrategy) {
+      const now = Date.now();
+      if (this.isRunning && this.currentConfig && this.currentStrategy && 
+          (now - this.lastLogTime) >= this.logFrequencyMs) {
         console.log('🔄 Running scheduled console log cycle...');
         await ConsoleLogger.runConsoleLogCycle();
+        this.lastLogTime = now;
       }
-    }, 60 * 1000); // Every 60 seconds
+    }, this.logFrequencyMs); // Every 5 minutes
   }
 
   // Manual test function for debugging
@@ -116,6 +127,7 @@ export class AutoStrategyTester {
     this.isRunning = false;
     this.currentConfig = null;
     this.currentStrategy = null;
+    this.lastLogTime = 0;
     
     // Clear console logger configuration
     ConsoleLogger.clearConfiguration();
@@ -140,6 +152,10 @@ export class AutoStrategyTester {
   }
 
   getStatus() {
+    const nextLogIn = this.lastLogTime > 0 ? 
+      Math.max(0, this.logFrequencyMs - (Date.now() - this.lastLogTime)) : 
+      this.logFrequencyMs;
+    
     return {
       isRunning: this.isRunning,
       hasInterval: !!this.testInterval,
@@ -147,7 +163,8 @@ export class AutoStrategyTester {
       currentStrategy: this.currentStrategy?.strategy_name || null,
       currentSymbol: this.currentStrategy?.symbol || null,
       isForwardTestingActive: this.isForwardTestingActive,
-      nextLogIn: this.loggingInterval ? '< 60 seconds' : 'Not scheduled'
+      nextLogInSeconds: Math.floor(nextLogIn / 1000),
+      logFrequencyMinutes: this.logFrequencyMs / (60 * 1000)
     };
   }
 
@@ -157,7 +174,7 @@ export class AutoStrategyTester {
     console.log(`🔄 Forward testing status updated: ${isActive ? 'ACTIVE' : 'INACTIVE'}`);
     
     if (isActive && !this.isRunning) {
-      console.log('🎯 Forward testing activated - console logs will start appearing');
+      console.log('🎯 Forward testing activated - console logs will start appearing every 5 minutes');
     }
   }
 
@@ -167,12 +184,18 @@ export class AutoStrategyTester {
     
     if (!this.isRunning && config && strategy && isForwardTestingActive) {
       console.log('🎯 Auto-starting AutoStrategyTester - forward testing is active');
-      console.log('📝 Console logs will appear every minute starting in 10 seconds');
-      this.startAutoTesting(config, strategy, 60); // Test every minute when forward testing is active
+      console.log('📝 Console logs will appear every 5 minutes starting in 30 seconds');
+      this.startAutoTesting(config, strategy, 300); // Test every 5 minutes
     } else if (this.isRunning && !isForwardTestingActive) {
       console.log('⏸️ Auto-stopping AutoStrategyTester - forward testing is inactive');
       this.stopAutoTesting();
     }
+  }
+
+  // Update log frequency
+  setLogFrequency(minutes: number) {
+    this.logFrequencyMs = minutes * 60 * 1000;
+    console.log(`🕒 Log frequency updated to ${minutes} minutes`);
   }
 }
 
@@ -188,5 +211,9 @@ export const runStrategyLogger = () => {
 // Global binding for manual testing
 if (typeof window !== 'undefined') {
   (window as any).testStrategyLogger = runStrategyLogger;
-  console.log('🧪 Global test function available: testStrategyLogger()');
+  (window as any).setLogFrequency = (minutes: number) => {
+    const tester = AutoStrategyTester.getInstance();
+    tester.setLogFrequency(minutes);
+  };
+  console.log('🧪 Global test functions available: testStrategyLogger(), setLogFrequency(minutes)');
 }
