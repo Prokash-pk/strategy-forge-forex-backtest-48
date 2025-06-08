@@ -31,11 +31,21 @@ export class OANDAMarketDataService {
     granularity: string = 'M1',
     count: number = 100
   ): Promise<any> {
+    // Validate inputs first
+    if (!accountId || !apiKey || !instrument) {
+      console.error('❌ Missing required OANDA credentials or instrument');
+      throw new Error('Missing OANDA credentials or instrument');
+    }
+
     const baseUrl = environment === 'practice' 
       ? 'https://api-fxpractice.oanda.com'
       : 'https://api-fxtrade.oanda.com';
 
-    console.log(`Fetching live market data for ${instrument} from OANDA ${environment}`);
+    console.log(`🔄 Fetching live market data for ${instrument} from OANDA ${environment}`);
+
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
     try {
       const response = await fetch(
@@ -45,17 +55,47 @@ export class OANDAMarketDataService {
           headers: {
             'Authorization': `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
-          }
+            'Accept-Datetime-Format': 'UNIX'
+          },
+          signal: controller.signal
         }
       );
 
+      clearTimeout(timeoutId);
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(`OANDA API Error: ${errorData.errorMessage || response.statusText}`);
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.errorMessage || errorData.message || errorMessage;
+          
+          // Provide specific guidance for common errors
+          if (response.status === 401) {
+            errorMessage = 'Invalid OANDA API key. Please check your credentials in the Configuration tab.';
+          } else if (response.status === 403) {
+            errorMessage = 'OANDA API access forbidden. Verify your API key permissions.';
+          } else if (response.status === 404) {
+            errorMessage = `Instrument ${instrument} not found. Check the symbol format.`;
+          } else if (response.status === 400) {
+            errorMessage = `Bad request to OANDA API. Check instrument format: ${instrument}`;
+          }
+        } catch (parseError) {
+          console.warn('Could not parse OANDA error response:', parseError);
+        }
+        
+        console.error(`❌ OANDA API Error for ${instrument}:`, errorMessage);
+        throw new Error(errorMessage);
       }
 
       const data: OANDAMarketData = await response.json();
-      console.log(`Fetched ${data.candles.length} candles for ${instrument}`);
+      
+      if (!data.candles || data.candles.length === 0) {
+        console.warn(`⚠️ No candles received for ${instrument}`);
+        throw new Error(`No market data available for ${instrument}`);
+      }
+
+      console.log(`✅ Fetched ${data.candles.length} candles for ${instrument}`);
 
       // Convert OANDA format to our internal format
       const marketData = {
@@ -96,7 +136,15 @@ export class OANDAMarketDataService {
       return marketData;
 
     } catch (error) {
-      console.error('Failed to fetch OANDA market data:', error);
+      clearTimeout(timeoutId);
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        const timeoutError = 'OANDA API request timeout (10s). Check your internet connection.';
+        console.error('❌', timeoutError);
+        throw new Error(timeoutError);
+      }
+      
+      console.error('❌ Failed to fetch OANDA market data:', error);
       throw error;
     }
   }
@@ -118,6 +166,48 @@ export class OANDAMarketDataService {
       oandaSymbol = `${symbol.slice(0, 3)}_${symbol.slice(3)}`;
     }
 
+    // Validate the format
+    if (!oandaSymbol.includes('_') || oandaSymbol.length < 7) {
+      console.warn(`⚠️ Potentially invalid OANDA symbol format: ${oandaSymbol}`);
+    }
+
     return oandaSymbol;
+  }
+
+  // Add retry mechanism for failed requests
+  static async fetchWithRetry(
+    accountId: string,
+    apiKey: string,
+    environment: 'practice' | 'live',
+    instrument: string,
+    granularity: string = 'M1',
+    count: number = 100,
+    maxRetries: number = 3
+  ): Promise<any> {
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 OANDA API attempt ${attempt}/${maxRetries} for ${instrument}`);
+        return await this.fetchLiveMarketData(accountId, apiKey, environment, instrument, granularity, count);
+      } catch (error) {
+        lastError = error as Error;
+        console.warn(`⚠️ OANDA API attempt ${attempt} failed:`, error);
+        
+        // Don't retry on authentication errors
+        if (error instanceof Error && (error.message.includes('401') || error.message.includes('Invalid API key'))) {
+          throw error;
+        }
+        
+        // Wait before retry (exponential backoff)
+        if (attempt < maxRetries) {
+          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          console.log(`⏳ Waiting ${delay}ms before retry...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw lastError!;
   }
 }

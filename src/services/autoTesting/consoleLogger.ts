@@ -31,32 +31,41 @@ export class ConsoleLogger {
       console.log(`🏦 OANDA Account: ${this.currentConfig.accountId}`);
       console.log(`🌍 Environment: ${this.currentConfig.environment}`);
 
-      // Convert symbol to OANDA format
+      // Convert symbol to OANDA format and validate
       const oandaSymbol = OANDAMarketDataService.convertSymbolToOANDA(this.currentStrategy.symbol);
       console.log(`🔄 Fetching LIVE market data for: ${oandaSymbol}`);
 
-      // Fetch latest market data
-      const marketData = await OANDAMarketDataService.fetchLiveMarketData(
+      // Use retry mechanism for better reliability
+      const marketData = await OANDAMarketDataService.fetchWithRetry(
         this.currentConfig.accountId,
         this.currentConfig.apiKey,
         this.currentConfig.environment,
         oandaSymbol,
         'M1',
-        100
+        100,
+        2 // Max 2 retries for console logging
       );
 
       const latestIndex = marketData.close.length - 1;
       const currentPrice = marketData.close[latestIndex];
       
-      console.log(`💰 LIVE Price: ${currentPrice}`);
+      console.log(`💰 LIVE Price: ${currentPrice.toFixed(5)}`);
       console.log(`📊 Latest Candle: O:${marketData.open[latestIndex].toFixed(5)} H:${marketData.high[latestIndex].toFixed(5)} L:${marketData.low[latestIndex].toFixed(5)} C:${currentPrice.toFixed(5)}`);
 
-      // Execute strategy logic
+      // Execute strategy logic with error handling
       console.log(`🧠 Analyzing strategy for LIVE TRADE signals...`);
-      const strategyResult = await PythonExecutor.executeStrategy(
-        this.currentStrategy.strategy_code,
-        marketData
-      );
+      
+      let strategyResult;
+      try {
+        strategyResult = await PythonExecutor.executeStrategy(
+          this.currentStrategy.strategy_code,
+          marketData
+        );
+      } catch (strategyError) {
+        console.error(`❌ Strategy execution error:`, strategyError);
+        console.log(`🔧 Check your strategy code for syntax or logic errors`);
+        return;
+      }
 
       // Check for signals
       const hasEntry = strategyResult.entry && strategyResult.entry[latestIndex];
@@ -105,13 +114,21 @@ export class ConsoleLogger {
 
     } catch (error) {
       console.error(`❌ [${now}] LIVE TRADING MONITOR ERROR:`, error);
-      console.log(`🔧 Check OANDA credentials and network connection`);
-      console.log(`⚠️ LIVE TRADING may be affected - verify system status`);
       
-      // Log specific error details
+      // Provide specific error guidance
       if (error instanceof Error) {
-        console.log(`💥 Error message: ${error.message}`);
+        if (error.message.includes('401') || error.message.includes('Invalid API key')) {
+          console.log(`🔑 Fix: Update your OANDA API key in the Configuration tab`);
+        } else if (error.message.includes('404') || error.message.includes('not found')) {
+          console.log(`🔧 Fix: Check the symbol format (${this.currentStrategy.symbol}) in Strategy settings`);
+        } else if (error.message.includes('timeout')) {
+          console.log(`🌐 Fix: Check your internet connection and try again`);
+        } else {
+          console.log(`💥 Error details: ${error.message}`);
+        }
       }
+      
+      console.log(`⚠️ LIVE TRADING may be affected - verify system status in Diagnostic tab`);
     }
 
     console.log('═'.repeat(60));
