@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { useOANDAConfig } from '@/hooks/oanda/useOANDAConfig';
 import { useOANDAConnection } from '@/hooks/oanda/useOANDAConnection';
 import { useOANDAStrategies } from '@/hooks/oanda/useOANDAStrategies';
@@ -73,6 +73,13 @@ export const useOANDAIntegration = () => {
     connectionStatusIcon
   } = useOANDAState(config, selectedStrategy, connectionStatus);
 
+  // Memoize config validation to prevent excessive re-renders
+  const configValidation = useMemo(() => ({
+    hasCredentials: !!(config.accountId && config.apiKey),
+    hasStrategy: !!selectedStrategy,
+    isComplete: !!(config.accountId && config.apiKey && selectedStrategy)
+  }), [config.accountId, config.apiKey, selectedStrategy]);
+
   // Auto-manage browser keepalive based on forward testing status
   useEffect(() => {
     const browserKeepalive = BrowserKeepalive.getInstance();
@@ -87,13 +94,19 @@ export const useOANDAIntegration = () => {
     }
   }, [isForwardTestingActive, isConnected, selectedStrategy]);
 
-  // Auto-reconnect when config changes and we have valid credentials
+  // Optimized auto-reconnect with debouncing
   useEffect(() => {
-    if (config.accountId && config.apiKey && !isConnected && !isAutoReconnecting) {
-      console.log('🔄 Config updated, attempting auto-reconnect...');
-      autoReconnect(config);
+    if (!configValidation.hasCredentials || isConnected || isAutoReconnecting) {
+      return;
     }
-  }, [config.accountId, config.apiKey, config.environment]);
+
+    console.log('🔄 Config updated, attempting auto-reconnect...');
+    const timeoutId = setTimeout(() => {
+      autoReconnect(config);
+    }, 500); // Debounce auto-reconnect
+
+    return () => clearTimeout(timeoutId);
+  }, [configValidation.hasCredentials, isConnected, isAutoReconnecting]);
 
   // Auto-manage AutoStrategyTester based on forward testing status
   useEffect(() => {
@@ -133,7 +146,7 @@ export const useOANDAIntegration = () => {
     await handleTestConnection(config);
   }, [handleTestConnection, config]);
 
-  // Use logging hook
+  // Use logging hook with optimized dependencies
   useOANDALogging(
     savedStrategies,
     selectedStrategy,
@@ -163,6 +176,7 @@ export const useOANDAIntegration = () => {
     connectionStatusIcon,
     retryCount,
     isAutoReconnecting,
+    configValidation,
     handleConfigChange: handleConfigChangeWithAutoReconnect,
     handleTestConnection: handleEnhancedTestConnection,
     handleSaveConfig,
