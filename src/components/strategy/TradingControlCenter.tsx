@@ -30,7 +30,7 @@ interface TradingControlCenterProps {
   config?: any;
   isConfigured?: boolean;
   isForwardTestingActive?: boolean;
-  onToggleForwardTesting?: () => void;
+  onToggleForwardTesting?: () => Promise<boolean> | boolean;
   connectionStatus?: string;
 }
 
@@ -48,6 +48,12 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
+  const [localForwardTestingActive, setLocalForwardTestingActive] = useState(isForwardTestingActive);
+
+  // Sync with parent state
+  useEffect(() => {
+    setLocalForwardTestingActive(isForwardTestingActive);
+  }, [isForwardTestingActive]);
 
   useEffect(() => {
     if (user) {
@@ -84,11 +90,15 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
     setIsStarting(true);
     
     try {
+      console.log('🚀 Starting server-side trading session...');
+      
       const session = await ServerForwardTestingService.startServerSideForwardTesting(
         strategy, 
         config, 
         user.id
       );
+      
+      console.log('✅ Server-side session created:', session);
       
       toast({
         title: "🚀 Server-Side Trading Started!",
@@ -126,6 +136,8 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
     setIsStopping(true);
     
     try {
+      console.log('⏹️ Stopping server-side trading...');
+      
       await ServerForwardTestingService.stopServerSideForwardTesting(user.id);
       
       toast({
@@ -146,14 +158,51 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
     }
   };
 
-  const handleToggleForwardTesting = () => {
-    if (onToggleForwardTesting) {
-      onToggleForwardTesting();
-    } else {
+  const handleToggleForwardTesting = async () => {
+    if (!onToggleForwardTesting) {
       console.warn('onToggleForwardTesting prop not provided');
       toast({
         title: "⚠️ Function Not Available",
         description: "Browser trading toggle is not configured",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!isConfigured || !strategy) {
+      toast({
+        title: "⚠️ Configuration Required",
+        description: "Please configure your strategy and OANDA connection first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      console.log('🔄 Toggling browser trading...', localForwardTestingActive ? 'STOP' : 'START');
+      
+      const result = await onToggleForwardTesting();
+      
+      // Update local state based on result
+      if (typeof result === 'boolean') {
+        setLocalForwardTestingActive(result);
+      } else {
+        // Toggle the current state if no explicit result
+        setLocalForwardTestingActive(!localForwardTestingActive);
+      }
+      
+      toast({
+        title: localForwardTestingActive ? "⏹️ Browser Trading Stopped" : "🚀 Browser Trading Started",
+        description: localForwardTestingActive 
+          ? "Browser-based trading has been stopped" 
+          : "Browser-based trading is now active",
+      });
+
+    } catch (error) {
+      console.error('❌ Error toggling forward testing:', error);
+      toast({
+        title: "❌ Toggle Failed",
+        description: "Could not toggle browser trading",
         variant: "destructive",
       });
     }
@@ -161,6 +210,7 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
 
   const hasActiveSessions = activeSessions.length > 0;
   const isConnected = connectionStatus === 'success';
+  const combinedTradingActive = localForwardTestingActive || hasActiveSessions;
 
   return (
     <Card className="bg-slate-800 border-slate-700">
@@ -171,8 +221,14 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
             Trading Control Center
           </div>
           <div className="flex items-center gap-2">
-            {isConnected && (
+            {combinedTradingActive && (
               <Badge variant="default" className="bg-emerald-600">
+                <Activity className="h-3 w-3 mr-1 animate-pulse" />
+                Trading Active
+              </Badge>
+            )}
+            {isConnected && (
+              <Badge variant="default" className="bg-blue-600">
                 <Wifi className="h-3 w-3 mr-1" />
                 Connected
               </Badge>
@@ -228,9 +284,9 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
               
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Badge variant={isForwardTestingActive ? "default" : "secondary"} 
-                         className={isForwardTestingActive ? "bg-emerald-600" : "bg-slate-600"}>
-                    {isForwardTestingActive ? "Active" : "Inactive"}
+                  <Badge variant={localForwardTestingActive ? "default" : "secondary"} 
+                         className={localForwardTestingActive ? "bg-emerald-600" : "bg-slate-600"}>
+                    {localForwardTestingActive ? "Active" : "Inactive"}
                   </Badge>
                   {strategy && (
                     <span className="text-sm text-slate-400">
@@ -242,12 +298,12 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
                 <Button
                   onClick={handleToggleForwardTesting}
                   disabled={!isConfigured}
-                  className={isForwardTestingActive 
+                  className={localForwardTestingActive 
                     ? "bg-red-600 hover:bg-red-700" 
                     : "bg-emerald-600 hover:bg-emerald-700"
                   }
                 >
-                  {isForwardTestingActive ? (
+                  {localForwardTestingActive ? (
                     <>
                       <Square className="h-4 w-4 mr-2" />
                       Stop Trading
@@ -344,7 +400,7 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
 
           <TabsContent value="dashboard" className="mt-6">
             <OANDATradingDashboard
-              isActive={Boolean(isForwardTestingActive)}
+              isActive={combinedTradingActive}
               strategy={strategy}
               environment={config?.environment || 'practice'}
               oandaConfig={config}

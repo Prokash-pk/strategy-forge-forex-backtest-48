@@ -83,7 +83,6 @@ export const useOANDAIntegration = () => {
     } else if (!isForwardTestingActive && browserKeepalive.getStatus().isActive) {
       console.log('⏸️ Stopping browser keepalive - forward testing inactive');
       browserKeepalive.stopKeepalive();
-      // Reset page title
       document.title = 'Strategy Builder & Backtester';
     }
   }, [isForwardTestingActive, isConnected, selectedStrategy]);
@@ -96,49 +95,18 @@ export const useOANDAIntegration = () => {
     }
   }, [config.accountId, config.apiKey, config.environment]);
 
-  // Auto-start forward testing when ready
-  useEffect(() => {
-    if (isConnected && selectedStrategy && canStartTesting && !isForwardTestingActive) {
-      console.log('🎯 Conditions met for auto-start - checking preferences...');
-      
-      const timer = setTimeout(() => {
-        console.log('🚀 Auto-starting forward testing...');
-        startForwardTesting();
-      }, 2000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [isConnected, selectedStrategy, canStartTesting, isForwardTestingActive]);
-
   // Auto-manage AutoStrategyTester based on forward testing status
   useEffect(() => {
     const autoTester = AutoStrategyTester.getInstance();
     
     if (isConnected && selectedStrategy && config.accountId && isForwardTestingActive) {
-      console.log('🚀 Starting AutoStrategyTester with console logging...');
+      console.log('🚀 Starting AutoStrategyTester...');
       autoTester.autoStart(config, selectedStrategy, isForwardTestingActive);
     } else if (autoTester.isActive() && !isForwardTestingActive) {
       console.log('⏸️ Stopping AutoStrategyTester - forward testing inactive');
       autoTester.stopAutoTesting();
     }
   }, [isConnected, selectedStrategy, isForwardTestingActive, config]);
-
-  // Enhanced status logging with browser keepalive info
-  useEffect(() => {
-    const browserStatus = BrowserKeepalive.getInstance().getStatus();
-    
-    console.log('🔄 Integration Status Update:');
-    console.log('   - Connected:', isConnected);
-    console.log('   - Strategy:', selectedStrategy?.strategy_name || 'None');
-    console.log('   - Forward Testing:', isForwardTestingActive ? 'ACTIVE' : 'INACTIVE');
-    console.log('   - Can Start Testing:', canStartTesting);
-    console.log('   - Browser Keepalive:', browserStatus.isActive ? 'ACTIVE' : 'INACTIVE');
-    
-    if (isForwardTestingActive && selectedStrategy && browserStatus.isActive) {
-      console.log('✅ All conditions met - 24/7 trading mode activated');
-      console.log('🖥️ Browser will stay awake, console logs every 5 minutes');
-    }
-  }, [isConnected, selectedStrategy?.strategy_name, isForwardTestingActive, canStartTesting]);
 
   const handleConfigChangeWithAutoReconnect = useCallback((field: keyof typeof config, value: any) => {
     handleConfigChange(field, value);
@@ -148,20 +116,18 @@ export const useOANDAIntegration = () => {
     console.log('Show OANDA setup guide');
   }, []);
 
-  const handleToggleForwardTesting = useCallback(() => {
+  const handleToggleForwardTesting = useCallback(async () => {
     console.log('🔄 Toggling forward testing...');
-    const result = toggleForwardTesting();
     
-    // Log the action with browser keepalive info
-    if (isForwardTestingActive) {
-      console.log('⏸️ Forward testing will be stopped - browser keepalive will stop');
-    } else {
-      console.log('🚀 Forward testing will be started - browser keepalive will activate');
-      console.log('🖥️ Your browser will stay awake for 24/7 trading');
+    try {
+      const result = await toggleForwardTesting();
+      console.log('✅ Forward testing toggle result:', result);
+      return result;
+    } catch (error) {
+      console.error('❌ Forward testing toggle error:', error);
+      throw error;
     }
-    
-    return result;
-  }, [toggleForwardTesting, isForwardTestingActive]);
+  }, [toggleForwardTesting]);
 
   const handleEnhancedTestConnection = useCallback(async () => {
     await handleTestConnection(config);
