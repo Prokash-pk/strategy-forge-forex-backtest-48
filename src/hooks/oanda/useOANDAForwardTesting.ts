@@ -26,6 +26,7 @@ export const useOANDAForwardTesting = (strategy: any, config: any) => {
       
       if (hasActive) {
         console.log(`✅ Found ${sessions.length} active server-side trading sessions`);
+        setIsForwardTestingActive(true);
       }
     } catch (error) {
       console.error('Failed to check server sessions:', error);
@@ -60,8 +61,8 @@ export const useOANDAForwardTesting = (strategy: any, config: any) => {
       startBrowserMonitoring();
       
       toast({
-        title: "🚀 Forward Testing Started!",
-        description: "Both browser monitoring and 24/7 server trading are now active",
+        title: "🚀 Server-Side Trading Started!",
+        description: "24/7 cloud trading is now active for " + strategy.strategy_name,
       });
 
       return true;
@@ -91,7 +92,7 @@ export const useOANDAForwardTesting = (strategy: any, config: any) => {
       setIsForwardTestingActive(false);
 
       toast({
-        title: "⏹️ Forward Testing Stopped",
+        title: "⏹️ Trading Stopped",
         description: "Both browser monitoring and server trading have been stopped",
       });
 
