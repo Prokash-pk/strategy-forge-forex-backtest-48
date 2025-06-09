@@ -1,138 +1,161 @@
-import { useState, useEffect } from 'react';
-import { ForwardTestingService } from '@/services/forwardTestingService';
+
+import { useState, useEffect, useRef } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
-import { OANDAConfig, StrategySettings } from '@/types/oanda';
 
-export const useOANDAForwardTesting = () => {
+export const useOANDAForwardTesting = (strategy: any, config: any) => {
+  const { toast } = useToast();
+  const { user } = useAuth();
   const [isForwardTestingActive, setIsForwardTestingActive] = useState(false);
+  const [hasServerSession, setHasServerSession] = useState(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check status more frequently and restore active sessions
+  // Check for existing server sessions on mount
   useEffect(() => {
-    const checkForwardTestingStatus = async () => {
-      try {
-        const service = ForwardTestingService.getInstance();
-        const activeSessions = await service.getActiveSessions();
-        
-        // Check if any sessions are active
-        const hasActiveSessions = activeSessions.length > 0 && activeSessions.some(session => session.enabled);
-        
-        setIsForwardTestingActive(hasActiveSessions);
-        
-        console.log('🔍 Forward testing status check:', {
-          activeSessions: activeSessions.length,
-          isActive: hasActiveSessions,
-          sessions: activeSessions.map(s => ({ id: s.id, enabled: s.enabled }))
-        });
-
-        if (hasActiveSessions) {
-          console.log('✅ FORWARD TESTING IS ACTIVE');
-          console.log('🚀 Trading operations running - monitoring for signals');
-        } else {
-          console.log('⏸️ No active forward testing sessions detected');
-        }
-      } catch (error) {
-        console.error('Failed to check forward testing status:', error);
-        setIsForwardTestingActive(false);
-      }
-    };
-
-    // Initial check
-    checkForwardTestingStatus();
-    
-    // Check status every 10 seconds to stay in sync
-    const interval = setInterval(checkForwardTestingStatus, 10000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  // Auto-start forward testing when strategy and OANDA are ready
-  const autoStartForwardTesting = async (
-    config: OANDAConfig,
-    selectedStrategy: StrategySettings | null,
-    oandaConnected: boolean
-  ) => {
-    // Only auto-start if not already active and conditions are met
-    if (isForwardTestingActive || !oandaConnected || !selectedStrategy) {
-      return;
+    if (user) {
+      checkExistingServerSessions();
     }
+  }, [user]);
 
-    // Check if user has previously enabled auto-start
-    const autoStartEnabled = localStorage.getItem('autoStartForwardTesting') === 'true';
-    if (!autoStartEnabled) {
-      console.log('⏸️ Auto-start disabled by user preference');
-      return;
-    }
-
-    console.log('🚀 Auto-starting forward testing - conditions met:', {
-      oandaConnected,
-      strategyReady: !!selectedStrategy,
-      currentlyActive: isForwardTestingActive
-    });
-
+  const checkExistingServerSessions = async () => {
     try {
-      const service = ForwardTestingService.getInstance();
-      await service.startForwardTesting({
-        strategyId: selectedStrategy.id,
-        accountId: config.accountId,
-        apiKey: config.apiKey,
-        environment: config.environment,
-        enabled: true
-      }, selectedStrategy);
+      const sessions = await ServerForwardTestingService.getActiveSessions();
+      const hasActive = sessions.length > 0;
+      setHasServerSession(hasActive);
       
-      setIsForwardTestingActive(true);
-      console.log('✅ AUTO-STARTED REAL TRADING - strategies will execute actual trades');
-      console.log('💰 All signals from your strategy will be converted to live OANDA trades');
+      if (hasActive) {
+        console.log(`✅ Found ${sessions.length} active server-side trading sessions`);
+      }
     } catch (error) {
-      console.error('Failed to auto-start forward testing:', error);
+      console.error('Failed to check server sessions:', error);
     }
   };
 
-  const handleToggleForwardTesting = async (
-    config: OANDAConfig,
-    selectedStrategy: StrategySettings | null,
-    canStartTesting: boolean
-  ) => {
-    const service = ForwardTestingService.getInstance();
-    
-    if (isForwardTestingActive) {
-      // Stop forward testing
-      await service.stopForwardTesting();
-      setIsForwardTestingActive(false);
-      console.log('🛑 Real trading stopped - no more trades will be executed');
+  const startForwardTesting = async () => {
+    if (!strategy || !config || !user) {
+      toast({
+        title: "⚠️ Configuration Required",
+        description: "Please ensure strategy and OANDA connection are configured",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    try {
+      console.log('🚀 Starting hybrid forward testing (browser + server)...');
       
-      // Disable auto-start when manually stopped
-      localStorage.setItem('autoStartForwardTesting', 'false');
-    } else {
-      // Start forward testing
-      if (canStartTesting && selectedStrategy) {
-        try {
-          await service.startForwardTesting({
-            strategyId: selectedStrategy.id,
-            accountId: config.accountId,
-            apiKey: config.apiKey,
-            environment: config.environment,
-            enabled: true
-          }, selectedStrategy);
-          
-          setIsForwardTestingActive(true);
-          console.log('🚀 REAL TRADING ACTIVATED - strategies will execute actual trades');
-          console.log('💰 All strategy signals will now be converted to live OANDA trades');
-          console.log('🤖 Trading operates autonomously - signals monitored every minute');
-          
-          // Enable auto-start for future sessions
-          localStorage.setItem('autoStartForwardTesting', 'true');
-        } catch (error) {
-          console.error('Failed to start real trading:', error);
-          // Keep the state as false if starting failed
-        }
+      // Start server-side trading session
+      const session = await ServerForwardTestingService.startServerSideForwardTesting(
+        strategy, 
+        config, 
+        user.id
+      );
+      
+      console.log('✅ Server-side session created:', session);
+      setHasServerSession(true);
+      
+      // Start browser-based monitoring
+      setIsForwardTestingActive(true);
+      startBrowserMonitoring();
+      
+      toast({
+        title: "🚀 Forward Testing Started!",
+        description: "Both browser monitoring and 24/7 server trading are now active",
+      });
+
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to start forward testing:', error);
+      toast({
+        title: "❌ Failed to Start",
+        description: error instanceof Error ? error.message : "Could not start forward testing",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
+  const stopForwardTesting = async () => {
+    try {
+      console.log('⏹️ Stopping forward testing...');
+
+      // Stop server-side sessions
+      if (user) {
+        await ServerForwardTestingService.stopServerSideForwardTesting(user.id);
+        setHasServerSession(false);
       }
+
+      // Stop browser monitoring
+      stopBrowserMonitoring();
+      setIsForwardTestingActive(false);
+
+      toast({
+        title: "⏹️ Forward Testing Stopped",
+        description: "Both browser monitoring and server trading have been stopped",
+      });
+
+    } catch (error) {
+      console.error('❌ Failed to stop forward testing:', error);
+      toast({
+        title: "❌ Failed to Stop",
+        description: "There was an error stopping forward testing",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const startBrowserMonitoring = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    // Browser-based monitoring every 60 seconds
+    intervalRef.current = setInterval(async () => {
+      try {
+        console.log('🔍 Browser monitoring check...');
+        
+        // This could include additional client-side monitoring
+        // For now, just log that monitoring is active
+        await checkExistingServerSessions();
+        
+      } catch (error) {
+        console.error('Browser monitoring error:', error);
+      }
+    }, 60000);
+
+    console.log('✅ Browser monitoring started');
+  };
+
+  const stopBrowserMonitoring = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+      console.log('⏹️ Browser monitoring stopped');
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopBrowserMonitoring();
+    };
+  }, []);
+
+  const toggleForwardTesting = async () => {
+    if (isForwardTestingActive || hasServerSession) {
+      await stopForwardTesting();
+    } else {
+      return await startForwardTesting();
     }
   };
 
   return {
-    isForwardTestingActive,
-    setIsForwardTestingActive,
-    handleToggleForwardTesting,
-    autoStartForwardTesting
+    isForwardTestingActive: isForwardTestingActive || hasServerSession,
+    hasServerSession,
+    startForwardTesting,
+    stopForwardTesting,
+    toggleForwardTesting,
+    checkExistingServerSessions
   };
 };

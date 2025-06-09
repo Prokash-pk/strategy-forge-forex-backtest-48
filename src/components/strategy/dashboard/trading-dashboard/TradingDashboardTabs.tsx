@@ -8,6 +8,7 @@ import LiveTradeMonitor from '../LiveTradeMonitor';
 import PositionsTable from '../PositionsTable';
 import MarketHoursIndicator from '../MarketHoursIndicator';
 import DataConsistencyChecker from '../DataConsistencyChecker';
+import ServerSideTradingControl from '../../ServerSideTradingControl';
 
 interface TradingDashboardTabsProps {
   strategy: any;
@@ -44,9 +45,12 @@ const TradingDashboardTabs: React.FC<TradingDashboardTabsProps> = ({
 }) => {
   return (
     <Tabs defaultValue="execution" className="w-full">
-      <TabsList className="grid w-full grid-cols-6 bg-slate-700">
+      <TabsList className="grid w-full grid-cols-7 bg-slate-700">
         <TabsTrigger value="execution" className="data-[state=active]:bg-slate-600">
           Execution
+        </TabsTrigger>
+        <TabsTrigger value="serverside" className="data-[state=active]:bg-slate-600">
+          24/7 Server
         </TabsTrigger>
         <TabsTrigger value="monitor" className="data-[state=active]:bg-slate-600">
           Live Monitor
@@ -74,6 +78,14 @@ const TradingDashboardTabs: React.FC<TradingDashboardTabsProps> = ({
             onToggleTrading={onToggleForwardTesting}
           />
         </div>
+      </TabsContent>
+
+      <TabsContent value="serverside" className="mt-6">
+        <ServerSideTradingControl
+          strategy={strategy}
+          config={oandaConfig}
+          isConfigured={isConfigured}
+        />
       </TabsContent>
 
       <TabsContent value="monitor" className="mt-6">

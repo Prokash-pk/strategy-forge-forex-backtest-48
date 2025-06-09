@@ -1,4 +1,16 @@
+
 import { schedule } from '@netlify/functions';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client for server-side usage
+const supabaseUrl = 'https://lnlxhokpdqqnvustvgds.supabase.co';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseServiceKey) {
+  console.error('❌ SUPABASE_SERVICE_ROLE_KEY is not configured');
+}
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey || '');
 
 // Main trading execution function that runs every 5 minutes
 const handler = schedule('*/5 * * * *', async (event, context) => {
@@ -40,19 +52,29 @@ const handler = schedule('*/5 * * * *', async (event, context) => {
     );
     
     // Log results
+    let successCount = 0;
+    let errorCount = 0;
+    
     results.forEach((result, index) => {
       if (result.status === 'fulfilled') {
         console.log(`✅ Session ${index + 1} processed successfully:`, result.value);
+        successCount++;
       } else {
         console.error(`❌ Session ${index + 1} failed:`, result.reason);
+        errorCount++;
       }
     });
+
+    // Update execution timestamps for all sessions
+    await updateSessionExecutionTimes(activeSessions);
 
     return {
       statusCode: 200,
       body: JSON.stringify({
         message: 'Trading execution completed',
         processedSessions: activeSessions.length,
+        successCount,
+        errorCount,
         marketStatus: formatMarketStatus(marketStatus),
         timestamp: new Date().toISOString()
       })
@@ -72,37 +94,64 @@ const handler = schedule('*/5 * * * *', async (event, context) => {
   }
 });
 
-// Get active trading sessions from database
+// Get active trading sessions from Supabase database
 async function getActiveTradingSessions() {
-  // This would connect to your Supabase database
-  // For now, returning mock data structure
-  return [
-    {
-      id: 'session-1',
-      user_id: 'user-123',
-      strategy_code: 'strategy_logic(data)',
-      symbol: 'EUR_USD',
-      timeframe: '5M',
-      oanda_account_id: 'account-id',
-      oanda_api_key: 'api-key',
-      environment: 'practice',
-      risk_per_trade: 2.0,
-      stop_loss: 40,
-      take_profit: 80,
-      reverse_signals: false,
-      avoid_low_volume: false
+  try {
+    const { data, error } = await supabase
+      .from('trading_sessions')
+      .select('*')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('❌ Database error fetching sessions:', error);
+      return [];
     }
-  ];
+
+    console.log(`📋 Retrieved ${data?.length || 0} active trading sessions from database`);
+    return data || [];
+  } catch (error) {
+    console.error('❌ Error fetching trading sessions:', error);
+    return [];
+  }
+}
+
+// Update last execution time for sessions
+async function updateSessionExecutionTimes(sessions: any[]) {
+  try {
+    const updates = sessions.map(session => ({
+      id: session.id,
+      last_execution: new Date().toISOString()
+    }));
+
+    for (const update of updates) {
+      await supabase
+        .from('trading_sessions')
+        .update({ last_execution: update.last_execution })
+        .eq('id', update.id);
+    }
+
+    console.log(`📝 Updated execution times for ${updates.length} sessions`);
+  } catch (error) {
+    console.error('⚠️ Failed to update session execution times:', error);
+  }
 }
 
 // Process individual trading session
 async function processTradinSession(session, marketStatus) {
-  console.log(`🔄 Processing session for ${session.symbol} - ${session.timeframe}`);
+  console.log(`🔄 Processing session for ${session.symbol} - ${session.timeframe} (${session.strategy_name})`);
   
   try {
     // Check if we should trade based on market conditions
     if (!shouldExecuteTrade(marketStatus, session)) {
       console.log(`⏸️ Skipping trade for ${session.symbol} due to market conditions`);
+      
+      await logTradingActivity(session, {
+        logType: 'info',
+        message: `Skipped execution due to market conditions: ${formatMarketStatus(marketStatus)}`,
+        action: 'SKIPPED_MARKET_CONDITIONS',
+        timestamp: new Date().toISOString()
+      });
+      
       return {
         sessionId: session.id,
         symbol: session.symbol,
@@ -131,6 +180,8 @@ async function processTradinSession(session, marketStatus) {
         
         // 5. Log trading activity
         await logTradingActivity(session, {
+          logType: 'trade',
+          message: `Trade executed: ${direction} for ${session.symbol}`,
           signal: latestSignal,
           direction,
           tradeResult,
@@ -150,6 +201,13 @@ async function processTradinSession(session, marketStatus) {
     }
     
     console.log(`📊 No trading signals for ${session.symbol}`);
+    
+    await logTradingActivity(session, {
+      logType: 'info',
+      message: `No trading signals detected for ${session.symbol}`,
+      timestamp: new Date().toISOString()
+    });
+    
     return {
       sessionId: session.id,
       symbol: session.symbol,
@@ -159,7 +217,48 @@ async function processTradinSession(session, marketStatus) {
     
   } catch (error) {
     console.error(`❌ Error processing session ${session.id}:`, error);
+    
+    // Log the error
+    await logTradingActivity(session, {
+      logType: 'error',
+      message: `Session processing error: ${error.message}`,
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+    
     throw error;
+  }
+}
+
+// Log trading activity to database
+async function logTradingActivity(session, activity) {
+  try {
+    const logEntry = {
+      session_id: session.id,
+      user_id: session.user_id,
+      log_type: activity.logType,
+      message: activity.message,
+      trade_data: {
+        ...activity,
+        sessionInfo: {
+          strategy_name: session.strategy_name,
+          symbol: session.symbol,
+          timeframe: session.timeframe
+        }
+      }
+    };
+
+    const { error } = await supabase
+      .from('trading_logs')
+      .insert([logEntry]);
+
+    if (error) {
+      console.error('⚠️ Failed to log trading activity:', error);
+    } else {
+      console.log('📝 Logged trading activity for session:', session.id);
+    }
+  } catch (error) {
+    console.error('⚠️ Error logging trading activity:', error);
   }
 }
 
@@ -307,19 +406,7 @@ async function executeOANDATrade(session, direction) {
   return await response.json();
 }
 
-// Log trading activity
-async function logTradingActivity(session, activity) {
-  console.log('📝 Logging trading activity:', {
-    sessionId: session.id,
-    symbol: session.symbol,
-    activity
-  });
-  
-  // This would save to your Supabase database
-  // For now, just console logging
-}
-
-// Market hours utility functions (simplified for server-side)
+// Market hours utility functions
 function getMarketStatus() {
   const now = new Date();
   const dayOfWeek = now.getUTCDay();
@@ -334,7 +421,9 @@ function getMarketStatus() {
   return {
     isOpen,
     activeSessions: isOpen ? ['Global'] : [],
-    volume: getVolumeLevel(hourUTC)
+    volume: getVolumeLevel(hourUTC),
+    nextOpen: !isOpen ? getNextMarketOpen() : null,
+    nextClose: isOpen ? getNextMarketClose() : null
   };
 }
 
@@ -351,10 +440,33 @@ function getVolumeLevel(hourUTC: number): 'low' | 'medium' | 'high' {
   return 'low';
 }
 
+function getNextMarketOpen(): Date {
+  const now = new Date();
+  const dayOfWeek = now.getUTCDay();
+  
+  // If it's weekend, next open is Sunday 22:00 UTC
+  if (dayOfWeek === 6 || (dayOfWeek === 0 && now.getUTCHours() < 22)) {
+    const nextSunday = new Date(now);
+    nextSunday.setUTCDate(now.getUTCDate() + (7 - dayOfWeek));
+    nextSunday.setUTCHours(22, 0, 0, 0);
+    return nextSunday;
+  }
+  
+  return now; // Markets should be open
+}
+
+function getNextMarketClose(): Date {
+  const now = new Date();
+  const nextFriday = new Date(now);
+  nextFriday.setUTCDate(now.getUTCDate() + (5 - now.getUTCDay()));
+  nextFriday.setUTCHours(22, 0, 0, 0);
+  return nextFriday;
+}
+
 function shouldExecuteTrade(marketStatus, session) {
   if (!marketStatus.isOpen) return false;
   
-  // Avoid trading during very low volume periods
+  // Avoid trading during very low volume periods if configured
   if (marketStatus.volume === 'low' && session.avoid_low_volume) {
     return false;
   }

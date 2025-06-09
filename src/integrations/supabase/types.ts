@@ -262,6 +262,7 @@ export type Database = {
       }
       trading_sessions: {
         Row: {
+          avoid_low_volume: boolean | null
           created_at: string
           environment: string
           id: string
@@ -275,6 +276,7 @@ export type Database = {
           stop_loss: number
           strategy_code: string
           strategy_id: string
+          strategy_name: string
           symbol: string
           take_profit: number
           timeframe: string
@@ -282,6 +284,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          avoid_low_volume?: boolean | null
           created_at?: string
           environment: string
           id?: string
@@ -295,6 +298,7 @@ export type Database = {
           stop_loss?: number
           strategy_code: string
           strategy_id: string
+          strategy_name: string
           symbol: string
           take_profit?: number
           timeframe: string
@@ -302,6 +306,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          avoid_low_volume?: boolean | null
           created_at?: string
           environment?: string
           id?: string
@@ -315,6 +320,7 @@ export type Database = {
           stop_loss?: number
           strategy_code?: string
           strategy_id?: string
+          strategy_name?: string
           symbol?: string
           take_profit?: number
           timeframe?: string

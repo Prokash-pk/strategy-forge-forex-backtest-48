@@ -4,22 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Cloud, Server, Play, Square, Activity, Clock, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Cloud, Server, Play, Square, Activity, Clock, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
+import { ServerForwardTestingService, type TradingSessionRecord } from '@/services/serverForwardTestingService';
 
 interface ServerSideTradingControlProps {
   strategy?: any;
   config?: any;
   isConfigured?: boolean;
-}
-
-interface TradingStatus {
-  systemStatus: string;
-  lastExecution: string;
-  activeSessions: number;
-  totalExecutions: number;
-  serverTime: string;
-  nextExecution: string;
 }
 
 const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
@@ -28,32 +21,37 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
   isConfigured = false
 }) => {
   const { toast } = useToast();
-  const [status, setStatus] = useState<TradingStatus | null>(null);
+  const { user } = useAuth();
+  const [activeSessions, setActiveSessions] = useState<TradingSessionRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
 
-  // Poll trading status every 30 seconds
   useEffect(() => {
-    fetchTradingStatus();
-    const interval = setInterval(fetchTradingStatus, 30000);
-    return () => clearInterval(interval);
-  }, []);
+    if (user) {
+      fetchActiveSessions();
+      // Poll for updates every 30 seconds
+      const interval = setInterval(fetchActiveSessions, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
 
-  const fetchTradingStatus = async () => {
+  const fetchActiveSessions = async () => {
+    if (!user) return;
+    
     try {
-      const response = await fetch('/.netlify/functions/trading-status?action=status');
-      if (response.ok) {
-        const data = await response.json();
-        setStatus(data);
-      }
+      setIsLoading(true);
+      const sessions = await ServerForwardTestingService.getActiveSessions();
+      setActiveSessions(sessions);
     } catch (error) {
-      console.error('Failed to fetch trading status:', error);
+      console.error('Failed to fetch active sessions:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleStartServerSideTrading = async () => {
-    if (!strategy || !config || !isConfigured) {
+    if (!strategy || !config || !isConfigured || !user) {
       toast({
         title: "⚠️ Configuration Required",
         description: "Please configure your strategy and OANDA connection first",
@@ -64,44 +62,24 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
 
     setIsStarting(true);
     try {
-      const sessionData = {
-        strategy_code: strategy.code,
-        strategy_name: strategy.name,
-        symbol: strategy.symbol,
-        timeframe: strategy.timeframe,
-        oanda_account_id: config.accountId,
-        oanda_api_key: config.apiKey,
-        environment: config.environment,
-        risk_per_trade: strategy.riskPerTrade || 2.0,
-        stop_loss: strategy.stopLoss || 40,
-        take_profit: strategy.takeProfit || 80,
-        reverse_signals: strategy.reverseSignals || false
-      };
-
-      const response = await fetch('/.netlify/functions/trading-status?action=start', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sessionData)
+      const session = await ServerForwardTestingService.startServerSideForwardTesting(
+        strategy, 
+        config, 
+        user.id
+      );
+      
+      toast({
+        title: "🚀 Server-Side Trading Started!",
+        description: `Session for ${strategy.strategy_name} is now running 24/7 in the cloud`,
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        
-        toast({
-          title: "🚀 Server-Side Trading Started!",
-          description: `Session ${result.sessionId} is now running 24/7 in the cloud`,
-        });
-
-        await fetchTradingStatus();
-      } else {
-        throw new Error('Failed to start trading session');
-      }
+      await fetchActiveSessions();
 
     } catch (error) {
       console.error('Error starting server-side trading:', error);
       toast({
         title: "❌ Failed to Start",
-        description: "Could not start server-side trading session",
+        description: error instanceof Error ? error.message : "Could not start server-side trading session",
         variant: "destructive",
       });
     } finally {
@@ -110,22 +88,18 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
   };
 
   const handleStopServerSideTrading = async () => {
+    if (!user) return;
+
     setIsStopping(true);
     try {
-      const response = await fetch('/.netlify/functions/trading-status?action=stop', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: 'current' })
+      await ServerForwardTestingService.stopServerSideForwardTesting(user.id);
+      
+      toast({
+        title: "⏹️ Server-Side Trading Stopped",
+        description: "All cloud trading sessions have been stopped",
       });
 
-      if (response.ok) {
-        toast({
-          title: "⏹️ Server-Side Trading Stopped",
-          description: "All cloud trading sessions have been stopped",
-        });
-
-        await fetchTradingStatus();
-      }
+      await fetchActiveSessions();
 
     } catch (error) {
       console.error('Error stopping server-side trading:', error);
@@ -139,26 +113,16 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
     }
   };
 
-  const getStatusColor = (systemStatus: string) => {
-    switch (systemStatus) {
-      case 'ONLINE': return 'bg-emerald-600';
-      case 'OFFLINE': return 'bg-red-600';
-      default: return 'bg-amber-600';
-    }
+  const getStatusColor = (isActive: boolean) => {
+    return isActive ? 'bg-emerald-600' : 'bg-red-600';
   };
 
   const formatTime = (isoString: string) => {
-    return new Date(isoString).toLocaleTimeString();
+    return new Date(isoString).toLocaleString();
   };
 
-  const getTimeUntilNext = (nextExecution: string) => {
-    const now = new Date();
-    const next = new Date(nextExecution);
-    const diff = Math.max(0, next.getTime() - now.getTime());
-    const minutes = Math.floor(diff / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-    return `${minutes}m ${seconds}s`;
-  };
+  const hasActiveSessions = activeSessions.length > 0;
+  const canStart = isConfigured && strategy && config && !hasActiveSessions;
 
   return (
     <Card className="bg-slate-800 border-slate-700">
@@ -168,61 +132,65 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
             <Cloud className="h-5 w-5" />
             Server-Side 24/7 Trading
           </div>
-          {status && (
-            <Badge variant="default" className={getStatusColor(status.systemStatus)}>
+          <div className="flex items-center gap-2">
+            <Badge variant="default" className={getStatusColor(hasActiveSessions)}>
               <Server className="h-3 w-3 mr-1" />
-              {status.systemStatus}
+              {hasActiveSessions ? `${activeSessions.length} Active` : 'Offline'}
             </Badge>
-          )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchActiveSessions}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         
-        {/* System Status */}
-        {status && (
+        {/* Active Sessions Display */}
+        {hasActiveSessions && (
           <div className="p-4 bg-slate-900 rounded-lg">
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-emerald-400">{status.activeSessions}</div>
-                <div className="text-sm text-slate-400">Active Sessions</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">{status.totalExecutions}</div>
-                <div className="text-sm text-slate-400">Total Executions</div>
-              </div>
-            </div>
-            
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Last Execution:</span>
-                <span className="text-white">{formatTime(status.lastExecution)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Next Execution:</span>
-                <span className="text-emerald-400">{getTimeUntilNext(status.nextExecution)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Server Time:</span>
-                <span className="text-white">{formatTime(status.serverTime)}</span>
-              </div>
+            <h3 className="text-emerald-400 font-medium mb-3">Active Sessions</h3>
+            <div className="space-y-3">
+              {activeSessions.map((session) => (
+                <div key={session.id} className="p-3 bg-slate-800 rounded border border-slate-600">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-white">{session.strategy_name}</span>
+                    <Badge variant="default" className="bg-emerald-600">
+                      <Activity className="h-3 w-3 mr-1" />
+                      Running
+                    </Badge>
+                  </div>
+                  <div className="text-sm text-slate-400 space-y-1">
+                    <div>Symbol: <span className="text-white">{session.symbol}</span></div>
+                    <div>Timeframe: <span className="text-white">{session.timeframe}</span></div>
+                    <div>Environment: <span className="text-white capitalize">{session.environment}</span></div>
+                    <div>Started: <span className="text-white">{formatTime(session.created_at)}</span></div>
+                    <div>Last Execution: <span className="text-white">{formatTime(session.last_execution)}</span></div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
         <Separator className="bg-slate-600" />
 
-        {/* Benefits */}
+        {/* System Benefits */}
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <CheckCircle className="h-4 w-4 text-emerald-400" />
             <span className="text-emerald-400 font-medium">Server-Side Benefits</span>
           </div>
           <ul className="text-slate-400 text-sm space-y-1">
-            <li>• Runs 24/7 automatically in Netlify cloud</li>
+            <li>• Runs 24/7 automatically in the cloud</li>
             <li>• No browser dependency - executes server-side</li>
             <li>• Automatic reconnection and error handling</li>
             <li>• Executes every 5 minutes precisely</li>
-            <li>• Global availability and reliability</li>
+            <li>• Database logging of all trading activity</li>
           </ul>
         </div>
 
@@ -239,11 +207,23 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
           </div>
         )}
 
+        {/* Strategy Info */}
+        {strategy && (
+          <div className="p-3 bg-slate-900/50 rounded border border-slate-600">
+            <h4 className="text-white font-medium mb-2">Current Strategy</h4>
+            <div className="text-sm text-slate-400 space-y-1">
+              <div>Name: <span className="text-white">{strategy.strategy_name || 'Unnamed'}</span></div>
+              <div>Symbol: <span className="text-white">{strategy.symbol || 'Not set'}</span></div>
+              <div>Timeframe: <span className="text-white">{strategy.timeframe || 'Not set'}</span></div>
+            </div>
+          </div>
+        )}
+
         {/* Control Buttons */}
         <div className="flex gap-3">
           <Button
             onClick={handleStartServerSideTrading}
-            disabled={!isConfigured || isStarting || status?.activeSessions > 0}
+            disabled={!canStart || isStarting}
             className="flex-1 bg-emerald-600 hover:bg-emerald-700"
           >
             {isStarting ? (
@@ -261,7 +241,7 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
 
           <Button
             onClick={handleStopServerSideTrading}
-            disabled={isStopping || !status?.activeSessions}
+            disabled={isStopping || !hasActiveSessions}
             variant="destructive"
             className="flex-1"
           >
@@ -273,16 +253,16 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
             ) : (
               <>
                 <Square className="h-4 w-4 mr-2" />
-                Stop Trading
+                Stop All Sessions
               </>
             )}
           </Button>
         </div>
 
         {/* Schedule Info */}
-        <div className="text-xs text-slate-500 text-center">
+        <div className="text-xs text-slate-500 text-center bg-slate-900/30 p-2 rounded">
           <Clock className="h-3 w-3 inline mr-1" />
-          Scheduled execution: Every 5 minutes, 24/7
+          Server execution: Every 5 minutes during market hours, 24/7
         </div>
       </CardContent>
     </Card>
