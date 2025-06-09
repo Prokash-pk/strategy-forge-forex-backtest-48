@@ -43,16 +43,27 @@ export class ServerForwardTestingService {
   ): Promise<TradingSessionRecord> {
     try {
       console.log('🚀 Starting server-side forward testing session...');
+      console.log('📊 Strategy:', strategy?.strategy_name);
+      console.log('🔧 Config environment:', config?.environment);
+      console.log('👤 User ID:', userId);
       
       if (!strategy || !config || !userId) {
         throw new Error('Missing required parameters for server-side trading');
       }
 
+      if (!strategy.strategy_name || !strategy.symbol || !strategy.timeframe) {
+        throw new Error('Strategy is missing required fields (name, symbol, timeframe)');
+      }
+
+      if (!config.accountId || !config.apiKey) {
+        throw new Error('OANDA configuration is missing account ID or API key');
+      }
+
       const sessionData = {
         user_id: userId,
-        strategy_id: strategy.id,
+        strategy_id: strategy.id || crypto.randomUUID(),
         strategy_name: strategy.strategy_name,
-        strategy_code: strategy.strategy_code,
+        strategy_code: strategy.strategy_code || '',
         symbol: strategy.symbol,
         timeframe: strategy.timeframe,
         oanda_account_id: config.accountId,
@@ -64,9 +75,15 @@ export class ServerForwardTestingService {
         stop_loss: 40,
         take_profit: 80,
         max_position_size: 100000,
-        reverse_signals: false,
+        reverse_signals: strategy.reverse_signals || false,
         avoid_low_volume: false
       };
+
+      console.log('📝 Creating session with data:', {
+        strategy_name: sessionData.strategy_name,
+        symbol: sessionData.symbol,
+        environment: sessionData.environment
+      });
 
       const { data: session, error } = await supabase
         .from('trading_sessions')
@@ -75,15 +92,31 @@ export class ServerForwardTestingService {
         .single();
 
       if (error) {
-        console.error('❌ Failed to create server-side trading session:', error);
-        throw error;
+        console.error('❌ Supabase error creating session:', error);
+        throw new Error(`Database error: ${error.message}`);
       }
 
-      console.log('✅ Server-side trading session created:', session);
+      if (!session) {
+        throw new Error('Session created but no data returned');
+      }
+
+      console.log('✅ Server-side trading session created successfully:', session.id);
       return session as TradingSessionRecord;
 
     } catch (error) {
       console.error('❌ Failed to start server-side forward testing:', error);
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('duplicate key')) {
+          throw new Error('A trading session already exists for this strategy');
+        } else if (error.message.includes('foreign key')) {
+          throw new Error('Invalid user or strategy reference');
+        } else if (error.message.includes('permission')) {
+          throw new Error('Database permission denied - please check your authentication');
+        }
+      }
+      
       throw error;
     }
   }
@@ -92,6 +125,10 @@ export class ServerForwardTestingService {
     try {
       console.log('⏹️ Stopping server-side forward testing for user:', userId);
       
+      if (!userId) {
+        throw new Error('User ID is required to stop trading sessions');
+      }
+
       const { error } = await supabase
         .from('trading_sessions')
         .update({ is_active: false })
@@ -100,10 +137,10 @@ export class ServerForwardTestingService {
 
       if (error) {
         console.error('❌ Failed to stop server-side trading sessions:', error);
-        throw error;
+        throw new Error(`Failed to stop sessions: ${error.message}`);
       }
 
-      console.log('✅ Server-side trading sessions stopped');
+      console.log('✅ Server-side trading sessions stopped successfully');
 
     } catch (error) {
       console.error('❌ Failed to stop server-side trading:', error);
@@ -115,9 +152,11 @@ export class ServerForwardTestingService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No authenticated user found');
+        console.log('⚠️ No authenticated user found');
         return [];
       }
+
+      console.log('📊 Fetching active sessions for user:', user.id);
 
       const { data, error } = await supabase
         .from('trading_sessions')
@@ -128,11 +167,13 @@ export class ServerForwardTestingService {
 
       if (error) {
         console.error('❌ Failed to get active server sessions:', error);
-        return [];
+        throw new Error(`Failed to fetch sessions: ${error.message}`);
       }
 
-      console.log(`📊 Found ${data?.length || 0} active server-side trading sessions`);
-      return (data || []) as TradingSessionRecord[];
+      const sessions = (data || []) as TradingSessionRecord[];
+      console.log(`📊 Found ${sessions.length} active server-side trading sessions`);
+      
+      return sessions;
     } catch (error) {
       console.error('❌ Failed to get active server sessions:', error);
       return [];
@@ -143,7 +184,7 @@ export class ServerForwardTestingService {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('No authenticated user found');
+        console.log('⚠️ No authenticated user found');
         return [];
       }
 

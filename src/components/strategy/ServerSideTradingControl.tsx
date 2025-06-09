@@ -62,11 +62,15 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
 
     setIsStarting(true);
     try {
+      console.log('🚀 Starting server-side trading for strategy:', strategy.strategy_name);
+      
       const session = await ServerForwardTestingService.startServerSideForwardTesting(
         strategy, 
         config, 
         user.id
       );
+      
+      console.log('✅ Server session created successfully:', session.id);
       
       toast({
         title: "🚀 Server-Side Trading Started!",
@@ -76,7 +80,7 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
       await fetchActiveSessions();
 
     } catch (error) {
-      console.error('Error starting server-side trading:', error);
+      console.error('❌ Error starting server-side trading:', error);
       toast({
         title: "❌ Failed to Start",
         description: error instanceof Error ? error.message : "Could not start server-side trading session",
@@ -92,6 +96,8 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
 
     setIsStopping(true);
     try {
+      console.log('⏹️ Stopping all server-side trading sessions...');
+      
       await ServerForwardTestingService.stopServerSideForwardTesting(user.id);
       
       toast({
@@ -102,7 +108,7 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
       await fetchActiveSessions();
 
     } catch (error) {
-      console.error('Error stopping server-side trading:', error);
+      console.error('❌ Error stopping server-side trading:', error);
       toast({
         title: "❌ Failed to Stop",
         description: "Could not stop server-side trading",
@@ -122,7 +128,7 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
   };
 
   const hasActiveSessions = activeSessions.length > 0;
-  const canStart = isConfigured && strategy && config && !hasActiveSessions;
+  const canStart = isConfigured && strategy && config && !hasActiveSessions && !isStarting;
 
   return (
     <Card className="bg-slate-800 border-slate-700">
@@ -179,21 +185,6 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
 
         <Separator className="bg-slate-600" />
 
-        {/* System Benefits */}
-        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <CheckCircle className="h-4 w-4 text-emerald-400" />
-            <span className="text-emerald-400 font-medium">Server-Side Benefits</span>
-          </div>
-          <ul className="text-slate-400 text-sm space-y-1">
-            <li>• Runs 24/7 automatically in the cloud</li>
-            <li>• No browser dependency - executes server-side</li>
-            <li>• Automatic reconnection and error handling</li>
-            <li>• Executes every 5 minutes precisely</li>
-            <li>• Database logging of all trading activity</li>
-          </ul>
-        </div>
-
         {/* Configuration Check */}
         {!isConfigured && (
           <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
@@ -223,13 +214,13 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
         <div className="flex gap-3">
           <Button
             onClick={handleStartServerSideTrading}
-            disabled={!canStart || isStarting}
-            className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+            disabled={!canStart}
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
           >
             {isStarting ? (
               <>
                 <Activity className="h-4 w-4 mr-2 animate-spin" />
-                Starting...
+                Starting Server Session...
               </>
             ) : (
               <>
@@ -257,6 +248,16 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
               </>
             )}
           </Button>
+        </div>
+
+        {/* Debug Info */}
+        <div className="text-xs text-slate-500 bg-slate-900/30 p-3 rounded">
+          <div className="mb-2 font-medium">Debug Info:</div>
+          <div>User ID: {user?.id ? 'Set' : 'Missing'}</div>
+          <div>Strategy: {strategy ? 'Loaded' : 'Missing'}</div>
+          <div>Config: {config?.accountId ? 'Set' : 'Missing'}</div>
+          <div>Is Configured: {isConfigured ? 'Yes' : 'No'}</div>
+          <div>Active Sessions: {activeSessions.length}</div>
         </div>
 
         {/* Schedule Info */}

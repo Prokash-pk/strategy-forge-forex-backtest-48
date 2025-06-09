@@ -4,13 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Play, Square, Zap, TestTube, Activity, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Play, Square, Zap, TrendingUp, Clock, DollarSign, AlertTriangle } from 'lucide-react';
 
 interface EnhancedTradeExecutorProps {
   strategy: any;
-  oandaConfig: any;
+  oandaConfig: {
+    accountId: string;
+    apiKey: string;
+    environment: 'practice' | 'live';
+  };
   isActive: boolean;
   onToggleTrading: () => void;
 }
@@ -22,24 +26,24 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
   onToggleTrading
 }) => {
   const { toast } = useToast();
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [lastExecution, setLastExecution] = useState<Date | null>(null);
+  const [isExecutingTrade, setIsExecutingTrade] = useState(false);
+  const [isGeneratingSignal, setIsGeneratingSignal] = useState(false);
 
-  const executeRealStrategySignals = async () => {
+  const handleExecuteRealTradeNow = async () => {
     if (!strategy || !oandaConfig.accountId || !oandaConfig.apiKey) {
       toast({
-        title: "Configuration Required",
+        title: "⚠️ Missing Configuration",
         description: "Please ensure strategy and OANDA configuration are complete",
         variant: "destructive",
       });
       return;
     }
 
-    setIsExecuting(true);
+    setIsExecutingTrade(true);
     try {
-      console.log('🚀 Executing REAL strategy signals for live trading...');
+      console.log('🚀 Executing real trade now for strategy:', strategy.strategy_name);
       
-      // Call the updated forward testing function that executes REAL trades
+      // Call the OANDA forward testing edge function to execute immediately
       const { data, error } = await supabase.functions.invoke('oanda-forward-testing', {
         body: {
           action: 'execute_now',
@@ -55,101 +59,92 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
             accountId: oandaConfig.accountId,
             apiKey: oandaConfig.apiKey,
             environment: oandaConfig.environment,
-            riskPerTrade: strategy.risk_per_trade || 2,
-            stopLoss: strategy.stop_loss || 40,
-            takeProfit: strategy.take_profit || 80,
-            maxPositionSize: strategy.max_position_size || 100000
+            riskPerTrade: 2.0,
+            stopLoss: 40,
+            takeProfit: 80,
+            maxPositionSize: 10000
           }
         }
       });
 
       if (error) {
-        throw new Error(error.message || 'REAL strategy execution failed');
+        console.error('❌ Edge function error:', error);
+        throw new Error(`Edge function error: ${error.message}`);
       }
 
-      console.log('✅ REAL strategy execution response:', data);
-      setLastExecution(new Date());
-      
-      if (data?.trade_executed && data?.execution_type === 'REAL_TRADE') {
-        toast({
-          title: "✅ REAL Trade Executed!",
-          description: `${data.signal_type} order executed for ${strategy.symbol}. Order ID: ${data.trade_result?.orderId}. Check your OANDA account for confirmation.`,
-        });
-      } else if (data?.signal_detected) {
-        toast({
-          title: "📊 Signal Detected",
-          description: `${data.signal_type} signal detected for ${strategy.symbol} but no trade executed: ${data.reason}`,
-        });
+      console.log('📊 Trade execution result:', data);
+
+      if (data.success) {
+        if (data.trade_executed) {
+          toast({
+            title: "🎉 Trade Executed Successfully!",
+            description: `${data.signal_type} signal executed at ${data.current_price} with ${data.confidence}% confidence`,
+          });
+        } else {
+          toast({
+            title: "📊 Analysis Complete",
+            description: data.reason || `${data.signal_type || 'No'} signal detected with ${data.confidence}% confidence`,
+          });
+        }
       } else {
-        toast({
-          title: "📊 Strategy Analyzed",
-          description: `No trading signals detected for ${strategy.symbol}. Monitoring continues.`,
-        });
+        throw new Error(data.error || 'Trade execution failed');
       }
 
     } catch (error) {
-      console.error('❌ REAL strategy execution error:', error);
+      console.error('❌ Failed to execute real trade:', error);
       toast({
-        title: "❌ Execution Failed",
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        title: "❌ Trade Execution Failed",
+        description: error instanceof Error ? error.message : "Could not execute trade",
         variant: "destructive",
       });
     } finally {
-      setIsExecuting(false);
+      setIsExecutingTrade(false);
     }
   };
 
-  const generateTestSignal = async () => {
-    if (!strategy) return;
-    
-    setIsExecuting(true);
+  const handleGenerateTestSignal = async () => {
+    setIsGeneratingSignal(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Create a test signal log (not a real trade)
-      const testSignal = {
-        action: Math.random() > 0.5 ? 'BUY' : 'SELL',
-        symbol: strategy.symbol?.replace('/', '_') || 'EUR_USD',
-        units: 100,
-        price: 1.0950 + (Math.random() - 0.5) * 0.01,
-        strategy_name: strategy.strategy_name,
-        timestamp: new Date().toISOString(),
-        status: 'test_signal',
-        confidence: Math.floor(Math.random() * 30) + 60, // 60-90% confidence
-        execution_type: 'TEST_SIGNAL'
-      };
-
-      // Log the test signal (NOT a real trade)
-      const { error } = await supabase
-        .from('trading_logs')
-        .insert({
-          user_id: user.id,
-          session_id: crypto.randomUUID(),
-          log_type: 'info',
-          message: `Test signal generated: ${testSignal.action} ${testSignal.units} units of ${testSignal.symbol} at ${testSignal.price.toFixed(5)} (${testSignal.confidence}% confidence)`,
-          trade_data: testSignal
-        });
-
-      if (error) {
-        throw error;
+      if (!user) {
+        throw new Error('User not authenticated');
       }
 
-      setLastExecution(new Date());
+      // Generate a test trading log entry
+      const testSignal = {
+        signal: Math.random() > 0.5 ? 'BUY' : 'SELL',
+        symbol: strategy.symbol,
+        confidence: Math.floor(Math.random() * 30) + 70, // 70-100%
+        currentPrice: 1.0500 + (Math.random() - 0.5) * 0.02, // Simulated price
+        strategyName: strategy.strategy_name
+      };
+
+      await supabase.from('trading_logs').insert({
+        user_id: user.id,
+        session_id: crypto.randomUUID(),
+        log_type: 'info',
+        message: `TEST SIGNAL: ${testSignal.signal} ${testSignal.symbol} at ${testSignal.currentPrice.toFixed(5)}`,
+        trade_data: {
+          test_signal: true,
+          signal_data: testSignal,
+          timestamp: new Date().toISOString()
+        }
+      });
+
       toast({
         title: "🧪 Test Signal Generated",
-        description: `${testSignal.action} signal for ${testSignal.symbol} at ${testSignal.price.toFixed(5)} (${testSignal.confidence}% confidence)`,
+        description: `${testSignal.signal} signal for ${testSignal.symbol} with ${testSignal.confidence}% confidence`,
       });
 
     } catch (error) {
-      console.error('Test signal generation error:', error);
+      console.error('Failed to generate test signal:', error);
       toast({
-        title: "Test Failed",
-        description: "Failed to generate test signal",
+        title: "❌ Failed to Generate Test Signal",
+        description: "Could not create test trading data",
         variant: "destructive",
       });
     } finally {
-      setIsExecuting(false);
+      setIsGeneratingSignal(false);
     }
   };
 
@@ -157,106 +152,122 @@ const EnhancedTradeExecutor: React.FC<EnhancedTradeExecutorProps> = ({
     <Card className="bg-slate-800 border-slate-700">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-white">
-          <TrendingUp className="h-5 w-5" />
-          REAL Strategy Execution Control
+          <Zap className="h-5 w-5" />
+          Real-Time Trade Execution
           {isActive && (
             <Badge variant="default" className="bg-emerald-600">
-              <Zap className="h-3 w-3 mr-1" />
-              Live
+              <Activity className="h-3 w-3 mr-1" />
+              LIVE
             </Badge>
           )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <h4 className="text-white font-medium">Current Strategy</h4>
-            <p className="text-slate-400 text-sm">
-              {strategy?.strategy_name || 'No strategy selected'}
-            </p>
-            <p className="text-slate-500 text-xs">
-              Symbol: {strategy?.symbol || 'N/A'} • Timeframe: {strategy?.timeframe || 'N/A'}
-            </p>
-            <p className="text-slate-500 text-xs">
-              Environment: {oandaConfig?.environment || 'Not configured'}
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <h4 className="text-white font-medium">Execution Status</h4>
-            <div className="flex items-center gap-2">
-              <Badge variant={isActive ? "default" : "secondary"}>
-                {isActive ? "Active" : "Inactive"}
-              </Badge>
-              {lastExecution && (
-                <div className="flex items-center gap-1 text-xs text-slate-400">
-                  <Clock className="h-3 w-3" />
-                  Last: {lastExecution.toLocaleTimeString()}
-                </div>
-              )}
-            </div>
+        
+        {/* Strategy Info */}
+        <div className="p-3 bg-slate-900/50 rounded border border-slate-600">
+          <h4 className="text-white font-medium mb-2">Active Strategy</h4>
+          <div className="text-sm text-slate-400 space-y-1">
+            <div>Name: <span className="text-white">{strategy?.strategy_name || 'No strategy selected'}</span></div>
+            <div>Symbol: <span className="text-white">{strategy?.symbol || 'N/A'}</span></div>
+            <div>Timeframe: <span className="text-white">{strategy?.timeframe || 'N/A'}</span></div>
+            <div>Environment: <span className="text-white capitalize">{oandaConfig.environment}</span></div>
           </div>
         </div>
 
         <Separator className="bg-slate-600" />
 
-        <div className="flex flex-wrap gap-3">
+        {/* Immediate Execution */}
+        <div className="space-y-3">
+          <h4 className="text-white font-medium">Immediate Actions</h4>
+          
           <Button
-            onClick={onToggleTrading}
-            className={isActive 
-              ? "bg-red-600 hover:bg-red-700" 
-              : "bg-emerald-600 hover:bg-emerald-700"
-            }
+            onClick={handleExecuteRealTradeNow}
+            disabled={isExecutingTrade || !strategy || !oandaConfig.accountId}
+            className="w-full bg-orange-600 hover:bg-orange-700 disabled:opacity-50"
+            size="lg"
           >
-            {isActive ? (
+            {isExecutingTrade ? (
               <>
-                <Square className="h-4 w-4 mr-2" />
-                Stop Trading
+                <Activity className="h-4 w-4 mr-2 animate-spin" />
+                Analyzing Market & Executing...
               </>
             ) : (
               <>
-                <Play className="h-4 w-4 mr-2" />
-                Start Trading
+                <Zap className="h-4 w-4 mr-2" />
+                Execute REAL Trade Now
               </>
             )}
           </Button>
 
           <Button
-            onClick={executeRealStrategySignals}
-            disabled={isExecuting || !strategy}
+            onClick={handleGenerateTestSignal}
+            disabled={isGeneratingSignal}
             variant="outline"
-            className="border-blue-500/30 text-blue-300 hover:bg-blue-500/10"
+            className="w-full border-slate-600 text-slate-300 hover:text-white"
           >
-            <DollarSign className="h-4 w-4 mr-2" />
-            Execute REAL Trade Now
-          </Button>
-
-          <Button
-            onClick={generateTestSignal}
-            disabled={isExecuting || !strategy}
-            variant="outline"
-            className="border-purple-500/30 text-purple-300 hover:bg-purple-500/10"
-          >
-            <TrendingUp className="h-4 w-4 mr-2" />
-            Generate Test Signal
+            {isGeneratingSignal ? (
+              <>
+                <Activity className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <TestTube className="h-4 w-4 mr-2" />
+                Generate Test Signal
+              </>
+            )}
           </Button>
         </div>
 
-        {isActive && (
-          <div className="flex items-start gap-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5" />
-            <div>
-              <p className="text-red-300 text-sm font-medium">
-                REAL Trading Active
-              </p>
-              <p className="text-red-400 text-xs mt-1">
-                Strategy signals are being monitored for REAL trade execution every 5 minutes.
-                Use "Execute REAL Trade Now" to check for signals immediately or "Generate Test Signal" to create test data.
-                ⚠️ REAL trades will be placed on your OANDA account.
-              </p>
+        <Separator className="bg-slate-600" />
+
+        {/* Trading Control */}
+        <div className="space-y-3">
+          <h4 className="text-white font-medium">Trading Control</h4>
+          
+          <Button
+            onClick={onToggleTrading}
+            className={`w-full ${isActive ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}
+            size="lg"
+          >
+            {isActive ? (
+              <>
+                <Square className="h-4 w-4 mr-2" />
+                Stop Live Trading
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4 mr-2" />
+                Start Live Trading
+              </>
+            )}
+          </Button>
+        </div>
+
+        {/* Warning for Live Environment */}
+        {oandaConfig.environment === 'live' && (
+          <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-4 w-4 text-red-400" />
+              <span className="text-red-400 font-medium">Live Trading Mode</span>
             </div>
+            <p className="text-slate-400 text-sm">
+              You are trading with real money. All trades will use actual funds.
+            </p>
           </div>
         )}
+
+        {/* Info Box */}
+        <div className="text-xs text-slate-500 bg-slate-900/30 p-3 rounded">
+          <div className="mb-2 font-medium">How it works:</div>
+          <ul className="space-y-1">
+            <li>• "Execute REAL Trade Now" analyzes current market conditions immediately</li>
+            <li>• If your strategy detects a signal with ≥70% confidence, a real trade is placed</li>
+            <li>• "Generate Test Signal" creates sample data for testing the monitoring system</li>
+            <li>• All executions are logged and can be viewed in the diagnostics</li>
+          </ul>
+        </div>
       </CardContent>
     </Card>
   );
