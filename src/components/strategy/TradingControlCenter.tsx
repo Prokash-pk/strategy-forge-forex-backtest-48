@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -145,6 +146,19 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
     }
   };
 
+  const handleToggleForwardTesting = () => {
+    if (onToggleForwardTesting) {
+      onToggleForwardTesting();
+    } else {
+      console.warn('onToggleForwardTesting prop not provided');
+      toast({
+        title: "⚠️ Function Not Available",
+        description: "Browser trading toggle is not configured",
+        variant: "destructive",
+      });
+    }
+  };
+
   const hasActiveSessions = activeSessions.length > 0;
   const isConnected = connectionStatus === 'success';
 
@@ -174,6 +188,7 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
               size="sm"
               onClick={fetchActiveSessions}
               disabled={isLoading}
+              className="border-slate-600 text-slate-300 hover:text-white"
             >
               <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
@@ -202,7 +217,6 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
           </TabsList>
 
           <TabsContent value="browser-trading" className="mt-6 space-y-4">
-            {/* Browser-Based Trading Control */}
             <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-600">
               <h3 className="text-white font-medium mb-3 flex items-center gap-2">
                 <Monitor className="h-4 w-4" />
@@ -226,7 +240,7 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
                 </div>
                 
                 <Button
-                  onClick={onToggleForwardTesting}
+                  onClick={handleToggleForwardTesting}
                   disabled={!isConfigured}
                   className={isForwardTestingActive 
                     ? "bg-red-600 hover:bg-red-700" 
@@ -248,12 +262,10 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
               </div>
             </div>
 
-            {/* Browser Keepalive Control */}
             <BrowserKeepaliveControl />
           </TabsContent>
 
           <TabsContent value="server-trading" className="mt-6 space-y-4">
-            {/* Server-Side Trading Control */}
             <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-600">
               <h3 className="text-white font-medium mb-3 flex items-center gap-2">
                 <Cloud className="h-4 w-4" />
@@ -263,7 +275,6 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
                 Execute trades on our servers 24/7. No need to keep your browser open.
               </p>
 
-              {/* Active Sessions Display */}
               {hasActiveSessions && (
                 <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded">
                   <h4 className="text-emerald-400 font-medium mb-2">Active Sessions</h4>
@@ -278,7 +289,6 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
                 </div>
               )}
 
-              {/* Configuration Check */}
               {!isConfigured && (
                 <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded">
                   <div className="flex items-center gap-2 mb-2">
@@ -291,7 +301,6 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
                 </div>
               )}
 
-              {/* Control Buttons */}
               <div className="flex gap-3">
                 <Button
                   onClick={handleStartServerSideTrading}
@@ -339,7 +348,7 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
               strategy={strategy}
               environment={config?.environment || 'practice'}
               oandaConfig={config}
-              onToggleForwardTesting={onToggleForwardTesting || (() => {})}
+              onToggleForwardTesting={handleToggleForwardTesting}
             />
           </TabsContent>
 
