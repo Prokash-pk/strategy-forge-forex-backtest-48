@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface ServerTradingSession {
@@ -55,8 +54,8 @@ export class ServerForwardTestingService {
       // First, deactivate any existing sessions for this user/strategy combination
       await this.stopExistingUserSessions(userId);
       
-      // Create trading session in database
-      const sessionData: Partial<ServerTradingSession> = {
+      // Create trading session in database with all required fields
+      const sessionData = {
         user_id: userId,
         strategy_id: strategy.id || strategy.strategy_name,
         strategy_name: strategy.strategy_name,
@@ -71,12 +70,14 @@ export class ServerForwardTestingService {
         take_profit: strategy.take_profit || 80,
         max_position_size: strategy.max_position_size || 100000,
         reverse_signals: strategy.reverse_signals || false,
-        avoid_low_volume: strategy.avoid_low_volume || false
+        avoid_low_volume: strategy.avoid_low_volume || false,
+        is_active: true,
+        last_execution: new Date().toISOString()
       };
 
       const { data: session, error } = await supabase
         .from('trading_sessions')
-        .insert([sessionData])
+        .insert(sessionData)
         .select()
         .single();
 

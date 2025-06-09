@@ -53,10 +53,12 @@ export const useOANDAIntegration = () => {
 
   const {
     isForwardTestingActive,
-    setIsForwardTestingActive,
-    handleToggleForwardTesting: baseHandleToggleForwardTesting,
-    autoStartForwardTesting
-  } = useOANDAForwardTesting();
+    hasServerSession,
+    startForwardTesting,
+    stopForwardTesting,
+    toggleForwardTesting,
+    checkExistingServerSessions
+  } = useOANDAForwardTesting(selectedStrategy, config);
 
   const { 
     keepaliveService, 
@@ -147,7 +149,7 @@ export const useOANDAIntegration = () => {
 
   const handleToggleForwardTesting = useCallback(() => {
     console.log('🔄 Toggling forward testing...');
-    const result = baseHandleToggleForwardTesting(config, selectedStrategy, canStartTesting);
+    const result = toggleForwardTesting();
     
     // Log the action with browser keepalive info
     if (isForwardTestingActive) {
@@ -158,7 +160,7 @@ export const useOANDAIntegration = () => {
     }
     
     return result;
-  }, [baseHandleToggleForwardTesting, config, selectedStrategy, canStartTesting, isForwardTestingActive]);
+  }, [toggleForwardTesting, isForwardTestingActive]);
 
   const handleEnhancedTestConnection = useCallback(async () => {
     await handleTestConnection(config);
