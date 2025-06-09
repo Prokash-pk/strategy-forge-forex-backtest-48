@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface TradingSessionRecord {
@@ -72,23 +71,45 @@ export class ServerForwardTestingService {
         throw new Error('OANDA configuration is missing account ID or API key');
       }
 
-      // Check if session already exists first (faster query with shorter timeout)
+      // Quick check for existing sessions with shorter timeout
       console.log('🔍 Checking for existing sessions...');
-      const existingCheck = await Promise.race([
-        supabase
-          .from('trading_sessions')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('strategy_name', strategy.strategy_name)
-          .eq('is_active', true)
-          .maybeSingle(),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Check timeout')), 3000)
-        )
-      ]) as any;
+      try {
+        const { data: existingSession, error: checkError } = await Promise.race([
+          supabase
+            .from('trading_sessions')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('strategy_name', strategy.strategy_name)
+            .eq('is_active', true)
+            .limit(1)
+            .maybeSingle(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Check timeout')), 2000)
+          )
+        ]) as any;
 
-      if (existingCheck.data) {
-        throw new Error('A trading session already exists for this strategy');
+        if (controller.signal.aborted) {
+          throw new Error('Request was cancelled');
+        }
+
+        if (checkError && !checkError.message.includes('timeout')) {
+          console.error('Database check error:', checkError);
+          throw new Error(`Database error: ${checkError.message}`);
+        }
+
+        if (existingSession) {
+          throw new Error('A trading session already exists for this strategy');
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message.includes('timeout')) {
+            console.warn('⚠️ Existing session check timed out, proceeding anyway...');
+          } else if (error.message.includes('already exists') || error.message.includes('cancelled')) {
+            throw error;
+          } else {
+            console.warn('⚠️ Session check failed, proceeding anyway:', error.message);
+          }
+        }
       }
 
       const sessionData = {
@@ -117,7 +138,7 @@ export class ServerForwardTestingService {
         environment: sessionData.environment
       });
 
-      // Create session with optimized timeout
+      // Create session with reasonable timeout
       const { data: session, error } = await Promise.race([
         supabase
           .from('trading_sessions')
@@ -125,7 +146,7 @@ export class ServerForwardTestingService {
           .select()
           .single(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Database timeout after 10 seconds')), 10000)
+          setTimeout(() => reject(new Error('Insert timeout after 5 seconds')), 5000)
         )
       ]) as any;
 
@@ -157,12 +178,14 @@ export class ServerForwardTestingService {
     } catch (error) {
       console.error('❌ Failed to start server-side forward testing:', error);
       
-      if (error instanceof Error && error.message.includes('timeout')) {
-        throw new Error('Request timed out. The server may be busy, please try again in a moment.');
-      }
-      
-      if (error instanceof Error && error.message.includes('cancelled')) {
-        throw new Error('Request was cancelled due to duplicate operation');
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          throw new Error('Request timed out. Please check your connection and try again.');
+        }
+        
+        if (error.message.includes('cancelled')) {
+          throw new Error('Request was cancelled due to duplicate operation');
+        }
       }
       
       throw error;
@@ -196,7 +219,7 @@ export class ServerForwardTestingService {
           .eq('user_id', userId)
           .eq('is_active', true),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Stop timeout after 8 seconds')), 8000)
+          setTimeout(() => reject(new Error('Stop timeout after 5 seconds')), 5000)
         )
       ]) as any;
 
@@ -243,7 +266,7 @@ export class ServerForwardTestingService {
           .eq('is_active', true)
           .order('created_at', { ascending: false }),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Query timeout')), 6000)
+          setTimeout(() => reject(new Error('Query timeout')), 3000)
         )
       ]) as any;
 
