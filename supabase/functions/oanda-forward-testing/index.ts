@@ -138,10 +138,44 @@ serve(async (req) => {
   }
 })
 
+function convertSymbolToOANDA(symbol: string): string {
+  console.log(`🔧 Converting symbol to OANDA format: ${symbol}`)
+  
+  let oandaSymbol = symbol.toUpperCase()
+  
+  // Remove common suffixes first
+  if (oandaSymbol.includes('=X')) {
+    oandaSymbol = oandaSymbol.replace('=X', '')
+    console.log(`🔧 Removed =X suffix: ${symbol} → ${oandaSymbol}`)
+  }
+  
+  // Handle different formats
+  if (oandaSymbol.includes('/')) {
+    // Format like EUR/USD → EUR_USD
+    oandaSymbol = oandaSymbol.replace('/', '_')
+    console.log(`🔧 Replaced / with _: → ${oandaSymbol}`)
+  } else if (oandaSymbol.length === 6 && !oandaSymbol.includes('_')) {
+    // Format like EURUSD or USDJPY → EUR_USD or USD_JPY
+    const baseCurrency = oandaSymbol.slice(0, 3)
+    const quoteCurrency = oandaSymbol.slice(3)
+    oandaSymbol = `${baseCurrency}_${quoteCurrency}`
+    console.log(`🔧 Added underscore: → ${oandaSymbol}`)
+  }
+
+  // Validate final format
+  if (!oandaSymbol.includes('_') || oandaSymbol.length !== 7) {
+    console.warn(`⚠️ Potentially invalid OANDA symbol format: ${oandaSymbol}`)
+    console.log(`Expected format: XXX_YYY (7 characters with underscore)`)
+  }
+
+  console.log(`✅ Final OANDA symbol: ${oandaSymbol}`)
+  return oandaSymbol
+}
+
 async function fetchOANDAMarketData(config: OANDAConfig, symbol: string, timeframe: string) {
   try {
     // Convert symbol to OANDA format
-    const oandaSymbol = symbol.includes('/') ? symbol.replace('/', '_') : symbol
+    const oandaSymbol = convertSymbolToOANDA(symbol)
     
     // Convert timeframe to OANDA format
     const oandaTimeframe = timeframe === '1m' ? 'M1' : 
@@ -168,7 +202,9 @@ async function fetchOANDAMarketData(config: OANDAConfig, symbol: string, timefra
     )
 
     if (!response.ok) {
-      throw new Error(`OANDA API error: ${response.status}`)
+      const errorText = await response.text()
+      console.error(`❌ OANDA API error ${response.status}:`, errorText)
+      throw new Error(`OANDA API error: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
@@ -176,7 +212,7 @@ async function fetchOANDAMarketData(config: OANDAConfig, symbol: string, timefra
     return data
   } catch (error) {
     console.error('❌ Error fetching OANDA market data:', error)
-    return null
+    throw error
   }
 }
 
@@ -310,10 +346,13 @@ async function executeRealOANDATrade(config: OANDAConfig, strategy: StrategyConf
 
     const adjustedUnits = signal.signal === 'BUY' ? positionSize : -positionSize
 
+    // Convert symbol to OANDA format for trading
+    const oandaSymbol = convertSymbolToOANDA(strategy.symbol)
+
     const orderData = {
       order: {
         type: 'MARKET',
-        instrument: strategy.symbol.replace('/', '_'),
+        instrument: oandaSymbol,
         units: adjustedUnits.toString(),
         timeInForce: 'FOK',
         positionFill: 'DEFAULT',
