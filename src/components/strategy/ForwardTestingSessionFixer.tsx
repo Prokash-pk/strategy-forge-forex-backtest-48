@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +25,7 @@ const ForwardTestingSessionFixer: React.FC<ForwardTestingSessionFixerProps> = ({
       if (!user) throw new Error('User not authenticated');
 
       // Stop all active sessions by calling the server-side function
-      await ServerForwardTestingService.stopServerSideForwardTesting(user.id, 'all');
+      await ServerForwardTestingService.stopServerSideForwardTesting(user.id);
       
       toast({
         title: "Old Sessions Cleaned",

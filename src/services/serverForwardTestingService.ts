@@ -139,6 +139,34 @@ export class ServerForwardTestingService {
     }
   }
 
+  static async getTradingLogs(): Promise<any[]> {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('No authenticated user found');
+        return [];
+      }
+
+      const { data, error } = await supabase
+        .from('trading_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('timestamp', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('❌ Failed to get trading logs:', error);
+        return [];
+      }
+
+      console.log(`📊 Found ${data?.length || 0} trading logs`);
+      return data || [];
+    } catch (error) {
+      console.error('❌ Failed to get trading logs:', error);
+      return [];
+    }
+  }
+
   static async checkServerStatus(): Promise<{ isRunning: boolean; sessionsCount: number }> {
     try {
       const sessions = await this.getActiveSessions();
