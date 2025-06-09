@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,7 +15,8 @@ import {
   Settings,
   RefreshCw,
   Wifi,
-  AlertTriangle
+  AlertTriangle,
+  Bug
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,6 +24,7 @@ import { ServerForwardTestingService, type TradingSessionRecord } from '@/servic
 import OANDATradingDashboard from './dashboard/OANDATradingDashboard';
 import BrowserKeepaliveControl from './BrowserKeepaliveControl';
 import ForwardTestingDiagnostic from './ForwardTestingDiagnostic';
+import TradingDebugPanel from './TradingDebugPanel';
 
 interface TradingControlCenterProps {
   strategy?: any;
@@ -78,7 +79,17 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
   };
 
   const handleStartServerSideTrading = async () => {
+    console.log('🚀 BUTTON CLICKED: Start 24/7 Trading');
+    console.log('📊 Current state:', { 
+      strategy: strategy?.strategy_name, 
+      config: config?.environment,
+      isConfigured, 
+      user: user?.id,
+      isStarting 
+    });
+
     if (!strategy || !config || !isConfigured || !user || isStarting) {
+      console.log('❌ Validation failed');
       toast({
         title: "⚠️ Configuration Required",
         description: "Please configure your strategy and OANDA connection first",
@@ -90,7 +101,7 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
     setIsStarting(true);
     
     try {
-      console.log('🚀 Starting server-side trading session...');
+      console.log('🚀 Calling ServerForwardTestingService.startServerSideForwardTesting...');
       
       const session = await ServerForwardTestingService.startServerSideForwardTesting(
         strategy, 
@@ -98,7 +109,7 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
         user.id
       );
       
-      console.log('✅ Server-side session created:', session);
+      console.log('✅ ✅ ✅ SUCCESS! Server-side session created:', session);
       
       toast({
         title: "🚀 Server-Side Trading Started!",
@@ -106,12 +117,18 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
       });
 
       await fetchActiveSessions();
+      
     } catch (error) {
-      console.error('❌ Error starting server-side trading:', error);
+      console.error('❌ ❌ ❌ COMPLETE FAILURE starting server-side trading:', error);
       
       let errorMessage = "Could not start server-side trading session";
       if (error instanceof Error) {
         errorMessage = error.message;
+        console.error('❌ Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
       }
       
       toast({
@@ -121,6 +138,7 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
       });
     } finally {
       setIsStarting(false);
+      console.log('🏁 Start process completed, isStarting reset to false');
     }
   };
 
@@ -246,15 +264,15 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="browser-trading" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-slate-700">
-            <TabsTrigger value="browser-trading" className="data-[state=active]:bg-slate-600">
-              <Monitor className="h-4 w-4 mr-2" />
-              Browser Trading
-            </TabsTrigger>
+        <Tabs defaultValue="server-trading" className="w-full">
+          <TabsList className="grid w-full grid-cols-5 bg-slate-700">
             <TabsTrigger value="server-trading" className="data-[state=active]:bg-slate-600">
               <Server className="h-4 w-4 mr-2" />
               24/7 Server
+            </TabsTrigger>
+            <TabsTrigger value="browser-trading" className="data-[state=active]:bg-slate-600">
+              <Monitor className="h-4 w-4 mr-2" />
+              Browser Trading
             </TabsTrigger>
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-600">
               <Activity className="h-4 w-4 mr-2" />
@@ -264,56 +282,11 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
               <Settings className="h-4 w-4 mr-2" />
               Diagnostics
             </TabsTrigger>
+            <TabsTrigger value="debug" className="data-[state=active]:bg-slate-600">
+              <Bug className="h-4 w-4 mr-2" />
+              Debug
+            </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="browser-trading" className="mt-6 space-y-4">
-            <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-600">
-              <h3 className="text-white font-medium mb-3 flex items-center gap-2">
-                <Monitor className="h-4 w-4" />
-                Browser-Based Live Trading
-              </h3>
-              <p className="text-slate-400 text-sm mb-4">
-                Execute trades directly from your browser. Requires keeping the browser tab open.
-              </p>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Badge variant={localForwardTestingActive ? "default" : "secondary"} 
-                         className={localForwardTestingActive ? "bg-emerald-600" : "bg-slate-600"}>
-                    {localForwardTestingActive ? "Active" : "Inactive"}
-                  </Badge>
-                  {strategy && (
-                    <span className="text-sm text-slate-400">
-                      Strategy: {strategy.strategy_name}
-                    </span>
-                  )}
-                </div>
-                
-                <Button
-                  onClick={handleToggleForwardTesting}
-                  disabled={!isConfigured}
-                  className={localForwardTestingActive 
-                    ? "bg-red-600 hover:bg-red-700" 
-                    : "bg-emerald-600 hover:bg-emerald-700"
-                  }
-                >
-                  {localForwardTestingActive ? (
-                    <>
-                      <Square className="h-4 w-4 mr-2" />
-                      Stop Trading
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Start Trading
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <BrowserKeepaliveControl />
-          </TabsContent>
 
           <TabsContent value="server-trading" className="mt-6 space-y-4">
             <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-600">
@@ -392,6 +365,55 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
             </div>
           </TabsContent>
 
+          <TabsContent value="browser-trading" className="mt-6 space-y-4">
+            <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-600">
+              <h3 className="text-white font-medium mb-3 flex items-center gap-2">
+                <Monitor className="h-4 w-4" />
+                Browser-Based Live Trading
+              </h3>
+              <p className="text-slate-400 text-sm mb-4">
+                Execute trades directly from your browser. Requires keeping the browser tab open.
+              </p>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge variant={localForwardTestingActive ? "default" : "secondary"} 
+                         className={localForwardTestingActive ? "bg-emerald-600" : "bg-slate-600"}>
+                    {localForwardTestingActive ? "Active" : "Inactive"}
+                  </Badge>
+                  {strategy && (
+                    <span className="text-sm text-slate-400">
+                      Strategy: {strategy.strategy_name}
+                    </span>
+                  )}
+                </div>
+                
+                <Button
+                  onClick={handleToggleForwardTesting}
+                  disabled={!isConfigured}
+                  className={localForwardTestingActive 
+                    ? "bg-red-600 hover:bg-red-700" 
+                    : "bg-emerald-600 hover:bg-emerald-700"
+                  }
+                >
+                  {localForwardTestingActive ? (
+                    <>
+                      <Square className="h-4 w-4 mr-2" />
+                      Stop Trading
+                    </>
+                  ) : (
+                    <>
+                      <Play className="h-4 w-4 mr-2" />
+                      Start Trading
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <BrowserKeepaliveControl />
+          </TabsContent>
+
           <TabsContent value="dashboard" className="mt-6">
             <OANDATradingDashboard
               isActive={combinedTradingActive}
@@ -404,6 +426,13 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
 
           <TabsContent value="diagnostics" className="mt-6">
             <ForwardTestingDiagnostic />
+          </TabsContent>
+
+          <TabsContent value="debug" className="mt-6">
+            <TradingDebugPanel 
+              strategy={strategy} 
+              config={config} 
+            />
           </TabsContent>
         </Tabs>
       </CardContent>

@@ -43,50 +43,48 @@ export class ServerForwardTestingService {
     config: any,
     userId: string
   ): Promise<TradingSessionRecord> {
-    const requestId = `start-${userId}-${strategy.id || 'default'}`;
-    
-    // Cancel any existing request for the same operation
-    if (this.activeRequests.has(requestId)) {
-      console.log('🔄 Cancelling existing start request...');
-      this.activeRequests.get(requestId)?.abort();
+    console.log('🚀 STARTING SERVER-SIDE TRADING...');
+    console.log('📊 Strategy:', strategy?.strategy_name);
+    console.log('🔧 Config:', { environment: config?.environment, accountId: config?.accountId });
+    console.log('👤 User ID:', userId);
+
+    // Basic validation first
+    if (!strategy || !config || !userId) {
+      console.error('❌ Missing required parameters');
+      throw new Error('Missing required parameters for server-side trading');
     }
 
-    const controller = new AbortController();
-    this.activeRequests.set(requestId, controller);
+    if (!strategy.strategy_name || !strategy.symbol || !strategy.timeframe) {
+      console.error('❌ Strategy missing required fields');
+      throw new Error('Strategy is missing required fields (name, symbol, timeframe)');
+    }
+
+    if (!config.accountId || !config.apiKey) {
+      console.error('❌ OANDA config missing credentials');
+      throw new Error('OANDA configuration is missing account ID or API key');
+    }
 
     try {
-      console.log('🚀 Starting server-side forward testing session...');
-      console.log('📊 Strategy:', strategy?.strategy_name);
-      console.log('🔧 Config environment:', config?.environment);
-      console.log('👤 User ID:', userId);
-      
-      if (!strategy || !config || !userId) {
-        throw new Error('Missing required parameters for server-side trading');
-      }
-
-      if (!strategy.strategy_name || !strategy.symbol || !strategy.timeframe) {
-        throw new Error('Strategy is missing required fields (name, symbol, timeframe)');
-      }
-
-      if (!config.accountId || !config.apiKey) {
-        throw new Error('OANDA configuration is missing account ID or API key');
-      }
-
-      // Simplified check for existing sessions
-      console.log('🔍 Checking for existing sessions...');
-      const { data: existingSession } = await supabase
+      // Quick existing session check - much simpler query
+      console.log('🔍 Quick check for existing sessions...');
+      const { count, error: countError } = await supabase
         .from('trading_sessions')
-        .select('id')
+        .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('strategy_name', strategy.strategy_name)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
+        .eq('is_active', true);
 
-      if (existingSession) {
+      if (countError) {
+        console.error('❌ Error checking existing sessions:', countError);
+        throw new Error('Database error checking existing sessions');
+      }
+
+      if (count && count > 0) {
+        console.log('⚠️ Found existing active session');
         throw new Error('A trading session already exists for this strategy');
       }
 
+      // Create session data
       const sessionData = {
         user_id: userId,
         strategy_id: strategy.id || crypto.randomUUID(),
@@ -110,9 +108,11 @@ export class ServerForwardTestingService {
       console.log('📝 Creating session with data:', {
         strategy_name: sessionData.strategy_name,
         symbol: sessionData.symbol,
-        environment: sessionData.environment
+        environment: sessionData.environment,
+        user_id: sessionData.user_id
       });
 
+      // Insert session
       const { data: session, error } = await supabase
         .from('trading_sessions')
         .insert([sessionData])
@@ -120,47 +120,39 @@ export class ServerForwardTestingService {
         .single();
 
       if (error) {
-        console.error('❌ Supabase error creating session:', error);
+        console.error('❌ Database error creating session:', error);
         
         if (error.code === '23505') {
           throw new Error('A trading session already exists for this strategy');
         } else if (error.code === '23503') {
           throw new Error('Invalid user or strategy reference');
-        } else if (error.message?.includes('permission')) {
-          throw new Error('Database permission denied - please check your authentication');
         } else {
           throw new Error(`Database error: ${error.message}`);
         }
       }
 
       if (!session) {
+        console.error('❌ No session data returned');
         throw new Error('Session created but no data returned');
       }
 
-      console.log('✅ Server-side trading session created successfully:', session.id);
+      console.log('✅ ✅ ✅ SERVER-SIDE TRADING SESSION CREATED SUCCESSFULLY! ✅ ✅ ✅');
+      console.log('🆔 Session ID:', session.id);
+      console.log('📊 Strategy:', session.strategy_name);
+      console.log('💱 Symbol:', session.symbol);
+      console.log('🌍 Environment:', session.environment);
+      
       return session as TradingSessionRecord;
 
     } catch (error) {
-      console.error('❌ Failed to start server-side forward testing:', error);
+      console.error('❌ FAILED TO START SERVER-SIDE TRADING:', error);
       throw error;
-    } finally {
-      this.activeRequests.delete(requestId);
     }
   }
 
   static async stopServerSideForwardTesting(userId: string): Promise<void> {
-    const requestId = `stop-${userId}`;
-    
-    // Cancel any existing stop request
-    if (this.activeRequests.has(requestId)) {
-      this.activeRequests.get(requestId)?.abort();
-    }
-
-    const controller = new AbortController();
-    this.activeRequests.set(requestId, controller);
-
     try {
-      console.log('⏹️ Stopping server-side forward testing for user:', userId);
+      console.log('⏹️ Stopping server-side trading for user:', userId);
       
       if (!userId) {
         throw new Error('User ID is required to stop trading sessions');
@@ -173,7 +165,7 @@ export class ServerForwardTestingService {
         .eq('is_active', true);
 
       if (error) {
-        console.error('❌ Failed to stop server-side trading sessions:', error);
+        console.error('❌ Failed to stop sessions:', error);
         throw new Error(`Failed to stop sessions: ${error.message}`);
       }
 
@@ -182,8 +174,6 @@ export class ServerForwardTestingService {
     } catch (error) {
       console.error('❌ Failed to stop server-side trading:', error);
       throw error;
-    } finally {
-      this.activeRequests.delete(requestId);
     }
   }
 
@@ -205,7 +195,7 @@ export class ServerForwardTestingService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('❌ Failed to get active server sessions:', error);
+        console.error('❌ Failed to get active sessions:', error);
         throw new Error(`Failed to fetch sessions: ${error.message}`);
       }
 
@@ -214,7 +204,7 @@ export class ServerForwardTestingService {
       
       return sessions;
     } catch (error) {
-      console.error('❌ Failed to get active server sessions:', error);
+      console.error('❌ Failed to get active sessions:', error);
       return [];
     }
   }
