@@ -1,4 +1,3 @@
-
 import { OANDAConfig, StrategySettings } from '@/types/oanda';
 import { StrategyTestRunner } from './testRunner';
 import { TestLogger } from './testLogger';
@@ -19,8 +18,28 @@ export class AutoStrategyTester {
   static getInstance(): AutoStrategyTester {
     if (!AutoStrategyTester.instance) {
       AutoStrategyTester.instance = new AutoStrategyTester();
+      // Bind to window immediately when instance is created
+      AutoStrategyTester.instance.bindToWindow();
     }
     return AutoStrategyTester.instance;
+  }
+
+  // Ensure global bindings are set up
+  private bindToWindow() {
+    if (typeof window !== 'undefined') {
+      (window as any).autoStrategyTester = this;
+      (window as any).runStrategyLogger = () => this.manualConsoleTest();
+      (window as any).testLiveTradingCycle = () => ConsoleLogger.runConsoleLogCycle();
+      (window as any).liveConsoleLogger = ConsoleLogger;
+      (window as any).setLogFrequency = (minutes: number) => this.setLogFrequency(minutes);
+      
+      console.log('🧪 Debug functions available:');
+      console.log('   - autoStrategyTester.getStatus()');
+      console.log('   - testLiveTradingCycle()');
+      console.log('   - runStrategyLogger()');
+      console.log('   - liveConsoleLogger.getStatus()');
+      console.log('   - setLogFrequency(minutes)');
+    }
   }
 
   async startAutoTesting(
@@ -49,6 +68,9 @@ export class AutoStrategyTester {
     console.log('⏰ Test Interval:', intervalSeconds, 'seconds');
     console.log('📝 Console logging enabled - detailed evaluations every 5 minutes');
 
+    // Ensure global bindings are available
+    this.bindToWindow();
+
     // Initial test (delayed to avoid startup spam)
     setTimeout(async () => {
       if (this.isRunning && this.currentConfig && this.currentStrategy) {
@@ -65,13 +87,6 @@ export class AutoStrategyTester {
 
     // Start the console logging cycle (every 5 minutes)
     this.startConsoleLogging();
-
-    // Bind to window for manual testing
-    if (typeof window !== 'undefined') {
-      (window as any).runStrategyLogger = () => this.manualConsoleTest();
-      (window as any).autoStrategyTester = this;
-      console.log('🧪 Manual test available: runStrategyLogger()');
-    }
   }
 
   private startConsoleLogging() {
@@ -136,11 +151,8 @@ export class AutoStrategyTester {
     console.log('🛑 AutoStrategyTester stopped');
     console.log('🛑 Console logging stopped');
 
-    // Clean up window bindings
-    if (typeof window !== 'undefined') {
-      delete (window as any).runStrategyLogger;
-      delete (window as any).autoStrategyTester;
-    }
+    // Keep global bindings for debugging even when stopped
+    this.bindToWindow();
   }
 
   async runSingleTest(config: OANDAConfig, strategy: StrategySettings): Promise<AutoTestResult> {
@@ -156,7 +168,7 @@ export class AutoStrategyTester {
       Math.max(0, this.logFrequencyMs - (Date.now() - this.lastLogTime)) : 
       this.logFrequencyMs;
     
-    return {
+    const status = {
       isRunning: this.isRunning,
       hasInterval: !!this.testInterval,
       hasLoggingInterval: !!this.loggingInterval,
@@ -164,8 +176,16 @@ export class AutoStrategyTester {
       currentSymbol: this.currentStrategy?.symbol || null,
       isForwardTestingActive: this.isForwardTestingActive,
       nextLogInSeconds: Math.floor(nextLogIn / 1000),
-      logFrequencyMinutes: this.logFrequencyMs / (60 * 1000)
+      logFrequencyMinutes: this.logFrequencyMs / (60 * 1000),
+      currentConfig: this.currentConfig ? {
+        accountId: this.currentConfig.accountId,
+        environment: this.currentConfig.environment,
+        hasApiKey: !!this.currentConfig.apiKey
+      } : null
     };
+
+    console.log('🔍 AutoStrategyTester Status:', status);
+    return status;
   }
 
   // Update forward testing status
@@ -208,12 +228,10 @@ export const runStrategyLogger = () => {
   return tester.manualConsoleTest();
 };
 
-// Global binding for manual testing
+// Ensure global bindings are set up when module loads
 if (typeof window !== 'undefined') {
-  (window as any).testStrategyLogger = runStrategyLogger;
-  (window as any).setLogFrequency = (minutes: number) => {
-    const tester = AutoStrategyTester.getInstance();
-    tester.setLogFrequency(minutes);
-  };
-  console.log('🧪 Global test functions available: testStrategyLogger(), setLogFrequency(minutes)');
+  // Initialize the singleton and bind to window
+  const tester = AutoStrategyTester.getInstance();
+  
+  console.log('🧪 AutoStrategyTester global bindings initialized');
 }
