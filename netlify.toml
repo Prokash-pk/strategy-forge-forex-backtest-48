@@ -1,0 +1,23 @@
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[functions]
+  directory = "netlify/functions"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Netlify scheduled functions configuration
+[build.environment]
+  NODE_VERSION = "18"
+
+# Function settings
+[functions."trading-executor"]
+  schedule = "*/5 * * * *"
+  
+[functions."trading-status"]
+  methods = ["GET", "POST", "OPTIONS"]

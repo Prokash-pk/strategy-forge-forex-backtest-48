@@ -10,6 +10,7 @@ import OANDATradingDashboard from './OANDATradingDashboard';
 import OANDAPriceMonitorControl from './OANDAPriceMonitorControl';
 import ForwardTestingDiagnostic from './ForwardTestingDiagnostic';
 import BrowserKeepaliveControl from './BrowserKeepaliveControl';
+import ServerSideTradingControl from './ServerSideTradingControl';
 import { useOANDAIntegration } from '@/hooks/useOANDAIntegration';
 
 const OANDAIntegration: React.FC = () => {
@@ -86,7 +87,7 @@ const OANDAIntegration: React.FC = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="config" className="w-full">
-            <TabsList className="grid w-full grid-cols-7 bg-slate-700">
+            <TabsList className="grid w-full grid-cols-8 bg-slate-700">
               <TabsTrigger value="config" className="data-[state=active]:bg-slate-600">
                 Configuration
               </TabsTrigger>
@@ -101,6 +102,9 @@ const OANDAIntegration: React.FC = () => {
               </TabsTrigger>
               <TabsTrigger value="keepalive" className="data-[state=active]:bg-slate-600">
                 Keepalive
+              </TabsTrigger>
+              <TabsTrigger value="serverside" className="data-[state=active]:bg-slate-600">
+                24/7 Server
               </TabsTrigger>
               <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-600">
                 Dashboard
@@ -173,6 +177,14 @@ const OANDAIntegration: React.FC = () => {
 
             <TabsContent value="keepalive" className="mt-6">
               <BrowserKeepaliveControl />
+            </TabsContent>
+
+            <TabsContent value="serverside" className="mt-6">
+              <ServerSideTradingControl
+                strategy={selectedStrategy}
+                config={config}
+                isConfigured={Boolean(isConfigured)}
+              />
             </TabsContent>
 
             <TabsContent value="dashboard" className="mt-6">
