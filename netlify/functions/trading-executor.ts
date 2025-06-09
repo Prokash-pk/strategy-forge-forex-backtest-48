@@ -5,6 +5,22 @@ const handler = schedule('*/5 * * * *', async (event, context) => {
   console.log('🚀 Starting scheduled trading execution at:', new Date().toISOString());
   
   try {
+    // Check market hours first
+    const marketStatus = getMarketStatus();
+    console.log('📊 Market Status:', formatMarketStatus(marketStatus));
+    
+    if (!marketStatus.isOpen) {
+      console.log('🕒 Markets are closed, skipping execution');
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ 
+          message: 'Markets closed - execution skipped',
+          marketStatus: formatMarketStatus(marketStatus),
+          nextExecution: marketStatus.nextOpen?.toISOString()
+        })
+      };
+    }
+    
     // Get all active trading sessions from database
     const activeSessions = await getActiveTradingSessions();
     
@@ -18,9 +34,9 @@ const handler = schedule('*/5 * * * *', async (event, context) => {
 
     console.log(`🎯 Processing ${activeSessions.length} active trading sessions`);
     
-    // Process each active session
+    // Process each active session with market hours consideration
     const results = await Promise.allSettled(
-      activeSessions.map(session => processTradinSession(session))
+      activeSessions.map(session => processTradinSession(session, marketStatus))
     );
     
     // Log results
@@ -37,6 +53,7 @@ const handler = schedule('*/5 * * * *', async (event, context) => {
       body: JSON.stringify({
         message: 'Trading execution completed',
         processedSessions: activeSessions.length,
+        marketStatus: formatMarketStatus(marketStatus),
         timestamp: new Date().toISOString()
       })
     };
@@ -72,16 +89,29 @@ async function getActiveTradingSessions() {
       risk_per_trade: 2.0,
       stop_loss: 40,
       take_profit: 80,
-      reverse_signals: false
+      reverse_signals: false,
+      avoid_low_volume: false
     }
   ];
 }
 
 // Process individual trading session
-async function processTradinSession(session) {
+async function processTradinSession(session, marketStatus) {
   console.log(`🔄 Processing session for ${session.symbol} - ${session.timeframe}`);
   
   try {
+    // Check if we should trade based on market conditions
+    if (!shouldExecuteTrade(marketStatus, session)) {
+      console.log(`⏸️ Skipping trade for ${session.symbol} due to market conditions`);
+      return {
+        sessionId: session.id,
+        symbol: session.symbol,
+        action: 'SKIPPED_MARKET_CONDITIONS',
+        reason: formatMarketStatus(marketStatus),
+        timestamp: new Date().toISOString()
+      };
+    }
+    
     // 1. Fetch latest market data from OANDA
     const marketData = await fetchOANDAMarketData(session);
     
@@ -104,6 +134,7 @@ async function processTradinSession(session) {
           signal: latestSignal,
           direction,
           tradeResult,
+          marketStatus: formatMarketStatus(marketStatus),
           timestamp: new Date().toISOString()
         });
         
@@ -112,7 +143,8 @@ async function processTradinSession(session) {
           symbol: session.symbol,
           action: 'TRADE_EXECUTED',
           direction,
-          tradeResult
+          tradeResult,
+          marketStatus: formatMarketStatus(marketStatus)
         };
       }
     }
@@ -285,6 +317,56 @@ async function logTradingActivity(session, activity) {
   
   // This would save to your Supabase database
   // For now, just console logging
+}
+
+// Market hours utility functions (simplified for server-side)
+function getMarketStatus() {
+  const now = new Date();
+  const dayOfWeek = now.getUTCDay();
+  const hourUTC = now.getUTCHours();
+  
+  // Simple forex market hours check (Sunday 22:00 UTC to Friday 22:00 UTC)
+  const isWeekend = dayOfWeek === 6 || (dayOfWeek === 0 && hourUTC < 22);
+  const isFridayClose = dayOfWeek === 5 && hourUTC >= 22;
+  
+  const isOpen = !isWeekend && !isFridayClose;
+  
+  return {
+    isOpen,
+    activeSessions: isOpen ? ['Global'] : [],
+    volume: getVolumeLevel(hourUTC)
+  };
+}
+
+function getVolumeLevel(hourUTC: number): 'low' | 'medium' | 'high' {
+  // London-NY overlap (12:00-17:00 UTC) = high volume
+  if (hourUTC >= 12 && hourUTC < 17) return 'high';
+  
+  // Tokyo-London overlap (7:00-9:00 UTC) = high volume  
+  if (hourUTC >= 7 && hourUTC < 9) return 'high';
+  
+  // Major session hours = medium volume
+  if ((hourUTC >= 8 && hourUTC < 17) || (hourUTC >= 0 && hourUTC < 9)) return 'medium';
+  
+  return 'low';
+}
+
+function shouldExecuteTrade(marketStatus, session) {
+  if (!marketStatus.isOpen) return false;
+  
+  // Avoid trading during very low volume periods
+  if (marketStatus.volume === 'low' && session.avoid_low_volume) {
+    return false;
+  }
+  
+  return true;
+}
+
+function formatMarketStatus(status) {
+  if (!status.isOpen) {
+    return 'Markets Closed';
+  }
+  return `Markets Open (${status.volume} volume)`;
 }
 
 export { handler };

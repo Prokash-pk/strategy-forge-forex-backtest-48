@@ -1,12 +1,13 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import AutoTradeExecutor from '../AutoTradeExecutor';
-import AutoStrategyTesterComponent from '../AutoStrategyTester';
-import LiveTradeMonitor from '../LiveTradeMonitor';
 import TradingOverviewTab from './TradingOverviewTab';
-import PositionsTable from '../PositionsTable';
 import TradingDiagnosticsTab from './TradingDiagnosticsTab';
+import EnhancedTradeExecutor from '../EnhancedTradeExecutor';
+import LiveTradeMonitor from '../LiveTradeMonitor';
+import PositionsTable from '../PositionsTable';
+import MarketHoursIndicator from '../MarketHoursIndicator';
+import DataConsistencyChecker from '../DataConsistencyChecker';
 
 interface TradingDashboardTabsProps {
   strategy: any;
@@ -42,13 +43,10 @@ const TradingDashboardTabs: React.FC<TradingDashboardTabsProps> = ({
   onRefreshAccountData
 }) => {
   return (
-    <Tabs defaultValue="executor" className="w-full">
+    <Tabs defaultValue="execution" className="w-full">
       <TabsList className="grid w-full grid-cols-6 bg-slate-700">
-        <TabsTrigger value="executor" className="data-[state=active]:bg-slate-600">
-          Auto-Executor
-        </TabsTrigger>
-        <TabsTrigger value="tester" className="data-[state=active]:bg-slate-600">
-          Auto-Tester
+        <TabsTrigger value="execution" className="data-[state=active]:bg-slate-600">
+          Execution
         </TabsTrigger>
         <TabsTrigger value="monitor" className="data-[state=active]:bg-slate-600">
           Live Monitor
@@ -59,30 +57,27 @@ const TradingDashboardTabs: React.FC<TradingDashboardTabsProps> = ({
         <TabsTrigger value="positions" className="data-[state=active]:bg-slate-600">
           Positions
         </TabsTrigger>
+        <TabsTrigger value="market" className="data-[state=active]:bg-slate-600">
+          Market
+        </TabsTrigger>
         <TabsTrigger value="diagnostics" className="data-[state=active]:bg-slate-600">
           Diagnostics
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="executor" className="mt-6">
-        <AutoTradeExecutor
-          strategy={strategy}
-          oandaConfig={oandaConfig}
-          isActive={isActive}
-          onToggleTrading={onToggleForwardTesting}
-        />
-      </TabsContent>
-
-      <TabsContent value="tester" className="mt-6">
-        <AutoStrategyTesterComponent
-          strategy={strategy}
-          oandaConfig={oandaConfig}
-          isConfigured={isConfigured}
-        />
+      <TabsContent value="execution" className="mt-6">
+        <div className="space-y-6">
+          <EnhancedTradeExecutor
+            strategy={strategy}
+            oandaConfig={oandaConfig}
+            isActive={isActive}
+            onToggleTrading={onToggleForwardTesting}
+          />
+        </div>
       </TabsContent>
 
       <TabsContent value="monitor" className="mt-6">
-        <LiveTradeMonitor
+        <LiveTradeMonitor 
           isActive={isActive}
           strategy={strategy}
         />
@@ -109,6 +104,16 @@ const TradingDashboardTabs: React.FC<TradingDashboardTabsProps> = ({
           closingPositions={new Set()}
           onClosePosition={() => {}}
         />
+      </TabsContent>
+
+      <TabsContent value="market" className="mt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <MarketHoursIndicator />
+          <DataConsistencyChecker
+            strategy={strategy}
+            oandaConfig={oandaConfig}
+          />
+        </div>
       </TabsContent>
 
       <TabsContent value="diagnostics" className="mt-6">
