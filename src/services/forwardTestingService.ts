@@ -16,6 +16,11 @@ interface ForwardTestingSession {
   last_execution: string;
 }
 
+interface TradeData {
+  success?: boolean;
+  [key: string]: any;
+}
+
 export class ForwardTestingService {
   static async startSession(
     userId: string,
@@ -162,10 +167,21 @@ export class ForwardTestingService {
         return null;
       }
 
+      // Safely handle trade_data which could be Json (string, number, boolean, object, null)
+      const successfulTrades = logs?.filter(log => {
+        const tradeData = log.trade_data as TradeData | null;
+        return tradeData && typeof tradeData === 'object' && tradeData.success === true;
+      }).length || 0;
+
+      const failedTrades = logs?.filter(log => {
+        const tradeData = log.trade_data as TradeData | null;
+        return tradeData && typeof tradeData === 'object' && tradeData.success === false;
+      }).length || 0;
+
       return {
         totalTrades: logs?.length || 0,
-        successfulTrades: logs?.filter(log => log.trade_data?.success).length || 0,
-        failedTrades: logs?.filter(log => !log.trade_data?.success).length || 0,
+        successfulTrades,
+        failedTrades,
         lastExecution: sessions?.[0]?.last_execution || null
       };
     } catch (error) {
