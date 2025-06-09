@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,6 +9,7 @@ import OANDAForwardTestingControl from './OANDAForwardTestingControl';
 import OANDATradingDashboard from './OANDATradingDashboard';
 import OANDAPriceMonitorControl from './OANDAPriceMonitorControl';
 import ForwardTestingDiagnostic from './ForwardTestingDiagnostic';
+import BrowserKeepaliveControl from './BrowserKeepaliveControl';
 import { useOANDAIntegration } from '@/hooks/useOANDAIntegration';
 
 const OANDAIntegration: React.FC = () => {
@@ -86,7 +86,7 @@ const OANDAIntegration: React.FC = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="config" className="w-full">
-            <TabsList className="grid w-full grid-cols-6 bg-slate-700">
+            <TabsList className="grid w-full grid-cols-7 bg-slate-700">
               <TabsTrigger value="config" className="data-[state=active]:bg-slate-600">
                 Configuration
               </TabsTrigger>
@@ -98,6 +98,9 @@ const OANDAIntegration: React.FC = () => {
               </TabsTrigger>
               <TabsTrigger value="control" className="data-[state=active]:bg-slate-600">
                 Control
+              </TabsTrigger>
+              <TabsTrigger value="keepalive" className="data-[state=active]:bg-slate-600">
+                Keepalive
               </TabsTrigger>
               <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-600">
                 Dashboard
@@ -166,6 +169,10 @@ const OANDAIntegration: React.FC = () => {
                 onToggleForwardTesting={handleToggleForwardTesting}
                 onShowGuide={handleShowGuide}
               />
+            </TabsContent>
+
+            <TabsContent value="keepalive" className="mt-6">
+              <BrowserKeepaliveControl />
             </TabsContent>
 
             <TabsContent value="dashboard" className="mt-6">
