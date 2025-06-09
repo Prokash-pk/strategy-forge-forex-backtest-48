@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface TradingSessionRecord {
@@ -85,15 +84,32 @@ export class ServerForwardTestingService {
         environment: sessionData.environment
       });
 
-      const { data: session, error } = await supabase
+      // Add timeout protection to the database operation
+      const insertPromise = supabase
         .from('trading_sessions')
         .insert([sessionData])
         .select()
         .single();
 
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database operation timeout after 15 seconds')), 15000);
+      });
+
+      const { data: session, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
+
       if (error) {
         console.error('❌ Supabase error creating session:', error);
-        throw new Error(`Database error: ${error.message}`);
+        
+        // Provide more specific error messages
+        if (error.code === '23505') {
+          throw new Error('A trading session already exists for this strategy');
+        } else if (error.code === '23503') {
+          throw new Error('Invalid user or strategy reference');
+        } else if (error.message?.includes('permission')) {
+          throw new Error('Database permission denied - please check your authentication');
+        } else {
+          throw new Error(`Database error: ${error.message}`);
+        }
       }
 
       if (!session) {
@@ -106,15 +122,9 @@ export class ServerForwardTestingService {
     } catch (error) {
       console.error('❌ Failed to start server-side forward testing:', error);
       
-      // Provide more specific error messages
-      if (error instanceof Error) {
-        if (error.message.includes('duplicate key')) {
-          throw new Error('A trading session already exists for this strategy');
-        } else if (error.message.includes('foreign key')) {
-          throw new Error('Invalid user or strategy reference');
-        } else if (error.message.includes('permission')) {
-          throw new Error('Database permission denied - please check your authentication');
-        }
+      // Handle timeout errors specifically
+      if (error instanceof Error && error.message.includes('timeout')) {
+        throw new Error('Request timed out. Please check your connection and try again.');
       }
       
       throw error;
@@ -129,11 +139,18 @@ export class ServerForwardTestingService {
         throw new Error('User ID is required to stop trading sessions');
       }
 
-      const { error } = await supabase
+      // Add timeout protection
+      const updatePromise = supabase
         .from('trading_sessions')
         .update({ is_active: false })
         .eq('user_id', userId)
         .eq('is_active', true);
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Stop operation timeout after 10 seconds')), 10000);
+      });
+
+      const { error } = await Promise.race([updatePromise, timeoutPromise]) as any;
 
       if (error) {
         console.error('❌ Failed to stop server-side trading sessions:', error);
@@ -144,6 +161,11 @@ export class ServerForwardTestingService {
 
     } catch (error) {
       console.error('❌ Failed to stop server-side trading:', error);
+      
+      if (error instanceof Error && error.message.includes('timeout')) {
+        throw new Error('Stop request timed out. Please try again.');
+      }
+      
       throw error;
     }
   }
