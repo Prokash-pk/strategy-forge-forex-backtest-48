@@ -35,11 +35,25 @@ export interface ServerTradingSession {
 }
 
 export class ServerForwardTestingService {
+  private static activeRequests = new Map<string, AbortController>();
+
   static async startServerSideForwardTesting(
     strategy: any,
     config: any,
     userId: string
   ): Promise<TradingSessionRecord> {
+    // Create a unique request ID to prevent duplicates
+    const requestId = `start-${userId}-${strategy.id || 'default'}`;
+    
+    // Cancel any existing request for the same operation
+    if (this.activeRequests.has(requestId)) {
+      console.log('🔄 Cancelling existing start request...');
+      this.activeRequests.get(requestId)?.abort();
+    }
+
+    const controller = new AbortController();
+    this.activeRequests.set(requestId, controller);
+
     try {
       console.log('🚀 Starting server-side forward testing session...');
       console.log('📊 Strategy:', strategy?.strategy_name);
@@ -56,6 +70,25 @@ export class ServerForwardTestingService {
 
       if (!config.accountId || !config.apiKey) {
         throw new Error('OANDA configuration is missing account ID or API key');
+      }
+
+      // Check if session already exists first (faster query)
+      console.log('🔍 Checking for existing sessions...');
+      const existingCheck = await Promise.race([
+        supabase
+          .from('trading_sessions')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('strategy_name', strategy.strategy_name)
+          .eq('is_active', true)
+          .maybeSingle(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Check timeout')), 5000)
+        )
+      ]) as any;
+
+      if (existingCheck.data) {
+        throw new Error('A trading session already exists for this strategy');
       }
 
       const sessionData = {
@@ -84,23 +117,25 @@ export class ServerForwardTestingService {
         environment: sessionData.environment
       });
 
-      // Add timeout protection to the database operation
-      const insertPromise = supabase
-        .from('trading_sessions')
-        .insert([sessionData])
-        .select()
-        .single();
+      // Faster database operation with shorter timeout
+      const { data: session, error } = await Promise.race([
+        supabase
+          .from('trading_sessions')
+          .insert([sessionData])
+          .select()
+          .single(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Database timeout after 8 seconds')), 8000)
+        )
+      ]) as any;
 
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Database operation timeout after 15 seconds')), 15000);
-      });
-
-      const { data: session, error } = await Promise.race([insertPromise, timeoutPromise]) as any;
+      if (controller.signal.aborted) {
+        throw new Error('Request was cancelled');
+      }
 
       if (error) {
         console.error('❌ Supabase error creating session:', error);
         
-        // Provide more specific error messages
         if (error.code === '23505') {
           throw new Error('A trading session already exists for this strategy');
         } else if (error.code === '23503') {
@@ -122,16 +157,31 @@ export class ServerForwardTestingService {
     } catch (error) {
       console.error('❌ Failed to start server-side forward testing:', error);
       
-      // Handle timeout errors specifically
       if (error instanceof Error && error.message.includes('timeout')) {
         throw new Error('Request timed out. Please check your connection and try again.');
       }
       
+      if (error instanceof Error && error.message.includes('cancelled')) {
+        throw new Error('Request was cancelled due to duplicate operation');
+      }
+      
       throw error;
+    } finally {
+      this.activeRequests.delete(requestId);
     }
   }
 
   static async stopServerSideForwardTesting(userId: string): Promise<void> {
+    const requestId = `stop-${userId}`;
+    
+    // Cancel any existing stop request
+    if (this.activeRequests.has(requestId)) {
+      this.activeRequests.get(requestId)?.abort();
+    }
+
+    const controller = new AbortController();
+    this.activeRequests.set(requestId, controller);
+
     try {
       console.log('⏹️ Stopping server-side forward testing for user:', userId);
       
@@ -139,18 +189,20 @@ export class ServerForwardTestingService {
         throw new Error('User ID is required to stop trading sessions');
       }
 
-      // Add timeout protection
-      const updatePromise = supabase
-        .from('trading_sessions')
-        .update({ is_active: false })
-        .eq('user_id', userId)
-        .eq('is_active', true);
+      const { error } = await Promise.race([
+        supabase
+          .from('trading_sessions')
+          .update({ is_active: false })
+          .eq('user_id', userId)
+          .eq('is_active', true),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Stop timeout after 5 seconds')), 5000)
+        )
+      ]) as any;
 
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Stop operation timeout after 10 seconds')), 10000);
-      });
-
-      const { error } = await Promise.race([updatePromise, timeoutPromise]) as any;
+      if (controller.signal.aborted) {
+        return; // Silently return if cancelled
+      }
 
       if (error) {
         console.error('❌ Failed to stop server-side trading sessions:', error);
@@ -167,6 +219,8 @@ export class ServerForwardTestingService {
       }
       
       throw error;
+    } finally {
+      this.activeRequests.delete(requestId);
     }
   }
 
@@ -180,12 +234,18 @@ export class ServerForwardTestingService {
 
       console.log('📊 Fetching active sessions for user:', user.id);
 
-      const { data, error } = await supabase
-        .from('trading_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+      // Faster query with timeout
+      const { data, error } = await Promise.race([
+        supabase
+          .from('trading_sessions')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Query timeout')), 5000)
+        )
+      ]) as any;
 
       if (error) {
         console.error('❌ Failed to get active server sessions:', error);
@@ -241,5 +301,11 @@ export class ServerForwardTestingService {
       console.error('❌ Failed to check server status:', error);
       return { isRunning: false, sessionsCount: 0 };
     }
+  }
+
+  static cancelAllRequests(): void {
+    console.log('🚫 Cancelling all active requests...');
+    this.activeRequests.forEach(controller => controller.abort());
+    this.activeRequests.clear();
   }
 }

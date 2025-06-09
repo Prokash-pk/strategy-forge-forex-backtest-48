@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,27 +25,48 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    
     if (user) {
       fetchActiveSessions();
-      // Poll for updates every 30 seconds
       const interval = setInterval(fetchActiveSessions, 30000);
-      return () => clearInterval(interval);
+      
+      return () => {
+        clearInterval(interval);
+        isMountedRef.current = false;
+      };
     }
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [user]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      ServerForwardTestingService.cancelAllRequests();
+    };
+  }, []);
+
   const fetchActiveSessions = async () => {
-    if (!user) return;
+    if (!user || !isMountedRef.current) return;
     
     try {
       setIsLoading(true);
       const sessions = await ServerForwardTestingService.getActiveSessions();
-      setActiveSessions(sessions);
+      if (isMountedRef.current) {
+        setActiveSessions(sessions);
+      }
     } catch (error) {
       console.error('Failed to fetch active sessions:', error);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -60,20 +80,13 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
       return;
     }
 
+    if (isStarting) {
+      console.log('⚠️ Start operation already in progress, ignoring duplicate request');
+      return;
+    }
+
     setIsStarting(true);
     
-    // Set a timeout to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      if (isStarting) {
-        setIsStarting(false);
-        toast({
-          title: "⏰ Request Timeout",
-          description: "The server session creation is taking longer than expected. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }, 30000); // 30 second timeout
-
     try {
       console.log('🚀 Starting server-side trading for strategy:', strategy.strategy_name);
       
@@ -83,7 +96,8 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
         user.id
       );
       
-      clearTimeout(timeoutId);
+      if (!isMountedRef.current) return;
+      
       console.log('✅ Server session created successfully:', session.id);
       
       toast({
@@ -94,7 +108,8 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
       await fetchActiveSessions();
 
     } catch (error) {
-      clearTimeout(timeoutId);
+      if (!isMountedRef.current) return;
+      
       console.error('❌ Error starting server-side trading:', error);
       
       let errorMessage = "Could not start server-side trading session";
@@ -102,8 +117,10 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
       if (error instanceof Error) {
         if (error.message.includes('timeout')) {
           errorMessage = "Request timed out. Please check your connection and try again.";
-        } else if (error.message.includes('duplicate')) {
+        } else if (error.message.includes('already exists')) {
           errorMessage = "A trading session already exists for this strategy";
+        } else if (error.message.includes('cancelled')) {
+          errorMessage = "Request was cancelled. Please try again.";
         } else if (error.message.includes('permission')) {
           errorMessage = "Permission denied. Please check your authentication.";
         } else {
@@ -117,33 +134,28 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
         variant: "destructive",
       });
     } finally {
-      setIsStarting(false);
+      if (isMountedRef.current) {
+        setIsStarting(false);
+      }
     }
   };
 
   const handleStopServerSideTrading = async () => {
     if (!user) return;
 
+    if (isStopping) {
+      console.log('⚠️ Stop operation already in progress, ignoring duplicate request');
+      return;
+    }
+
     setIsStopping(true);
     
-    // Set a timeout for stop operation too
-    const timeoutId = setTimeout(() => {
-      if (isStopping) {
-        setIsStopping(false);
-        toast({
-          title: "⏰ Stop Request Timeout",
-          description: "The stop request is taking longer than expected. Sessions may still be stopping.",
-          variant: "destructive",
-        });
-      }
-    }, 15000); // 15 second timeout for stop
-
     try {
       console.log('⏹️ Stopping all server-side trading sessions...');
       
       await ServerForwardTestingService.stopServerSideForwardTesting(user.id);
       
-      clearTimeout(timeoutId);
+      if (!isMountedRef.current) return;
       
       toast({
         title: "⏹️ Server-Side Trading Stopped",
@@ -153,7 +165,8 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
       await fetchActiveSessions();
 
     } catch (error) {
-      clearTimeout(timeoutId);
+      if (!isMountedRef.current) return;
+      
       console.error('❌ Error stopping server-side trading:', error);
       toast({
         title: "❌ Failed to Stop",
@@ -161,7 +174,9 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
         variant: "destructive",
       });
     } finally {
-      setIsStopping(false);
+      if (isMountedRef.current) {
+        setIsStopping(false);
+      }
     }
   };
 
@@ -185,7 +200,7 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
             Server-Side 24/7 Trading
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="default" className={getStatusColor(hasActiveSessions)}>
+            <Badge variant="default" className={hasActiveSessions ? 'bg-emerald-600' : 'bg-red-600'}>
               <Server className="h-3 w-3 mr-1" />
               {hasActiveSessions ? `${activeSessions.length} Active` : 'Offline'}
             </Badge>
@@ -220,8 +235,8 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
                     <div>Symbol: <span className="text-white">{session.symbol}</span></div>
                     <div>Timeframe: <span className="text-white">{session.timeframe}</span></div>
                     <div>Environment: <span className="text-white capitalize">{session.environment}</span></div>
-                    <div>Started: <span className="text-white">{formatTime(session.created_at)}</span></div>
-                    <div>Last Execution: <span className="text-white">{formatTime(session.last_execution)}</span></div>
+                    <div>Started: <span className="text-white">{new Date(session.created_at).toLocaleString()}</span></div>
+                    <div>Last Execution: <span className="text-white">{new Date(session.last_execution).toLocaleString()}</span></div>
                   </div>
                 </div>
               ))}
@@ -300,7 +315,7 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
         {isStarting && (
           <div className="text-xs text-amber-400 bg-amber-500/10 p-2 rounded border border-amber-500/20">
             <Clock className="h-3 w-3 inline mr-1" />
-            Creating server session... This may take up to 30 seconds.
+            Creating server session... This should take less than 10 seconds.
           </div>
         )}
 
