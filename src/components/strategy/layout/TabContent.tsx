@@ -5,11 +5,7 @@ import StrategyConfigurationTab from '../StrategyConfigurationTab';
 import PythonStrategyTab from '../PythonStrategyTab';
 import SavedStrategiesTab from '../SavedStrategiesTab';
 import VisualStrategyTab from '../VisualStrategyTab';
-import StrategyRecommendationsTab from '../StrategyRecommendationsTab';
-import HighPerformanceStrategiesTab from '../HighPerformanceStrategiesTab';
-import OANDAIntegration from '../OANDAIntegration';
-import MT4Integration from '../MT4Integration';
-import InteractiveBrokersIntegration from '../InteractiveBrokersIntegration';
+import OANDAIntegrationSimplified from '../OANDAIntegrationSimplified';
 
 interface TabContentProps {
   strategy: any;
@@ -83,33 +79,9 @@ const TabContent: React.FC<TabContentProps> = ({
         </div>
       </TabsContent>
 
-      <TabsContent value="recommendations" className="mt-0 w-full">
-        <div className="w-full space-y-6">
-          <StrategyRecommendationsTab
-            strategy={strategy}
-            onStrategyChange={onStrategyChange}
-            backtestResults={backtestResults}
-            onAddToStrategy={onAddToStrategy}
-            onStrategySelect={onStrategySelect}
-          />
-        </div>
-      </TabsContent>
-
-      <TabsContent value="mt4" className="mt-0 w-full">
-        <div className="w-full space-y-6">
-          <MT4Integration />
-        </div>
-      </TabsContent>
-
       <TabsContent value="oanda" className="mt-0 w-full">
         <div className="w-full space-y-6">
-          <OANDAIntegration />
-        </div>
-      </TabsContent>
-
-      <TabsContent value="interactive-brokers" className="mt-0 w-full">
-        <div className="w-full space-y-6">
-          <InteractiveBrokersIntegration />
+          <OANDAIntegrationSimplified />
         </div>
       </TabsContent>
     </div>

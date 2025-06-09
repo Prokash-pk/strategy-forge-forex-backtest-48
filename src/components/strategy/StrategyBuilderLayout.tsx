@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Tabs } from '@/components/ui/tabs';
-import TabsList from './layout/TabsList';
+import StrategyTabsList from './layout/TabsList';
 import TabContent from './layout/TabContent';
 
 interface StrategyBuilderLayoutProps {
@@ -30,14 +30,13 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   isReverseTestRunning
 }) => {
   const handleNavigateToConfiguration = () => {
-    // This could trigger a tab change or scroll to configuration
     console.log('Navigate to configuration');
   };
 
   return (
     <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8">
       <Tabs defaultValue="configuration" className="space-y-6">
-        <TabsList />
+        <StrategyTabsList />
         
         <TabContent
           strategy={strategy}
