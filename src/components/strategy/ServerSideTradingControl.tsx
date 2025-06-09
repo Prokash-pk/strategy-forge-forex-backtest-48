@@ -61,6 +61,19 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
     }
 
     setIsStarting(true);
+    
+    // Set a timeout to prevent infinite loading
+    const timeoutId = setTimeout(() => {
+      if (isStarting) {
+        setIsStarting(false);
+        toast({
+          title: "⏰ Request Timeout",
+          description: "The server session creation is taking longer than expected. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }, 30000); // 30 second timeout
+
     try {
       console.log('🚀 Starting server-side trading for strategy:', strategy.strategy_name);
       
@@ -70,6 +83,7 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
         user.id
       );
       
+      clearTimeout(timeoutId);
       console.log('✅ Server session created successfully:', session.id);
       
       toast({
@@ -80,10 +94,26 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
       await fetchActiveSessions();
 
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('❌ Error starting server-side trading:', error);
+      
+      let errorMessage = "Could not start server-side trading session";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          errorMessage = "Request timed out. Please check your connection and try again.";
+        } else if (error.message.includes('duplicate')) {
+          errorMessage = "A trading session already exists for this strategy";
+        } else if (error.message.includes('permission')) {
+          errorMessage = "Permission denied. Please check your authentication.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "❌ Failed to Start",
-        description: error instanceof Error ? error.message : "Could not start server-side trading session",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -95,10 +125,25 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
     if (!user) return;
 
     setIsStopping(true);
+    
+    // Set a timeout for stop operation too
+    const timeoutId = setTimeout(() => {
+      if (isStopping) {
+        setIsStopping(false);
+        toast({
+          title: "⏰ Stop Request Timeout",
+          description: "The stop request is taking longer than expected. Sessions may still be stopping.",
+          variant: "destructive",
+        });
+      }
+    }, 15000); // 15 second timeout for stop
+
     try {
       console.log('⏹️ Stopping all server-side trading sessions...');
       
       await ServerForwardTestingService.stopServerSideForwardTesting(user.id);
+      
+      clearTimeout(timeoutId);
       
       toast({
         title: "⏹️ Server-Side Trading Stopped",
@@ -108,6 +153,7 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
       await fetchActiveSessions();
 
     } catch (error) {
+      clearTimeout(timeoutId);
       console.error('❌ Error stopping server-side trading:', error);
       toast({
         title: "❌ Failed to Stop",
@@ -250,6 +296,14 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
           </Button>
         </div>
 
+        {/* Loading State Info */}
+        {isStarting && (
+          <div className="text-xs text-amber-400 bg-amber-500/10 p-2 rounded border border-amber-500/20">
+            <Clock className="h-3 w-3 inline mr-1" />
+            Creating server session... This may take up to 30 seconds.
+          </div>
+        )}
+
         {/* Debug Info */}
         <div className="text-xs text-slate-500 bg-slate-900/30 p-3 rounded">
           <div className="mb-2 font-medium">Debug Info:</div>
@@ -258,6 +312,7 @@ const ServerSideTradingControl: React.FC<ServerSideTradingControlProps> = ({
           <div>Config: {config?.accountId ? 'Set' : 'Missing'}</div>
           <div>Is Configured: {isConfigured ? 'Yes' : 'No'}</div>
           <div>Active Sessions: {activeSessions.length}</div>
+          <div>Loading State: {isStarting ? 'Starting...' : isStopping ? 'Stopping...' : 'Ready'}</div>
         </div>
 
         {/* Schedule Info */}
