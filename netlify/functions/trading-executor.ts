@@ -1,13 +1,7 @@
-
 import { schedule } from '@netlify/functions';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
 // Main trading execution function that runs every 5 minutes
-const handler = schedule('*/5 * * * *', async (event) => {
+const handler = schedule('*/5 * * * *', async (event, context) => {
   console.log('🚀 Starting scheduled trading execution at:', new Date().toISOString());
   
   try {
@@ -18,7 +12,6 @@ const handler = schedule('*/5 * * * *', async (event) => {
       console.log('📊 No active trading sessions found');
       return {
         statusCode: 200,
-        headers: corsHeaders,
         body: JSON.stringify({ message: 'No active sessions' })
       };
     }
@@ -41,7 +34,6 @@ const handler = schedule('*/5 * * * *', async (event) => {
 
     return {
       statusCode: 200,
-      headers: corsHeaders,
       body: JSON.stringify({
         message: 'Trading execution completed',
         processedSessions: activeSessions.length,
@@ -54,7 +46,6 @@ const handler = schedule('*/5 * * * *', async (event) => {
     
     return {
       statusCode: 500,
-      headers: corsHeaders,
       body: JSON.stringify({
         error: 'Trading execution failed',
         message: error.message,

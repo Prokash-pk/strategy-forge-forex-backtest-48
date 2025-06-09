@@ -1,57 +1,56 @@
 
-// API endpoint to check trading system status and manage sessions
+import { Handler } from '@netlify/functions';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-export default async (req: Request) => {
+export const handler: Handler = async (event, context) => {
   // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: ''
+    };
   }
 
   try {
-    const url = new URL(req.url);
-    const action = url.searchParams.get('action');
+    const action = event.queryStringParameters?.action;
 
     switch (action) {
       case 'status':
         return await getTradingStatus();
       
       case 'start':
-        return await startTradingSession(req);
+        return await startTradingSession(event);
       
       case 'stop':
-        return await stopTradingSession(req);
+        return await stopTradingSession(event);
       
       case 'logs':
         return await getTradingLogs();
       
       default:
-        return new Response(
-          JSON.stringify({ error: 'Invalid action' }),
-          { 
-            status: 400, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
+        return {
+          statusCode: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ error: 'Invalid action' })
+        };
     }
 
   } catch (error) {
     console.error('Trading status API error:', error);
     
-    return new Response(
-      JSON.stringify({ 
+    return {
+      statusCode: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
         error: 'Internal server error',
         message: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+      })
+    };
   }
 };
 
@@ -66,64 +65,59 @@ async function getTradingStatus() {
     nextExecution: getNextExecutionTime()
   };
 
-  return new Response(
-    JSON.stringify(status),
-    { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    }
-  );
+  return {
+    statusCode: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify(status)
+  };
 }
 
-async function startTradingSession(req: Request) {
-  const sessionData = await req.json();
+async function startTradingSession(event) {
+  const sessionData = JSON.parse(event.body || '{}');
   
   console.log('🚀 Starting new trading session:', sessionData);
   
   // Validate session data
   if (!sessionData.strategy_code || !sessionData.symbol || !sessionData.oanda_account_id) {
-    return new Response(
-      JSON.stringify({ 
+    return {
+      statusCode: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
         error: 'Missing required session data',
         required: ['strategy_code', 'symbol', 'oanda_account_id', 'oanda_api_key']
-      }),
-      { 
-        status: 400, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+      })
+    };
   }
 
   // Save session to database (mock for now)
   const sessionId = `session_${Date.now()}`;
   
-  return new Response(
-    JSON.stringify({
+  return {
+    statusCode: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       message: 'Trading session started',
       sessionId,
       status: 'ACTIVE',
       nextExecution: getNextExecutionTime()
-    }),
-    { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    }
-  );
+    })
+  };
 }
 
-async function stopTradingSession(req: Request) {
-  const { sessionId } = await req.json();
+async function stopTradingSession(event) {
+  const { sessionId } = JSON.parse(event.body || '{}');
   
   console.log('⏹️ Stopping trading session:', sessionId);
   
-  return new Response(
-    JSON.stringify({
+  return {
+    statusCode: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       message: 'Trading session stopped',
       sessionId,
       status: 'STOPPED'
-    }),
-    { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    }
-  );
+    })
+  };
 }
 
 async function getTradingLogs() {
@@ -137,12 +131,11 @@ async function getTradingLogs() {
     }
   ];
 
-  return new Response(
-    JSON.stringify({ logs }),
-    { 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    }
-  );
+  return {
+    statusCode: 200,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ logs })
+  };
 }
 
 function getNextExecutionTime() {
