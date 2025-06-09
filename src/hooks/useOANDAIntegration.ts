@@ -102,7 +102,8 @@ export const useOANDAIntegration = () => {
       console.log('🎯 Conditions met for auto-start - checking preferences...');
       
       const timer = setTimeout(() => {
-        autoStartForwardTesting(config, selectedStrategy, isConnected);
+        console.log('🚀 Auto-starting forward testing...');
+        startForwardTesting();
       }, 2000);
       
       return () => clearTimeout(timer);

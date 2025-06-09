@@ -133,4 +133,44 @@ export class ForwardTestingService {
       console.error('❌ Failed to update session execution time:', error);
     }
   }
+
+  static async getForwardTestingStats() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('trading_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (sessionsError) {
+        console.error('❌ Failed to get trading stats:', sessionsError);
+        return null;
+      }
+
+      const { data: logs, error: logsError } = await supabase
+        .from('trading_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('log_type', 'trade')
+        .order('timestamp', { ascending: false });
+
+      if (logsError) {
+        console.error('❌ Failed to get trading logs:', logsError);
+        return null;
+      }
+
+      return {
+        totalTrades: logs?.length || 0,
+        successfulTrades: logs?.filter(log => log.trade_data?.success).length || 0,
+        failedTrades: logs?.filter(log => !log.trade_data?.success).length || 0,
+        lastExecution: sessions?.[0]?.last_execution || null
+      };
+    } catch (error) {
+      console.error('❌ Failed to get forward testing stats:', error);
+      return null;
+    }
+  }
 }

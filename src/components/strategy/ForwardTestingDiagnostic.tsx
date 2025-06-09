@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -89,17 +88,38 @@ const ForwardTestingDiagnostic: React.FC = () => {
 
       // 4. Forward Testing Status
       console.log('🔍 Step 4: Checking Forward Testing Status...');
-      const forwardTestingService = ForwardTestingService.getInstance();
-      const activeSessions = await forwardTestingService.getActiveSessions();
-      
-      results.push({
-        step: 'Forward Testing Status',
-        status: isForwardTestingActive ? 'success' : 'warning',
-        message: isForwardTestingActive 
-          ? `Active (${activeSessions.length} sessions running)`
-          : 'Not currently active',
-        details: { isActive: isForwardTestingActive, sessionCount: activeSessions.length }
-      });
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        let activeSessions: any[] = [];
+        
+        if (user) {
+          const { data, error } = await supabase
+            .from('trading_sessions')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_active', true);
+          
+          if (!error) {
+            activeSessions = data || [];
+          }
+        }
+        
+        results.push({
+          step: 'Forward Testing Status',
+          status: isForwardTestingActive ? 'success' : 'warning',
+          message: isForwardTestingActive 
+            ? `Active (${activeSessions.length} sessions running)`
+            : 'Not currently active',
+          details: { isActive: isForwardTestingActive, sessionCount: activeSessions.length }
+        });
+      } catch (error) {
+        results.push({
+          step: 'Forward Testing Status',
+          status: 'error',
+          message: `Failed to check status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          details: { error: String(error) }
+        });
+      }
 
       // 5. Auto Strategy Tester Status
       console.log('🔍 Step 5: Checking Auto Strategy Tester...');

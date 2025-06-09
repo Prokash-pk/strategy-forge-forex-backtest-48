@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -71,8 +70,7 @@ const OANDATradingDashboard: React.FC<OANDATradingDashboardProps> = ({
     const loadTradingStats = async () => {
       if (isActive) {
         try {
-          const service = ForwardTestingService.getInstance();
-          const stats = await service.getForwardTestingStats();
+          const stats = await ForwardTestingService.getForwardTestingStats();
           setTradingStats(stats);
         } catch (error) {
           console.error('Failed to load trading stats:', error);

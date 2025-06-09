@@ -49,8 +49,7 @@ export const useTradingDashboard = ({ isActive, oandaConfig }: UseTradingDashboa
   const loadTradingStats = async () => {
     if (isActive) {
       try {
-        const service = ForwardTestingService.getInstance();
-        const stats = await service.getForwardTestingStats();
+        const stats = await ForwardTestingService.getForwardTestingStats();
         setTradingStats(stats);
       } catch (error) {
         console.error('Failed to load trading stats:', error);
