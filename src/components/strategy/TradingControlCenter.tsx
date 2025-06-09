@@ -111,17 +111,7 @@ const TradingControlCenter: React.FC<TradingControlCenterProps> = ({
       
       let errorMessage = "Could not start server-side trading session";
       if (error instanceof Error) {
-        if (error.message.includes('timeout') || error.message.includes('timed out')) {
-          errorMessage = "Database connection timed out. Please try again in a moment.";
-        } else if (error.message.includes('already exists')) {
-          errorMessage = "A trading session already exists for this strategy";
-        } else if (error.message.includes('cancelled')) {
-          errorMessage = "Request was cancelled. Please try again.";
-        } else if (error.message.includes('connection') || error.message.includes('network')) {
-          errorMessage = "Network error. Please check your connection and try again.";
-        } else {
-          errorMessage = error.message;
-        }
+        errorMessage = error.message;
       }
       
       toast({
