@@ -24,18 +24,20 @@ def strategy_logic(data, reverse_signals=False):
     rsi = TechnicalAnalysis.rsi(close, 14)
     
     # Volatility filter using ATR
-    atr = AdvancedTechnicalAnalysis.atr(high, low, close, 14)
+    atr = TechnicalAnalysis.atr(high, low, close, 14)
     avg_atr = TechnicalAnalysis.sma(atr, 20)
     
     entry = []
     exit = []
     direction = []  # CRITICAL: Auto-detected trade direction for OANDA
+    trade_direction = []  # Additional field for compatibility
     
     for i in range(len(close)):
         if i < 200:  # Need enough data for all indicators
             entry.append(False)
             exit.append(False)
             direction.append(None)
+            trade_direction.append(None)
         else:
             # Higher timeframe trend filter
             weekly_trend_up = close[i] > daily_ema[i]
@@ -78,12 +80,15 @@ def strategy_logic(data, reverse_signals=False):
             if actual_long:
                 entry.append(True)
                 direction.append("BUY")  # AUTO-DETECTED BUY signal
+                trade_direction.append("BUY")  # Additional compatibility field
             elif actual_short:
                 entry.append(True) 
                 direction.append("SELL")  # AUTO-DETECTED SELL signal
+                trade_direction.append("SELL")  # Additional compatibility field
             else:
                 entry.append(False)
                 direction.append(None)  # No trade signal
+                trade_direction.append(None)  # No trade signal
             
             # Conservative exit conditions
             exit_signal = (rsi[i] > 80 or rsi[i] < 20 or not high_volatility)
@@ -94,6 +99,7 @@ def strategy_logic(data, reverse_signals=False):
         'entry': entry,
         'exit': exit,
         'direction': direction,  # AUTO-DETECTED BUY/SELL directions
+        'trade_direction': trade_direction,  # Additional compatibility field
         'short_ema': short_ema,
         'long_ema': long_ema,
         'daily_ema': daily_ema,
