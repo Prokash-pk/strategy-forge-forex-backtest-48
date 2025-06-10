@@ -8,7 +8,6 @@ def validate_strategy_signals(result):
     
     entry = result.get('entry', [])
     exit = result.get('exit', [])
-    # Check for 'direction' first (your strategy uses this), then fallbacks
     direction = result.get('direction', result.get('entry_type', result.get('trade_direction', [])))
     
     # Check required fields exist
@@ -27,7 +26,7 @@ def validate_strategy_signals(result):
     if len(entry) != len(exit) or len(entry) != len(direction):
         return False, f"Arrays must be same length: entry({len(entry)}), exit({len(exit)}), direction({len(direction)})"
     
-    # Validate direction values - allow None, null, and string values
+    # Validate direction values
     valid_directions = ['BUY', 'SELL', None, 'None', 'NONE']
     invalid_directions = [d for d in direction if d not in valid_directions]
     if invalid_directions:
@@ -67,13 +66,14 @@ def auto_detect_trade_direction(result, close_prices):
             
             # Method 1: Use EMA crossover if available
             if short_ema and long_ema and i < len(short_ema) and i < len(long_ema):
-                if short_ema[i] > long_ema[i]:
-                    detected_direction = 'BUY'
-                else:
-                    detected_direction = 'SELL'
+                if not math.isnan(short_ema[i]) and not math.isnan(long_ema[i]):
+                    if short_ema[i] > long_ema[i]:
+                        detected_direction = 'BUY'
+                    else:
+                        detected_direction = 'SELL'
             
             # Method 2: Use RSI if available
-            elif rsi and i < len(rsi):
+            elif rsi and i < len(rsi) and not math.isnan(rsi[i]):
                 if rsi[i] < 50:
                     detected_direction = 'BUY'  # Oversold condition
                 else:
@@ -136,7 +136,7 @@ def process_strategy_signals(result, reverse_signals):
     # Enforce directional signals (this will auto-generate if missing)
     result = enforce_directional_signals(result)
     
-    # Extract signals with proper fallback order: direction -> entry_type -> trade_direction
+    # Extract signals with proper fallback order
     entry = result.get('entry', [])
     exit = result.get('exit', [])
     direction = result.get('direction', result.get('entry_type', result.get('trade_direction', [])))
@@ -195,19 +195,24 @@ def process_strategy_signals(result, reverse_signals):
     
     return processed_result
 
-def extract_reverse_signals_flag(market_data_dict):
-    """Extract reverse_signals flag from market data - Fixed version"""
-    try:
-        # Handle different data types safely
-        if isinstance(market_data_dict, dict):
-            return market_data_dict.get('reverse_signals', False)
-        elif hasattr(market_data_dict, 'get'):
-            return market_data_dict.get('reverse_signals', False)
-        else:
-            # If it's not a dict-like object, return default
-            print(f"⚠️ market_data_dict is not dict-like: {type(market_data_dict)}")
-            return False
-    except Exception as e:
-        print(f"⚠️ Error extracting reverse_signals flag: {e}")
-        return False
+def ensure_signal_arrays(result, data_length):
+    """Ensure signal arrays have the correct length"""
+    
+    # Ensure basic arrays exist and have correct length
+    for key in ['entry', 'exit', 'direction']:
+        if key not in result:
+            result[key] = []
+        
+        current_length = len(result[key])
+        if current_length < data_length:
+            # Pad with appropriate default values
+            if key == 'direction':
+                result[key].extend([None] * (data_length - current_length))
+            else:
+                result[key].extend([False] * (data_length - current_length))
+        elif current_length > data_length:
+            # Truncate to match data length
+            result[key] = result[key][:data_length]
+    
+    return result
 `;
