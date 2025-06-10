@@ -1,4 +1,3 @@
-
 import type { StrategyResult, MarketData } from './python/types';
 import { PyodideLoader } from './python/pyodideLoader';
 import type { PyodideInstance } from './python/types';
@@ -36,17 +35,12 @@ export class PythonExecutor {
       
       console.log('🚀 Executing Python strategy...');
       
-      // First, let's test if Python execution works at all
+      // Robust Python execution with comprehensive error handling
       let pythonResult;
       try {
+        console.log('🔄 Attempting Python execution...');
         pythonResult = pyodide.runPython(`
 try:
-    # Test basic Python execution first
-    print("🔍 Python: Testing basic execution...")
-    test_result = {"test": "success"}
-    print(f"✅ Python: Basic test successful")
-    
-    # Now try strategy execution
     print("🔍 Python: Starting strategy execution...")
     result = execute_strategy(js_market_data, js_strategy_code)
     print(f"✅ Python: Strategy execution completed")
@@ -75,6 +69,9 @@ except Exception as e:
     traceback.print_exc()
     {"error": str(e), "entry": [], "exit": [], "direction": []}
         `);
+        
+        console.log('✅ Python execution completed, result received');
+        
       } catch (pythonError) {
         console.error('❌ Python runPython failed:', pythonError);
         return {
@@ -85,7 +82,8 @@ except Exception as e:
         };
       }
       
-      // Validate Python result before converting
+      // Comprehensive result validation
+      console.log('🔍 Validating Python result...');
       if (pythonResult === undefined || pythonResult === null) {
         console.error('❌ Python execution returned undefined/null');
         return {
@@ -96,68 +94,58 @@ except Exception as e:
         };
       }
 
-      console.log('🔍 Python result type check:', {
-        result: pythonResult,
+      console.log('📋 Python result details:', {
         type: typeof pythonResult,
         hasToJs: typeof pythonResult?.toJs,
         isObject: pythonResult && typeof pythonResult === 'object',
-        constructor: pythonResult?.constructor?.name
+        constructor: pythonResult?.constructor?.name,
+        isNull: pythonResult === null,
+        isUndefined: pythonResult === undefined
       });
 
-      // Check if result has toJs method - if not, it might already be a JS object
-      if (typeof pythonResult?.toJs !== 'function') {
-        console.log('⚠️ Python result does not have toJs method, checking if it\'s already JS object');
-        
-        // If it's already a plain JS object, use it directly
-        if (pythonResult && typeof pythonResult === 'object' && !pythonResult.toJs) {
-          console.log('✅ Using Python result as plain JS object');
-          const jsResult = pythonResult;
-          
-          console.log('✅ Python strategy executed successfully');
-          console.log('📊 Final result:', {
-            hasEntry: !!jsResult.entry,
-            hasExit: !!jsResult.exit,
-            hasDirection: !!jsResult.direction,
-            hasError: !!jsResult.error,
-            keys: Object.keys(jsResult)
-          });
-          
-          return jsResult as StrategyResult;
-        } else {
-          console.error('❌ Python result cannot be converted to JavaScript:', typeof pythonResult);
+      // Handle different result types safely
+      let jsResult;
+      
+      // Case 1: Result already is a JavaScript object
+      if (pythonResult && typeof pythonResult === 'object' && typeof pythonResult.toJs !== 'function') {
+        console.log('✅ Result is already a JavaScript object');
+        jsResult = pythonResult;
+      }
+      // Case 2: Result is a Pyodide proxy object with toJs method
+      else if (pythonResult && typeof pythonResult.toJs === 'function') {
+        console.log('🔄 Converting Pyodide proxy to JavaScript...');
+        try {
+          jsResult = pythonResult.toJs({ dict_converter: Object.fromEntries });
+          console.log('✅ Conversion successful');
+        } catch (conversionError) {
+          console.error('❌ Error converting Python result to JavaScript:', conversionError);
           return {
             entry: new Array(marketData.close.length).fill(false),
             exit: new Array(marketData.close.length).fill(false),
             direction: new Array(marketData.close.length).fill(null),
-            error: 'Python result cannot be converted to JavaScript'
+            error: `Result conversion failed: ${conversionError instanceof Error ? conversionError.message : 'Unknown conversion error'}`
           };
         }
       }
-      
-      // Convert Python result to JavaScript with error handling
-      let jsResult;
-      try {
-        console.log('🔄 Converting Python result to JavaScript...');
-        jsResult = pythonResult.toJs({ dict_converter: Object.fromEntries });
-        console.log('✅ Conversion successful');
-      } catch (conversionError) {
-        console.error('❌ Error converting Python result to JavaScript:', conversionError);
+      // Case 3: Unexpected result type
+      else {
+        console.error('❌ Unexpected Python result type:', typeof pythonResult);
         return {
           entry: new Array(marketData.close.length).fill(false),
           exit: new Array(marketData.close.length).fill(false),
           direction: new Array(marketData.close.length).fill(null),
-          error: `Result conversion failed: ${conversionError instanceof Error ? conversionError.message : 'Unknown conversion error'}`
+          error: `Unexpected Python result type: ${typeof pythonResult}`
         };
       }
 
-      // Validate the converted result
+      // Final validation of converted result
       if (!jsResult || typeof jsResult !== 'object') {
-        console.error('❌ Converted result is not a valid object:', jsResult);
+        console.error('❌ Final result validation failed:', jsResult);
         return {
           entry: new Array(marketData.close.length).fill(false),
           exit: new Array(marketData.close.length).fill(false),
           direction: new Array(marketData.close.length).fill(null),
-          error: 'Converted result is not a valid object'
+          error: 'Invalid result format after conversion'
         };
       }
       
@@ -173,14 +161,14 @@ except Exception as e:
       return jsResult as StrategyResult;
       
     } catch (error) {
-      console.error('❌ Error executing Python strategy:', error);
+      console.error('❌ Critical error in Python strategy execution:', error);
       
       // Return fallback result with detailed error
       return {
         entry: new Array(marketData.close.length).fill(false),
         exit: new Array(marketData.close.length).fill(false),
         direction: new Array(marketData.close.length).fill(null),
-        error: `Python execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+        error: `Critical execution error: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }
