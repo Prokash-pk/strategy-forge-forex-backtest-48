@@ -3,6 +3,7 @@ import { User } from '@supabase/supabase-js';
 import { PythonExecutor } from '@/services/pythonExecutor';
 import { ServerForwardTestingService } from '@/services/serverForwardTestingService';
 import { testOANDAConnection } from '@/contexts/oanda/connectionUtils';
+import React from 'react';
 import { 
   Code, 
   Play, 
@@ -33,7 +34,7 @@ export class DiagnosticRunner {
           status: 'pass',
           message: '✅ Python/Pyodide engine is loaded and ready',
           critical: true,
-          icon: <Code className="h-4 w-4" />
+          icon: React.createElement(Code, { className: 'h-4 w-4' })
         });
 
         // Test Python execution
@@ -50,7 +51,7 @@ export class DiagnosticRunner {
             status: 'pass',
             message: '✅ Python code can execute successfully',
             critical: true,
-            icon: <Play className="h-4 w-4" />
+            icon: React.createElement(Play, { className: 'h-4 w-4' })
           });
         } catch (error: any) {
           results.push({
@@ -61,7 +62,7 @@ export class DiagnosticRunner {
             message: `❌ Python execution failed: ${error.message}`,
             critical: true,
             solution: 'The Python environment has import errors. This needs to be fixed in the Python setup.',
-            icon: <XCircle className="h-4 w-4" />
+            icon: React.createElement(XCircle, { className: 'h-4 w-4' })
           });
         }
       } else {
@@ -73,7 +74,7 @@ export class DiagnosticRunner {
           message: '❌ Python/Pyodide engine failed to load',
           critical: true,
           solution: 'Refresh the page or check your internet connection. Pyodide needs to download from CDN.',
-          icon: <XCircle className="h-4 w-4" />
+          icon: React.createElement(XCircle, { className: 'h-4 w-4' })
         });
       }
     } catch (error: any) {
@@ -85,7 +86,7 @@ export class DiagnosticRunner {
         message: `❌ Python engine error: ${error.message}`,
         critical: true,
         solution: 'Critical Python engine failure. Try refreshing the page.',
-        icon: <XCircle className="h-4 w-4" />
+        icon: React.createElement(XCircle, { className: 'h-4 w-4' })
       });
     }
 
@@ -103,7 +104,7 @@ export class DiagnosticRunner {
         status: 'pass',
         message: `✅ Strategy selected: ${selectedStrategy.strategy_name}`,
         critical: true,
-        icon: <Settings className="h-4 w-4" />
+        icon: React.createElement(Settings, { className: 'h-4 w-4' })
       });
 
       // Check strategy code quality
@@ -119,7 +120,7 @@ export class DiagnosticRunner {
           status: 'pass',
           message: '✅ Strategy has valid Python code with logic functions',
           critical: true,
-          icon: <Code className="h-4 w-4" />
+          icon: React.createElement(Code, { className: 'h-4 w-4' })
         });
 
         // Test strategy signal generation
@@ -143,7 +144,7 @@ export class DiagnosticRunner {
               message: `❌ Strategy execution error: ${signals.error}`,
               critical: true,
               solution: 'Fix the Python syntax or logic errors in your strategy code.',
-              icon: <XCircle className="h-4 w-4" />
+              icon: React.createElement(XCircle, { className: 'h-4 w-4' })
             });
           } else {
             const hasValidSignals = signals.entry && Array.isArray(signals.entry) && 
@@ -161,7 +162,7 @@ export class DiagnosticRunner {
                   : '⚠️ Strategy runs but generates no signals with test data',
                 critical: false,
                 solution: signalCount === 0 ? 'Adjust strategy parameters to be more sensitive to generate signals.' : undefined,
-                icon: signalCount > 0 ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />
+                icon: signalCount > 0 ? React.createElement(CheckCircle, { className: 'h-4 w-4' }) : React.createElement(AlertTriangle, { className: 'h-4 w-4' })
               });
             } else {
               results.push({
@@ -172,7 +173,7 @@ export class DiagnosticRunner {
                 message: '❌ Strategy does not return proper entry/direction arrays',
                 critical: true,
                 solution: 'Ensure your strategy_logic function returns {"entry": [...], "direction": [...]} arrays.',
-                icon: <XCircle className="h-4 w-4" />
+                icon: React.createElement(XCircle, { className: 'h-4 w-4' })
               });
             }
           }
@@ -185,7 +186,7 @@ export class DiagnosticRunner {
             message: `❌ Strategy test failed: ${error.message}`,
             critical: true,
             solution: 'Fix Python errors in your strategy code.',
-            icon: <XCircle className="h-4 w-4" />
+            icon: React.createElement(XCircle, { className: 'h-4 w-4' })
           });
         }
       } else {
@@ -197,7 +198,7 @@ export class DiagnosticRunner {
           message: '❌ Strategy code is missing or incomplete',
           critical: true,
           solution: 'Add valid Python strategy code with strategy_logic function that returns entry/exit signals.',
-          icon: <XCircle className="h-4 w-4" />
+          icon: React.createElement(XCircle, { className: 'h-4 w-4' })
         });
       }
     } else {
@@ -209,7 +210,7 @@ export class DiagnosticRunner {
         message: '❌ No strategy selected',
         critical: true,
         solution: 'Select a strategy from your saved strategies or create a new one.',
-        icon: <XCircle className="h-4 w-4" />
+        icon: React.createElement(XCircle, { className: 'h-4 w-4' })
       });
     }
 
@@ -228,7 +229,7 @@ export class DiagnosticRunner {
         status: 'pass',
         message: `✅ OANDA configured for ${config.environment} (${config.accountId})`,
         critical: true,
-        icon: <Settings className="h-4 w-4" />
+        icon: React.createElement(Settings, { className: 'h-4 w-4' })
       });
 
       // Test OANDA connection
@@ -241,7 +242,7 @@ export class DiagnosticRunner {
           status: 'pass',
           message: '✅ OANDA API connection successful',
           critical: true,
-          icon: <Wifi className="h-4 w-4" />
+          icon: React.createElement(Wifi, { className: 'h-4 w-4' })
         });
       } catch (error: any) {
         results.push({
@@ -252,7 +253,7 @@ export class DiagnosticRunner {
           message: `❌ OANDA connection failed: ${error.message}`,
           critical: true,
           solution: 'Check your Account ID and API Token. Ensure they are correct and active.',
-          icon: <XCircle className="h-4 w-4" />
+          icon: React.createElement(XCircle, { className: 'h-4 w-4' })
         });
       }
     } else {
@@ -264,7 +265,7 @@ export class DiagnosticRunner {
         message: '❌ OANDA credentials not configured',
         critical: true,
         solution: 'Enter your OANDA Account ID and API Token in the configuration section.',
-        icon: <XCircle className="h-4 w-4" />
+        icon: React.createElement(XCircle, { className: 'h-4 w-4' })
       });
     }
 
@@ -284,7 +285,7 @@ export class DiagnosticRunner {
           status: 'pass',
           message: `✅ ${sessions.length} active server-side trading sessions`,
           critical: false,
-          icon: <Database className="h-4 w-4" />
+          icon: React.createElement(Database, { className: 'h-4 w-4' })
         });
       } else {
         results.push({
@@ -295,7 +296,7 @@ export class DiagnosticRunner {
           message: '⚠️ No active server-side trading sessions',
           critical: false,
           solution: 'Start forward testing to enable 24/7 server-side trading.',
-          icon: <AlertTriangle className="h-4 w-4" />
+          icon: React.createElement(AlertTriangle, { className: 'h-4 w-4' })
         });
       }
     } catch (error: any) {
@@ -307,7 +308,7 @@ export class DiagnosticRunner {
         message: `❌ Cannot check server sessions: ${error.message}`,
         critical: false,
         solution: 'Server communication issue. Check your internet connection.',
-        icon: <XCircle className="h-4 w-4" />
+        icon: React.createElement(XCircle, { className: 'h-4 w-4' })
       });
     }
 
@@ -326,7 +327,7 @@ export class DiagnosticRunner {
       message: user ? `✅ Authenticated as ${user.email}` : '❌ User not authenticated',
       critical: true,
       solution: user ? undefined : 'Please log in to your account to enable trading features.',
-      icon: <Shield className="h-4 w-4" />
+      icon: React.createElement(Shield, { className: 'h-4 w-4' })
     });
 
     // Trading Environment Safety
@@ -340,7 +341,7 @@ export class DiagnosticRunner {
         : '⚠️ LIVE environment - real money at risk!',
       critical: false,
       solution: config.environment === 'live' ? 'Consider using practice environment first to test your strategy.' : undefined,
-      icon: config.environment === 'practice' ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />
+      icon: config.environment === 'practice' ? React.createElement(CheckCircle, { className: 'h-4 w-4' }) : React.createElement(AlertTriangle, { className: 'h-4 w-4' })
     });
 
     // Browser Keepalive Status
@@ -355,7 +356,7 @@ export class DiagnosticRunner {
         : '⚠️ Browser keepalive not active',
       critical: false,
       solution: keepaliveActive ? undefined : 'Browser keepalive will start automatically when forward testing begins.',
-      icon: keepaliveActive ? <Zap className="h-4 w-4" /> : <Clock className="h-4 w-4" />
+      icon: keepaliveActive ? React.createElement(Zap, { className: 'h-4 w-4' }) : React.createElement(Clock, { className: 'h-4 w-4' })
     });
 
     return results;
