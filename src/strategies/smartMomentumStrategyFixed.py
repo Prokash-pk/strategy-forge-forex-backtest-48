@@ -1,15 +1,15 @@
 
-# Smart Momentum Strategy - Fixed for Forward Testing
-# Enhanced with proper signal direction and execution logic
+# Smart Momentum Strategy - OANDA Compatible with Auto-Detected BUY/SELL
+# Enhanced with automatic signal direction detection for forward trading
 
 import math
 
 def strategy_logic(data, reverse_signals=False):
     """
-    Enhanced momentum strategy that generates proper directional signals:
+    Enhanced momentum strategy with AUTO-DETECTED directional signals:
     - Multiple timeframe trend filtering
-    - Volatility filtering
-    - Proper signal direction for forward testing
+    - Volatility filtering  
+    - AUTOMATIC BUY/SELL direction detection from conditions
     - Reverse signal testing capability
     """
     
@@ -24,18 +24,18 @@ def strategy_logic(data, reverse_signals=False):
     rsi = TechnicalAnalysis.rsi(close, 14)
     
     # Volatility filter using ATR
-    atr = TechnicalAnalysis.atr(high, low, close, 14)
+    atr = AdvancedTechnicalAnalysis.atr(high, low, close, 14)
     avg_atr = TechnicalAnalysis.sma(atr, 20)
     
     entry = []
     exit = []
-    trade_direction = []  # Track whether signal is BUY or SELL
+    direction = []  # CRITICAL: Auto-detected trade direction for OANDA
     
     for i in range(len(close)):
         if i < 200:  # Need enough data for all indicators
             entry.append(False)
             exit.append(False)
-            trade_direction.append('NONE')
+            direction.append(None)
         else:
             # Higher timeframe trend filter
             weekly_trend_up = close[i] > daily_ema[i]
@@ -52,48 +52,48 @@ def strategy_logic(data, reverse_signals=False):
             rsi_good_long = 45 < rsi[i] < 75
             rsi_good_short = 25 < rsi[i] < 55
             
-            # LONG ENTRY CONDITIONS
-            long_entry_conditions = (trend_up and 
-                                   momentum_strong_up and 
-                                   rsi_good_long and
-                                   weekly_trend_up and
-                                   high_volatility)
+            # AUTO-DETECT BUY CONDITIONS
+            base_long_entry = (trend_up and 
+                              momentum_strong_up and 
+                              rsi_good_long and
+                              weekly_trend_up and
+                              high_volatility)
             
-            # SHORT ENTRY CONDITIONS
-            short_entry_conditions = (trend_down and 
-                                    momentum_strong_down and 
-                                    rsi_good_short and
-                                    weekly_trend_down and
-                                    high_volatility)
+            # AUTO-DETECT SELL CONDITIONS  
+            base_short_entry = (trend_down and 
+                               momentum_strong_down and 
+                               rsi_good_short and
+                               weekly_trend_down and
+                               high_volatility)
             
-            # Apply reverse signals if enabled
+            # Apply reverse signals if enabled (for testing opposite direction)
             if reverse_signals:
-                # Swap the signals
-                actual_long = short_entry_conditions
-                actual_short = long_entry_conditions
+                actual_long = base_short_entry   # Reverse: use short conditions for BUY
+                actual_short = base_long_entry   # Reverse: use long conditions for SELL
             else:
-                actual_long = long_entry_conditions
-                actual_short = short_entry_conditions
+                actual_long = base_long_entry    # Normal: use long conditions for BUY
+                actual_short = base_short_entry  # Normal: use short conditions for SELL
             
-            # Determine entry signal and direction
+            # AUTO-GENERATE DIRECTIONAL SIGNALS for OANDA
             if actual_long:
                 entry.append(True)
-                trade_direction.append('BUY')
+                direction.append("BUY")  # AUTO-DETECTED BUY signal
             elif actual_short:
-                entry.append(True)
-                trade_direction.append('SELL')
+                entry.append(True) 
+                direction.append("SELL")  # AUTO-DETECTED SELL signal
             else:
                 entry.append(False)
-                trade_direction.append('NONE')
+                direction.append(None)  # No trade signal
             
             # Conservative exit conditions
             exit_signal = (rsi[i] > 80 or rsi[i] < 20 or not high_volatility)
             exit.append(exit_signal)
     
+    # CRITICAL: Return direction array for OANDA auto trading
     return {
         'entry': entry,
         'exit': exit,
-        'trade_direction': trade_direction,
+        'direction': direction,  # AUTO-DETECTED BUY/SELL directions
         'short_ema': short_ema,
         'long_ema': long_ema,
         'daily_ema': daily_ema,
@@ -101,5 +101,5 @@ def strategy_logic(data, reverse_signals=False):
         'atr': atr,
         'avg_atr': avg_atr,
         'reverse_signals_applied': reverse_signals,
-        'note': 'Fixed strategy with proper directional signals for forward testing'
+        'note': 'Strategy with AUTO-DETECTED BUY/SELL directions for OANDA forward trading'
     }
