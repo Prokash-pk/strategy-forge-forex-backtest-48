@@ -8,8 +8,8 @@ def create_safe_execution_environment(df):
         'data': df,
         'TechnicalAnalysis': TechnicalAnalysis,
         'AdvancedTechnicalAnalysis': AdvancedTechnicalAnalysis,
-        'SupportResistanceDetection': SupportResistanceDetection,
-        'PriceActionPatterns': PriceActionPatterns,
+        'SupportResistanceDetection': SupportResistanceDetection if 'SupportResistanceDetection' in globals() else None,
+        'PriceActionPatterns': PriceActionPatterns if 'PriceActionPatterns' in globals() else None,
         'math': math,
         '__builtins__': {
             'len': len,

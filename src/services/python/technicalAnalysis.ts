@@ -1,17 +1,36 @@
 
-import { ADVANCED_TECHNICAL_ANALYSIS_PYTHON_CODE } from './advancedTechnicalAnalysis';
-
 export const TECHNICAL_ANALYSIS_PYTHON_CODE = `
+import math
 import pandas as pd
 import numpy as np
-from typing import Dict, List, Any
-import json
-import math
 
 class TechnicalAnalysis:
+    """Technical Analysis class with static methods for indicators"""
+    
     @staticmethod
-    def sma(data: List[float], period: int) -> List[float]:
-        """Simple Moving Average"""
+    def ema(data, period):
+        """Calculate Exponential Moving Average"""
+        if len(data) < period:
+            return [float('nan')] * len(data)
+        
+        result = []
+        multiplier = 2 / (period + 1)
+        
+        # Initialize with SMA for the first value
+        sma = sum(data[:period]) / period
+        result.extend([float('nan')] * (period - 1))
+        result.append(sma)
+        
+        # Calculate EMA for remaining values
+        for i in range(period, len(data)):
+            ema = (data[i] * multiplier) + (result[i-1] * (1 - multiplier))
+            result.append(ema)
+        
+        return result
+    
+    @staticmethod
+    def sma(data, period):
+        """Calculate Simple Moving Average"""
         result = []
         for i in range(len(data)):
             if i < period - 1:
@@ -22,146 +41,93 @@ class TechnicalAnalysis:
         return result
     
     @staticmethod
-    def ema(data: List[float], period: int) -> List[float]:
-        """Exponential Moving Average"""
-        if not data:
-            return []
-        
-        result = [data[0]]
-        multiplier = 2 / (period + 1)
-        
-        for i in range(1, len(data)):
-            ema_val = (data[i] * multiplier) + (result[i-1] * (1 - multiplier))
-            result.append(ema_val)
-        
-        return result
-    
-    @staticmethod
-    def rsi(data: List[float], period: int = 14) -> List[float]:
-        """Relative Strength Index"""
+    def rsi(data, period=14):
+        """Calculate Relative Strength Index"""
         if len(data) < period + 1:
             return [float('nan')] * len(data)
         
-        gains = []
-        losses = []
+        deltas = [data[i] - data[i-1] for i in range(1, len(data))]
+        gains = [delta if delta > 0 else 0 for delta in deltas]
+        losses = [-delta if delta < 0 else 0 for delta in deltas]
         
-        for i in range(1, len(data)):
-            change = data[i] - data[i-1]
-            gains.append(max(change, 0))
-            losses.append(max(-change, 0))
+        # Calculate initial average gain and loss
+        avg_gain = sum(gains[:period]) / period
+        avg_loss = sum(losses[:period]) / period
         
-        result = [float('nan')]
+        result = [float('nan')] * (period)
         
-        for i in range(len(gains)):
-            if i < period - 1:
-                result.append(float('nan'))
+        for i in range(period, len(data)):
+            if i == period:
+                rs = avg_gain / avg_loss if avg_loss != 0 else 100
             else:
-                avg_gain = sum(gains[i-period+1:i+1]) / period
-                avg_loss = sum(losses[i-period+1:i+1]) / period
-                
-                if avg_loss == 0:
-                    result.append(100)
-                else:
-                    rs = avg_gain / avg_loss
-                    rsi_val = 100 - (100 / (1 + rs))
-                    result.append(rsi_val)
+                gain = gains[i-1]
+                loss = losses[i-1]
+                avg_gain = ((avg_gain * (period - 1)) + gain) / period
+                avg_loss = ((avg_loss * (period - 1)) + loss) / period
+                rs = avg_gain / avg_loss if avg_loss != 0 else 100
+            
+            rsi = 100 - (100 / (1 + rs))
+            result.append(rsi)
         
-        return result
-
-    @staticmethod
-    def stddev(data: List[float], period: int) -> List[float]:
-        """Standard Deviation"""
-        result = []
-        for i in range(len(data)):
-            if i < period - 1:
-                result.append(float('nan'))
-            else:
-                slice_data = data[i-period+1:i+1]
-                mean = sum(slice_data) / len(slice_data)
-                variance = sum((x - mean) ** 2 for x in slice_data) / len(slice_data)
-                result.append(math.sqrt(variance))
         return result
     
     @staticmethod
-    def bollinger_bands(data: List[float], period: int = 20, std_dev: float = 2):
-        """Bollinger Bands"""
+    def atr(high, low, close, period=14):
+        """Calculate Average True Range"""
+        if len(high) < 2:
+            return [float('nan')] * len(high)
+        
+        tr_values = []
+        for i in range(len(high)):
+            if i == 0:
+                tr = high[i] - low[i]
+            else:
+                tr1 = high[i] - low[i]
+                tr2 = abs(high[i] - close[i-1])
+                tr3 = abs(low[i] - close[i-1])
+                tr = max(tr1, tr2, tr3)
+            tr_values.append(tr)
+        
+        # Calculate ATR using SMA of TR values
+        atr_values = []
+        for i in range(len(tr_values)):
+            if i < period - 1:
+                atr_values.append(float('nan'))
+            else:
+                atr = sum(tr_values[i-period+1:i+1]) / period
+                atr_values.append(atr)
+        
+        return atr_values
+
+class AdvancedTechnicalAnalysis:
+    """Advanced Technical Analysis indicators"""
+    
+    @staticmethod
+    def atr(high, low, close, period=14):
+        """Calculate Average True Range - wrapper for compatibility"""
+        return TechnicalAnalysis.atr(high, low, close, period)
+    
+    @staticmethod
+    def bollinger_bands(data, period=20, std_dev=2):
+        """Calculate Bollinger Bands"""
         sma = TechnicalAnalysis.sma(data, period)
-        std = TechnicalAnalysis.stddev(data, period)
         
-        upper = []
-        lower = []
+        upper_band = []
+        lower_band = []
         
         for i in range(len(data)):
-            if math.isnan(sma[i]) or math.isnan(std[i]):
-                upper.append(float('nan'))
-                lower.append(float('nan'))
+            if i < period - 1:
+                upper_band.append(float('nan'))
+                lower_band.append(float('nan'))
             else:
-                upper.append(sma[i] + (std[i] * std_dev))
-                lower.append(sma[i] - (std[i] * std_dev))
+                subset = data[i-period+1:i+1]
+                std = (sum([(x - sma[i])**2 for x in subset]) / period) ** 0.5
+                upper_band.append(sma[i] + (std_dev * std))
+                lower_band.append(sma[i] - (std_dev * std))
         
         return {
-            'upper': upper,
+            'upper': upper_band,
             'middle': sma,
-            'lower': lower
+            'lower': lower_band
         }
-    
-    @staticmethod
-    def macd(data: List[float], fast: int = 12, slow: int = 26, signal: int = 9):
-        """MACD Indicator"""
-        ema_fast = TechnicalAnalysis.ema(data, fast)
-        ema_slow = TechnicalAnalysis.ema(data, slow)
-        
-        macd_line = []
-        for i in range(len(data)):
-            macd_line.append(ema_fast[i] - ema_slow[i])
-        
-        # Remove NaN values for signal calculation
-        valid_macd = [x for x in macd_line if not math.isnan(x)]
-        signal_line = TechnicalAnalysis.ema(valid_macd, signal)
-        
-        # Pad signal line to match original length
-        padded_signal = [float('nan')] * (len(macd_line) - len(signal_line)) + signal_line
-        
-        histogram = []
-        for i in range(len(macd_line)):
-            if math.isnan(macd_line[i]) or math.isnan(padded_signal[i]):
-                histogram.append(float('nan'))
-            else:
-                histogram.append(macd_line[i] - padded_signal[i])
-        
-        return {
-            'macd': macd_line,
-            'signal': padded_signal,
-            'histogram': histogram
-        }
-    
-    @staticmethod
-    def stochastic(high: List[float], low: List[float], close: List[float], k_period: int = 14, d_period: int = 3):
-        """Stochastic Oscillator"""
-        k_percent = []
-        
-        for i in range(len(close)):
-            if i < k_period - 1:
-                k_percent.append(float('nan'))
-            else:
-                period_high = max(high[i-k_period+1:i+1])
-                period_low = min(low[i-k_period+1:i+1])
-                
-                if period_high == period_low:
-                    k_percent.append(50)
-                else:
-                    k_val = ((close[i] - period_low) / (period_high - period_low)) * 100
-                    k_percent.append(k_val)
-        
-        # Calculate %D (SMA of %K)
-        d_percent = TechnicalAnalysis.sma([x for x in k_percent if not math.isnan(x)], d_period)
-        padded_d = [float('nan')] * (len(k_percent) - len(d_percent)) + d_percent
-        
-        return {
-            'k': k_percent,
-            'd': padded_d
-        }
-
-# Include advanced indicators
-${ADVANCED_TECHNICAL_ANALYSIS_PYTHON_CODE}
 `;
