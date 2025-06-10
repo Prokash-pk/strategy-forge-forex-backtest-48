@@ -12,7 +12,7 @@ export const useStrategyBuilder = (
   initialStrategy?: any
 ) => {
   const { strategy, updateStrategy } = useStrategyState(initialStrategy);
-  const pythonStatus = usePythonStatus();
+  const { pythonStatus, forceRefresh } = usePythonStatus();
   const { checkCanRunBacktest } = useBacktestUsage();
   
   const { handleStrategyChange, handleStrategySelect } = useStrategyActions(
