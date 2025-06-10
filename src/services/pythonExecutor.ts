@@ -10,7 +10,7 @@ export class PythonExecutor {
 
   static async executeStrategy(code: string, marketData: MarketData): Promise<StrategyResult> {
     try {
-      console.log('🐍 Initializing Python executor...');
+      console.log('🐍 Starting Python strategy execution...');
       const pyodide = await this.initializePyodide();
       
       console.log('📊 Converting market data for Python execution...');
@@ -52,12 +52,16 @@ try:
             buy_count = sum(1 for d in result['direction'] if d == 'BUY') if result['direction'] else 0
             sell_count = sum(1 for d in result['direction'] if d == 'SELL') if result['direction'] else 0
             print(f"📊 Python: BUY signals: {buy_count}, SELL signals: {sell_count}")
+        if 'trade_direction' in result:
+            trade_buy_count = sum(1 for d in result['trade_direction'] if d == 'BUY') if result['trade_direction'] else 0
+            trade_sell_count = sum(1 for d in result['trade_direction'] if d == 'SELL') if result['trade_direction'] else 0
+            print(f"🔄 Python: Trade BUY signals: {trade_buy_count}, Trade SELL signals: {trade_sell_count}")
     result
 except Exception as e:
     print(f"❌ Python: Strategy execution failed: {str(e)}")
     import traceback
     traceback.print_exc()
-    {"error": str(e), "entry": [], "exit": [], "direction": []}
+    {"error": str(e), "entry": [], "exit": [], "direction": [], "trade_direction": []}
       `);
       
       // Convert Python result to JavaScript
@@ -83,6 +87,7 @@ except Exception as e:
         entry: new Array(marketData.close.length).fill(false),
         exit: new Array(marketData.close.length).fill(false),
         direction: new Array(marketData.close.length).fill(null),
+        trade_direction: new Array(marketData.close.length).fill(null),
         error: `Python execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
@@ -90,14 +95,27 @@ except Exception as e:
 
   static async isAvailable(): Promise<boolean> {
     try {
-      console.log('🔍 Checking Python availability...');
+      console.log('🔍 Checking Python environment availability...');
       const result = await PyodideLoader.isAvailable();
-      console.log(`📊 Python availability check result: ${result}`);
+      console.log(`📊 Python availability result: ${result}`);
+      
+      if (!result) {
+        const lastError = PyodideLoader.getLastError();
+        if (lastError) {
+          console.error('🐍 Last Python error:', lastError.message);
+        }
+      }
+      
       return result;
     } catch (error) {
       console.error('❌ Python availability check failed:', error);
       return false;
     }
+  }
+
+  static resetPythonEnvironment(): void {
+    console.log('🔄 Resetting Python environment...');
+    PyodideLoader.reset();
   }
 }
 
