@@ -100,12 +100,12 @@ export const useDiagnosticChecks = () => {
       });
     }
 
-    // 6. Enhanced Strategy Signal Validation
+    // 6. Enhanced Strategy Signal Validation with Better Detection
     if (selectedStrategy) {
       try {
         console.log('🧪 Testing strategy signal generation with enhanced detection...');
         
-        // Create more realistic mock market data for testing with correct property names
+        // Create realistic mock market data with correct property names
         const mockData = {
           open: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
           high: Array(250).fill(0).map((_, i) => 1.1050 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
@@ -119,77 +119,92 @@ export const useDiagnosticChecks = () => {
         
         console.log('📊 Strategy execution result:', result);
         
-        // Check for various signal formats
+        // Enhanced signal validation with multiple fallback checks
         const hasEntry = result.entry && Array.isArray(result.entry) && result.entry.some(Boolean);
         const hasExit = result.exit && Array.isArray(result.exit);
         
-        // Check for direction array (primary method)
-        const hasDirection = result.direction && Array.isArray(result.direction);
+        // Check for direction arrays with multiple naming conventions
+        const directionArray = result.direction || result.entry_type || result.trade_direction;
+        const hasDirectionArray = directionArray && Array.isArray(directionArray);
         
-        // Check for alternative naming conventions
-        const hasEntryType = result.entry_type && Array.isArray(result.entry_type);
-        const hasTradeDirection = result.trade_direction && Array.isArray(result.trade_direction);
-        
-        // Count actual signals
+        // Count actual trading signals
         let buySignals = 0;
         let sellSignals = 0;
+        let totalEntrySignals = 0;
         
-        if (hasDirection) {
-          buySignals = result.direction.filter((d, i) => result.entry[i] && d === 'BUY').length;
-          sellSignals = result.direction.filter((d, i) => result.entry[i] && d === 'SELL').length;
-        } else if (hasEntryType) {
-          buySignals = result.entry_type.filter((d, i) => result.entry[i] && d === 'BUY').length;
-          sellSignals = result.entry_type.filter((d, i) => result.entry[i] && d === 'SELL').length;
-        } else if (hasTradeDirection) {
-          buySignals = result.trade_direction.filter((d, i) => result.entry[i] && d === 'BUY').length;
-          sellSignals = result.trade_direction.filter((d, i) => result.entry[i] && d === 'SELL').length;
+        if (hasEntry) {
+          totalEntrySignals = result.entry.filter(Boolean).length;
+          
+          if (hasDirectionArray) {
+            // Count BUY/SELL signals from direction array
+            buySignals = directionArray.filter((d, i) => result.entry[i] && (d === 'BUY' || d === 'buy')).length;
+            sellSignals = directionArray.filter((d, i) => result.entry[i] && (d === 'SELL' || d === 'sell')).length;
+          }
         }
 
-        console.log(`📈 Signal counts: BUY=${buySignals}, SELL=${sellSignals}`);
+        console.log(`📈 Signal Analysis: Entry=${totalEntrySignals}, BUY=${buySignals}, SELL=${sellSignals}`);
 
-        // Auto-detection logic for strategies without explicit direction
-        if (!hasDirection && !hasEntryType && !hasTradeDirection && hasEntry) {
-          console.log('🔧 No explicit direction found, checking for auto-detection capability...');
-          
-          // Check if strategy has indicators that can be used for direction detection
-          const hasIndicators = result.short_ema || result.long_ema || result.rsi || result.ema_fast || result.ema_slow;
-          
-          if (hasIndicators) {
-            console.log('✅ Strategy has indicators for auto-direction detection');
-            diagnosticChecks.push({
-              name: 'Strategy Signal Generation',
-              status: 'warning',
-              message: `⚠️ Strategy generates entry signals but no explicit BUY/SELL directions. System will auto-detect from indicators (${result.entry.filter(Boolean).length} entry signals found)`,
-              critical: false
-            });
-          } else {
-            diagnosticChecks.push({
-              name: 'Strategy Signal Generation',
-              status: 'fail',
-              message: '❌ Strategy missing both BUY/SELL directions and indicators for auto-detection',
-              critical: true
-            });
-          }
-        } else if (buySignals > 0 || sellSignals > 0) {
-          diagnosticChecks.push({
-            name: 'Strategy Signal Generation',
-            status: 'pass',
-            message: `✅ Strategy generates BUY/SELL signals: ${buySignals} BUY, ${sellSignals} SELL`,
-            critical: false
-          });
-        } else if (hasEntry) {
-          diagnosticChecks.push({
-            name: 'Strategy Signal Generation',
-            status: 'warning',
-            message: `⚠️ Strategy has entry signals (${result.entry.filter(Boolean).length}) but no BUY/SELL directions detected`,
-            critical: false
-          });
-        } else {
+        // Check if strategy has indicators for auto-detection
+        const hasIndicators = result.short_ema || result.long_ema || result.rsi || 
+                            result.ema_fast || result.ema_slow || result.sma_fast || result.sma_slow ||
+                            result.macd || result.signal || result.histogram;
+
+        // Enhanced validation logic
+        if (!hasEntry) {
           diagnosticChecks.push({
             name: 'Strategy Signal Generation',
             status: 'fail',
-            message: '❌ Strategy not generating any trading signals',
+            message: '❌ Strategy not generating any entry signals',
             critical: true
+          });
+        } else if (buySignals > 0 || sellSignals > 0) {
+          // Perfect case: has entry signals AND direction
+          diagnosticChecks.push({
+            name: 'Strategy Signal Generation',
+            status: 'pass',
+            message: `✅ Strategy generates directional signals: ${buySignals} BUY, ${sellSignals} SELL (${totalEntrySignals} total entries)`,
+            critical: false
+          });
+        } else if (hasEntry && hasIndicators) {
+          // Good case: has entry signals and indicators for auto-detection
+          diagnosticChecks.push({
+            name: 'Strategy Signal Generation',
+            status: 'warning',
+            message: `⚠️ Strategy generates ${totalEntrySignals} entry signals with indicators available for auto-direction detection`,
+            critical: false
+          });
+        } else if (hasEntry && !hasDirectionArray) {
+          // Moderate case: has entries but no direction info
+          diagnosticChecks.push({
+            name: 'Strategy Signal Generation',
+            status: 'warning',
+            message: `⚠️ Strategy generates ${totalEntrySignals} entry signals but no BUY/SELL directions. System will attempt auto-detection.`,
+            critical: false
+          });
+        } else {
+          // Problem case: missing critical components
+          diagnosticChecks.push({
+            name: 'Strategy Signal Generation',
+            status: 'fail',
+            message: '❌ Strategy missing both entry signals and directional information',
+            critical: true
+          });
+        }
+
+        // Additional check for result validation
+        if (result.validation_passed === false || result.error) {
+          diagnosticChecks.push({
+            name: 'Strategy Validation',
+            status: 'fail',
+            message: `❌ Strategy validation failed: ${result.error || result.validation_message || 'Unknown error'}`,
+            critical: true
+          });
+        } else if (result.auto_generated_direction) {
+          diagnosticChecks.push({
+            name: 'Auto Signal Enhancement',
+            status: 'pass',
+            message: '✅ System successfully auto-generated BUY/SELL directions from strategy logic',
+            critical: false
           });
         }
 
