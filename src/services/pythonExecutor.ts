@@ -98,7 +98,7 @@ export class PythonExecutor {
       
       console.log('🚀 Executing Python strategy...');
       
-      // Robust Python execution with comprehensive error handling
+      // Enhanced Python execution with comprehensive error handling
       let pythonResult;
       try {
         console.log('🔄 Attempting Python execution...');
@@ -129,38 +129,62 @@ except Exception as e:
           };
         }
         
+        // Execute the strategy with explicit result handling
         pythonResult = pyodide.runPython(`
 try:
     print("🔍 Python: Starting strategy execution...")
-    result = execute_strategy(js_market_data, js_strategy_code)
+    raw_result = execute_strategy(js_market_data, js_strategy_code)
     print(f"✅ Python: Strategy execution completed")
-    print(f"📊 Python: Result type: {type(result)}")
+    print(f"📊 Python: Raw result type: {type(raw_result)}")
+    print(f"📊 Python: Raw result value: {raw_result}")
     
-    if result is None:
-        print("⚠️ Python: Strategy returned None")
-        result = {"error": "Strategy returned None", "entry": [], "exit": [], "direction": []}
-    elif not isinstance(result, dict):
-        print(f"⚠️ Python: Strategy returned non-dict: {type(result)}")
-        result = {"error": f"Strategy returned {type(result)}, expected dict", "entry": [], "exit": [], "direction": []}
+    # Ensure we always have a valid result
+    if raw_result is None:
+        print("⚠️ Python: Strategy returned None - creating default result")
+        result = {
+            "entry": [False] * len(js_market_data["close"]),
+            "exit": [False] * len(js_market_data["close"]),
+            "direction": [None] * len(js_market_data["close"]),
+            "error": "Strategy returned None"
+        }
+    elif not isinstance(raw_result, dict):
+        print(f"⚠️ Python: Strategy returned non-dict: {type(raw_result)} - creating default result")
+        result = {
+            "entry": [False] * len(js_market_data["close"]),
+            "exit": [False] * len(js_market_data["close"]),
+            "direction": [None] * len(js_market_data["close"]),
+            "error": f"Strategy returned {type(raw_result)}, expected dict"
+        }
     else:
-        print(f"📊 Python: Result keys: {list(result.keys())}")
-        if 'entry' in result:
+        result = raw_result
+        print(f"📊 Python: Valid result keys: {list(result.keys())}")
+        if 'entry' in result and result['entry']:
             entry_count = sum(1 for x in result['entry'] if x) if result['entry'] else 0
             print(f"📈 Python: Entry signals: {entry_count}")
-        if 'direction' in result:
+        if 'direction' in result and result['direction']:
             buy_count = sum(1 for d in result['direction'] if d == 'BUY') if result['direction'] else 0
             sell_count = sum(1 for d in result['direction'] if d == 'SELL') if result['direction'] else 0
             print(f"📊 Python: BUY signals: {buy_count}, SELL signals: {sell_count}")
     
+    # Ensure result is properly formatted
+    print(f"📊 Python: Final result type: {type(result)}")
+    print(f"📊 Python: Final result: {result}")
     result
 except Exception as e:
     print(f"❌ Python: Strategy execution failed: {str(e)}")
     import traceback
     traceback.print_exc()
-    {"error": str(e), "entry": [], "exit": [], "direction": []}
+    {
+        "entry": [False] * len(js_market_data["close"]),
+        "exit": [False] * len(js_market_data["close"]),
+        "direction": [None] * len(js_market_data["close"]),
+        "error": str(e)
+    }
         `);
         
         console.log('✅ Python execution completed, result received');
+        console.log('🔍 Raw Python result:', pythonResult);
+        console.log('📋 Python result type:', typeof pythonResult);
         
       } catch (pythonError) {
         console.error('❌ Python runPython failed:', pythonError);
@@ -174,69 +198,57 @@ except Exception as e:
       
       // Enhanced result validation with detailed logging
       console.log('🔍 Validating Python result...');
-      console.log('📋 Raw Python result:', pythonResult);
-      console.log('📋 Python result type:', typeof pythonResult);
-      console.log('📋 Python result constructor:', pythonResult?.constructor?.name);
       
       if (pythonResult === undefined || pythonResult === null) {
         console.error('❌ Python execution returned undefined/null');
+        console.error('📊 This indicates a critical Python execution failure');
         return {
           entry: new Array(marketData.close.length).fill(false),
           exit: new Array(marketData.close.length).fill(false),
           direction: new Array(marketData.close.length).fill(null),
-          error: 'Python execution returned undefined result'
+          error: 'Python execution returned undefined result - check strategy code syntax'
         };
       }
 
       // Handle different result types safely
       let jsResult;
       
-      // Case 1: Result already is a JavaScript object (plain object)
-      if (pythonResult && typeof pythonResult === 'object' && pythonResult.constructor === Object) {
-        console.log('✅ Result is already a plain JavaScript object');
-        jsResult = pythonResult;
-      }
-      // Case 2: Result is a Pyodide proxy object with toJs method
-      else if (pythonResult && typeof pythonResult === 'object' && typeof pythonResult.toJs === 'function') {
-        console.log('🔄 Converting Pyodide proxy to JavaScript...');
-        try {
+      try {
+        // Case 1: Result already is a JavaScript object (plain object)
+        if (pythonResult && typeof pythonResult === 'object' && pythonResult.constructor === Object) {
+          console.log('✅ Result is already a plain JavaScript object');
+          jsResult = pythonResult;
+        }
+        // Case 2: Result is a Pyodide proxy object with toJs method
+        else if (pythonResult && typeof pythonResult === 'object' && typeof pythonResult.toJs === 'function') {
+          console.log('🔄 Converting Pyodide proxy to JavaScript...');
           jsResult = pythonResult.toJs({ dict_converter: Object.fromEntries });
           console.log('✅ Conversion successful');
-        } catch (conversionError) {
-          console.error('❌ Error converting Python result to JavaScript:', conversionError);
-          return {
-            entry: new Array(marketData.close.length).fill(false),
-            exit: new Array(marketData.close.length).fill(false),
-            direction: new Array(marketData.close.length).fill(null),
-            error: `Result conversion failed: ${conversionError instanceof Error ? conversionError.message : 'Unknown conversion error'}`
-          };
         }
-      }
-      // Case 3: Result is some other type of object
-      else if (pythonResult && typeof pythonResult === 'object') {
-        console.log('🔄 Converting non-proxy object...');
-        try {
+        // Case 3: Result is some other type of object
+        else if (pythonResult && typeof pythonResult === 'object') {
+          console.log('🔄 Converting non-proxy object...');
           // Try to convert to plain object
           jsResult = JSON.parse(JSON.stringify(pythonResult));
           console.log('✅ Object conversion successful');
-        } catch (conversionError) {
-          console.error('❌ Failed to convert object result:', conversionError);
+        }
+        // Case 4: Unexpected result type
+        else {
+          console.error('❌ Unexpected Python result type:', typeof pythonResult, pythonResult);
           return {
             entry: new Array(marketData.close.length).fill(false),
             exit: new Array(marketData.close.length).fill(false),
             direction: new Array(marketData.close.length).fill(null),
-            error: `Object conversion failed: ${conversionError instanceof Error ? conversionError.message : 'Unknown conversion error'}`
+            error: `Unexpected Python result type: ${typeof pythonResult}`
           };
         }
-      }
-      // Case 4: Unexpected result type
-      else {
-        console.error('❌ Unexpected Python result type:', typeof pythonResult, pythonResult);
+      } catch (conversionError) {
+        console.error('❌ Error converting Python result to JavaScript:', conversionError);
         return {
           entry: new Array(marketData.close.length).fill(false),
           exit: new Array(marketData.close.length).fill(false),
           direction: new Array(marketData.close.length).fill(null),
-          error: `Unexpected Python result type: ${typeof pythonResult}`
+          error: `Result conversion failed: ${conversionError instanceof Error ? conversionError.message : 'Unknown conversion error'}`
         };
       }
 
