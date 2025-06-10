@@ -158,6 +158,18 @@ def process_strategy_signals(result, reverse_signals):
     return processed_result
 
 def extract_reverse_signals_flag(market_data_dict):
-    """Extract reverse_signals flag from market data"""
-    return market_data_dict.get('reverse_signals', False)
+    """Extract reverse_signals flag from market data - Fixed version"""
+    try:
+        # Handle different data types safely
+        if isinstance(market_data_dict, dict):
+            return market_data_dict.get('reverse_signals', False)
+        elif hasattr(market_data_dict, 'get'):
+            return market_data_dict.get('reverse_signals', False)
+        else:
+            # If it's not a dict-like object, return default
+            print(f"⚠️ market_data_dict is not dict-like: {type(market_data_dict)}")
+            return False
+    except Exception as e:
+        print(f"⚠️ Error extracting reverse_signals flag: {e}")
+        return False
 `;

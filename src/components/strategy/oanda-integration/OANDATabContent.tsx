@@ -9,6 +9,7 @@ import OANDAPriceMonitorControl from '../OANDAPriceMonitorControl';
 import ForwardTestingDiagnostic from '../ForwardTestingDiagnostic';
 import BrowserKeepaliveControl from '../BrowserKeepaliveControl';
 import ServerSideTradingControl from '../ServerSideTradingControl';
+import TradingReadinessDiagnostic from '../diagnostics/TradingReadinessDiagnostic';
 import { OANDAConfig, SavedOANDAConfig, StrategySettings } from '@/types/oanda';
 
 interface OANDATabContentProps {
@@ -165,7 +166,10 @@ const OANDATabContent: React.FC<OANDATabContentProps> = ({
       </TabsContent>
 
       <TabsContent value="diagnostic" className="mt-6">
-        <ForwardTestingDiagnostic />
+        <div className="space-y-6">
+          <TradingReadinessDiagnostic />
+          <ForwardTestingDiagnostic />
+        </div>
       </TabsContent>
     </>
   );
