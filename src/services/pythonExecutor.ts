@@ -36,13 +36,20 @@ export class PythonExecutor {
       
       console.log('🚀 Executing Python strategy...');
       
-      // Execute the strategy with enhanced error handling and result validation
-      const pythonResult = pyodide.runPython(`
+      // First, let's test if Python execution works at all
+      let pythonResult;
+      try {
+        pythonResult = pyodide.runPython(`
 try:
-    # Convert JS data to Python and execute strategy
+    # Test basic Python execution first
+    print("🔍 Python: Testing basic execution...")
+    test_result = {"test": "success"}
+    print(f"✅ Python: Basic test successful")
+    
+    # Now try strategy execution
     print("🔍 Python: Starting strategy execution...")
     result = execute_strategy(js_market_data, js_strategy_code)
-    print(f"✅ Python: Strategy execution completed successfully")
+    print(f"✅ Python: Strategy execution completed")
     print(f"📊 Python: Result type: {type(result)}")
     
     if result is None:
@@ -67,7 +74,16 @@ except Exception as e:
     import traceback
     traceback.print_exc()
     {"error": str(e), "entry": [], "exit": [], "direction": []}
-      `);
+        `);
+      } catch (pythonError) {
+        console.error('❌ Python runPython failed:', pythonError);
+        return {
+          entry: new Array(marketData.close.length).fill(false),
+          exit: new Array(marketData.close.length).fill(false),
+          direction: new Array(marketData.close.length).fill(null),
+          error: `Python execution failed: ${pythonError instanceof Error ? pythonError.message : 'Unknown Python error'}`
+        };
+      }
       
       // Validate Python result before converting
       if (pythonResult === undefined || pythonResult === null) {
@@ -80,21 +96,50 @@ except Exception as e:
         };
       }
 
-      // Check if result has toJs method
-      if (typeof pythonResult.toJs !== 'function') {
-        console.error('❌ Python result does not have toJs method:', typeof pythonResult);
-        return {
-          entry: new Array(marketData.close.length).fill(false),
-          exit: new Array(marketData.close.length).fill(false),
-          direction: new Array(marketData.close.length).fill(null),
-          error: 'Python result cannot be converted to JavaScript'
-        };
+      console.log('🔍 Python result type check:', {
+        result: pythonResult,
+        type: typeof pythonResult,
+        hasToJs: typeof pythonResult?.toJs,
+        isObject: pythonResult && typeof pythonResult === 'object',
+        constructor: pythonResult?.constructor?.name
+      });
+
+      // Check if result has toJs method - if not, it might already be a JS object
+      if (typeof pythonResult?.toJs !== 'function') {
+        console.log('⚠️ Python result does not have toJs method, checking if it\'s already JS object');
+        
+        // If it's already a plain JS object, use it directly
+        if (pythonResult && typeof pythonResult === 'object' && !pythonResult.toJs) {
+          console.log('✅ Using Python result as plain JS object');
+          const jsResult = pythonResult;
+          
+          console.log('✅ Python strategy executed successfully');
+          console.log('📊 Final result:', {
+            hasEntry: !!jsResult.entry,
+            hasExit: !!jsResult.exit,
+            hasDirection: !!jsResult.direction,
+            hasError: !!jsResult.error,
+            keys: Object.keys(jsResult)
+          });
+          
+          return jsResult as StrategyResult;
+        } else {
+          console.error('❌ Python result cannot be converted to JavaScript:', typeof pythonResult);
+          return {
+            entry: new Array(marketData.close.length).fill(false),
+            exit: new Array(marketData.close.length).fill(false),
+            direction: new Array(marketData.close.length).fill(null),
+            error: 'Python result cannot be converted to JavaScript'
+          };
+        }
       }
       
       // Convert Python result to JavaScript with error handling
       let jsResult;
       try {
+        console.log('🔄 Converting Python result to JavaScript...');
         jsResult = pythonResult.toJs({ dict_converter: Object.fromEntries });
+        console.log('✅ Conversion successful');
       } catch (conversionError) {
         console.error('❌ Error converting Python result to JavaScript:', conversionError);
         return {
