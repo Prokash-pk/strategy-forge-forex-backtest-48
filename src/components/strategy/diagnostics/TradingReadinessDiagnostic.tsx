@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -114,13 +115,13 @@ const TradingReadinessDiagnostic: React.FC = () => {
       try {
         console.log('🧪 Testing strategy signal generation with enhanced detection...');
         
-        // Create more realistic mock market data for testing
+        // Create more realistic mock market data for testing with correct property names
         const mockData = {
-          Open: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
-          High: Array(250).fill(0).map((_, i) => 1.1050 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
-          Low: Array(250).fill(0).map((_, i) => 1.0950 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
-          Close: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
-          Volume: Array(250).fill(1000)
+          open: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
+          high: Array(250).fill(0).map((_, i) => 1.1050 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
+          low: Array(250).fill(0).map((_, i) => 1.0950 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
+          close: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
+          volume: Array(250).fill(1000)
         };
 
         console.log('🔍 Executing strategy with mock data...');
