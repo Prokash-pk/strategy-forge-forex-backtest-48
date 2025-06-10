@@ -30,6 +30,7 @@ const OANDAIntegrationSimplified: React.FC = () => {
     connectionStatusIcon: ConnectionStatusIcon,
     handleConfigChange,
     handleTestConnection,
+    handleManualConnect,
     handleSaveConfig,
     handleSaveNewConfig,
     handleLoadConfig,
@@ -109,6 +110,7 @@ const OANDAIntegrationSimplified: React.FC = () => {
                 savedConfigs={savedConfigs}
                 onConfigChange={handleConfigChange}
                 onTestConnection={handleTestConnection}
+                onManualConnect={handleManualConnect}
                 onSaveConfig={handleSaveConfig}
                 onSaveNewConfig={handleSaveNewConfig}
                 onLoadConfig={handleLoadConfig}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,6 +34,7 @@ const OANDAIntegration: React.FC = () => {
     connectionStatusIcon: ConnectionStatusIcon,
     handleConfigChange,
     handleTestConnection,
+    handleManualConnect,
     handleSaveConfig,
     handleSaveNewConfig,
     handleLoadConfig,
@@ -136,6 +138,7 @@ const OANDAIntegration: React.FC = () => {
                 savedConfigs={savedConfigs}
                 onConfigChange={handleConfigChange}
                 onTestConnection={handleTestConnection}
+                onManualConnect={handleManualConnect}
                 onSaveConfig={handleSaveConfig}
                 onSaveNewConfig={handleSaveNewConfig}
                 onLoadConfig={handleLoadConfig}

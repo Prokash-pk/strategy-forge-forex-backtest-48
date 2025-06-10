@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -18,6 +19,7 @@ interface OANDAConfigFormProps {
   savedConfigs: SavedOANDAConfig[];
   onConfigChange: (field: keyof OANDAConfig, value: any) => void;
   onTestConnection: () => void;
+  onManualConnect?: () => void;
   onSaveConfig: () => void;
   onSaveNewConfig: (config: OANDAConfig & { configName: string }) => void;
   onLoadConfig: (config: SavedOANDAConfig) => void;
@@ -44,6 +46,7 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
   savedConfigs,
   onConfigChange,
   onTestConnection,
+  onManualConnect,
   onSaveConfig,
   onSaveNewConfig,
   onLoadConfig,
@@ -73,8 +76,12 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
       console.log('⏹️ Stopping auto-reconnect for manual connection');
     }
     
-    // Test the connection manually
-    await onTestConnection();
+    // Use manual connect if available, otherwise fallback to test connection
+    if (onManualConnect) {
+      await onManualConnect();
+    } else {
+      await onTestConnection();
+    }
     
     // Save the config for future use
     if (isConfiguredForTesting) {

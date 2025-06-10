@@ -30,6 +30,7 @@ export const useOANDAIntegration = () => {
     lastConnectedAt,
     accountInfo,
     handleTestConnection,
+    handleManualConnect,
     resetConnectionStatus,
     autoReconnect,
     retryCount,
@@ -94,20 +95,6 @@ export const useOANDAIntegration = () => {
     }
   }, [isForwardTestingActive, isConnected, selectedStrategy]);
 
-  // Optimized auto-reconnect with debouncing
-  useEffect(() => {
-    if (!configValidation.hasCredentials || isConnected || isAutoReconnecting) {
-      return;
-    }
-
-    console.log('🔄 Config updated, attempting auto-reconnect...');
-    const timeoutId = setTimeout(() => {
-      autoReconnect(config);
-    }, 500); // Debounce auto-reconnect
-
-    return () => clearTimeout(timeoutId);
-  }, [configValidation.hasCredentials, isConnected, isAutoReconnecting]);
-
   // Auto-manage AutoStrategyTester based on forward testing status
   useEffect(() => {
     const autoTester = AutoStrategyTester.getInstance();
@@ -121,8 +108,10 @@ export const useOANDAIntegration = () => {
     }
   }, [isConnected, selectedStrategy, isForwardTestingActive, config]);
 
-  const handleConfigChangeWithAutoReconnect = useCallback((field: keyof typeof config, value: any) => {
+  const handleConfigChangeWithoutAutoReconnect = useCallback((field: keyof typeof config, value: any) => {
+    console.log('📝 Config change:', field, '=', value);
     handleConfigChange(field, value);
+    // No auto-reconnect here - user must manually connect
   }, [handleConfigChange]);
 
   const handleShowGuide = useCallback(() => {
@@ -143,8 +132,14 @@ export const useOANDAIntegration = () => {
   }, [toggleForwardTesting]);
 
   const handleEnhancedTestConnection = useCallback(async () => {
+    console.log('🔄 Manual connection test requested');
     await handleTestConnection(config);
   }, [handleTestConnection, config]);
+
+  const handleManualConnectionWrapper = useCallback(async () => {
+    console.log('🔄 Manual connection requested by user');
+    await handleManualConnect(config);
+  }, [handleManualConnect, config]);
 
   // Use logging hook with optimized dependencies
   useOANDALogging(
@@ -177,8 +172,9 @@ export const useOANDAIntegration = () => {
     retryCount,
     isAutoReconnecting,
     configValidation,
-    handleConfigChange: handleConfigChangeWithAutoReconnect,
+    handleConfigChange: handleConfigChangeWithoutAutoReconnect,
     handleTestConnection: handleEnhancedTestConnection,
+    handleManualConnect: handleManualConnectionWrapper,
     handleSaveConfig,
     handleSaveNewConfig,
     handleLoadConfig,
@@ -190,7 +186,7 @@ export const useOANDAIntegration = () => {
     handleShowGuide,
     loadSavedConfigs,
     loadSavedStrategies,
-    autoReconnect: () => autoReconnect(config),
+    autoReconnect: () => autoReconnect(config, true), // Only user-requested auto-reconnect
     forceRestartKeepalive: forceRestart
   };
 };
