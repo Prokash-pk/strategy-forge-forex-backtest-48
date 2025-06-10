@@ -6,6 +6,13 @@ import { STRATEGY_EXECUTION_PYTHON_CODE } from './strategyExecution';
 import { ERROR_HANDLING_PYTHON_CODE } from './errorHandling';
 
 export const STRATEGY_EXECUTOR_PYTHON_CODE = `
+# Import necessary typing modules at the top
+import typing
+from typing import Dict, List, Any, Union, Optional
+import pandas as pd
+import numpy as np
+import math
+
 ${TECHNICAL_ANALYSIS_PYTHON_CODE}
 ${DATA_VALIDATION_PYTHON_CODE}
 ${SIGNAL_PROCESSING_PYTHON_CODE}
