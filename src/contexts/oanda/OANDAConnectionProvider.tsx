@@ -8,12 +8,12 @@ const OANDAConnectionContext = createContext<OANDAConnectionContextType | undefi
 
 export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { connectionState, setConnectionState } = useOANDAConnectionState();
-  const { testConnection, disconnectOANDA, autoReconnect } = useOANDAConnectionOperations(
+  const { testConnection, manualConnect, disconnectOANDA, autoReconnect } = useOANDAConnectionOperations(
     connectionState,
     setConnectionState
   );
 
-  // Auto-reconnect on mount if configuration exists and we were previously connected
+  // Auto-reconnect on mount only if we were previously connected (less aggressive)
   useEffect(() => {
     const savedConfig = localStorage.getItem('oanda_config');
     if (!savedConfig) return;
@@ -21,17 +21,17 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
     try {
       const config = JSON.parse(savedConfig);
       if (config.accountId && config.apiKey && connectionState.lastConnectedAt) {
-        console.log('🔄 Auto-reconnecting on app load...');
-        autoReconnect(config);
+        console.log('🔄 Auto-reconnecting on app load (one-time)...');
+        autoReconnect(config, false); // false = not user requested
       }
     } catch (error) {
       console.warn('Failed to parse saved config for auto-reconnect:', error);
     }
   }, []); // Only run once on mount
 
-  // Persistent connection health check heartbeat that survives tab changes
+  // Less aggressive heartbeat - only when connected and not during errors
   useEffect(() => {
-    if (!connectionState.isConnected) return;
+    if (!connectionState.isConnected || connectionState.connectionStatus === 'error') return;
 
     const interval = setInterval(async () => {
       const savedConfig = localStorage.getItem('oanda_config');
@@ -45,7 +45,7 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
           
           // Silent health check with shorter timeout
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+          const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
           
           try {
             await testOANDAConnection(config);
@@ -53,54 +53,42 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
             console.log('💓 OANDA connection heartbeat OK');
           } catch (error) {
             clearTimeout(timeoutId);
-            console.warn('💔 OANDA connection heartbeat failed, attempting auto-reconnect...');
+            console.warn('💔 OANDA connection heartbeat failed');
             
-            // Only auto-reconnect if not already reconnecting
-            if (!connectionState.isAutoReconnecting) {
-              autoReconnect(config);
-            }
+            // Don't auto-reconnect on heartbeat failure - let user manually reconnect
+            setConnectionState({
+              isConnected: false,
+              connectionStatus: 'error',
+              connectionError: 'Connection lost. Please manually reconnect.'
+            });
           }
         }
       } catch (error) {
         console.warn('Heartbeat check failed:', error);
       }
-    }, CONNECTION_HEARTBEAT_INTERVAL);
+    }, CONNECTION_HEARTBEAT_INTERVAL * 2); // Less frequent heartbeat
 
     return () => clearInterval(interval);
-  }, [connectionState.isConnected, connectionState.isAutoReconnecting]);
+  }, [connectionState.isConnected, connectionState.connectionStatus]);
 
-  // Prevent connection drops on tab visibility changes
+  // Simple tab visibility check without auto-reconnect
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && connectionState.isConnected) {
-        console.log('👁️ Tab became visible, checking connection health...');
-        
-        // Quick connection check when tab becomes visible
-        const savedConfig = localStorage.getItem('oanda_config');
-        if (savedConfig) {
-          try {
-            const config = JSON.parse(savedConfig);
-            if (config.accountId && config.apiKey && !connectionState.isAutoReconnecting) {
-              // Delay check to avoid race conditions
-              setTimeout(() => {
-                testConnection(config);
-              }, 1000);
-            }
-          } catch (error) {
-            console.warn('Failed to reconnect on tab focus:', error);
-          }
-        }
+        console.log('👁️ Tab became visible - connection status preserved');
+        // Don't automatically reconnect, just log
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [connectionState.isConnected, connectionState.isAutoReconnecting]);
+  }, [connectionState.isConnected]);
 
   const contextValue: OANDAConnectionContextType = {
     ...connectionState,
     setConnectionState,
     testConnection,
+    manualConnect,
     disconnectOANDA,
     autoReconnect
   };

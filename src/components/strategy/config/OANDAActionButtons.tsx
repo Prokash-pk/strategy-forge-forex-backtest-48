@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, TestTube, Loader2, Wifi } from 'lucide-react';
+import { Save, TestTube, Loader2, Wifi, WifiOff } from 'lucide-react';
 
 interface OANDAActionButtonsProps {
   isConfigured: boolean;
@@ -32,6 +32,7 @@ const OANDAActionButtons: React.FC<OANDAActionButtonsProps> = ({
 }) => {
   // Allow test trades even when autonomous trading is active, as long as configured
   const canTestTrade = isConfigured && !isTestingTrade;
+  const isConnected = connectionStatus === 'success';
 
   return (
     <>
@@ -40,21 +41,21 @@ const OANDAActionButtons: React.FC<OANDAActionButtonsProps> = ({
         <Button
           onClick={onConnect}
           disabled={!isConfigured || connectionStatus === 'testing' || isLoading}
-          className="bg-emerald-600 hover:bg-emerald-700 flex-1"
+          className={isConnected ? "bg-emerald-600 hover:bg-emerald-700 flex-1" : "bg-blue-600 hover:bg-blue-700 flex-1"}
         >
           {connectionStatus === 'testing' || isLoading ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               Connecting...
             </>
-          ) : connectionStatus === 'success' ? (
+          ) : isConnected ? (
             <>
               <Wifi className="h-4 w-4 mr-2" />
-              Connected
+              Reconnect OANDA
             </>
           ) : (
             <>
-              <Wifi className="h-4 w-4 mr-2" />
+              <WifiOff className="h-4 w-4 mr-2" />
               Connect OANDA
             </>
           )}

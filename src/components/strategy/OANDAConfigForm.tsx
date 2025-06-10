@@ -65,12 +65,18 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
   
   const isConfiguredForTesting = Boolean(config.accountId?.trim() && config.apiKey?.trim());
 
-  const handleConnectOANDA = async () => {
-    // Test the connection
+  const handleManualConnect = async () => {
+    console.log('🔄 User manually connecting to OANDA...');
+    
+    // Stop any auto-reconnection attempts
+    if (connectionProps?.isAutoReconnecting) {
+      console.log('⏹️ Stopping auto-reconnect for manual connection');
+    }
+    
+    // Test the connection manually
     await onTestConnection();
     
-    // Connection status is now managed globally and will persist
-    // Save the config for future auto-reconnection
+    // Save the config for future use
     if (isConfiguredForTesting) {
       await onSaveConfig();
     }
@@ -82,6 +88,15 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Connection status message for auto-reconnecting */}
+      {connectionProps?.isAutoReconnecting && (
+        <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+          <p className="text-yellow-300 text-sm">
+            ⚠️ Auto-reconnecting... You can click "Connect OANDA" to stop auto-reconnect and connect manually.
+          </p>
+        </div>
+      )}
+
       {/* Deduplication Tool */}
       <OANDADeduplicationTool
         savedConfigs={savedConfigs}
@@ -144,7 +159,7 @@ const OANDAConfigForm: React.FC<OANDAConfigFormProps> = ({
             canStartTesting={canStartTesting}
             isForwardTestingActive={isForwardTestingActive}
             connectionStatusIcon={connectionStatusIcon}
-            onConnect={handleConnectOANDA}
+            onConnect={handleManualConnect}
             onTestConnection={onTestConnection}
             onSaveConfig={onSaveConfig}
             onTestTrade={onTestTrade}

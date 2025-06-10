@@ -10,6 +10,7 @@ export const useOANDAConnection = () => {
     lastConnectedAt,
     accountInfo,
     testConnection,
+    manualConnect,
     disconnectOANDA,
     autoReconnect,
     retryCount,
@@ -18,6 +19,10 @@ export const useOANDAConnection = () => {
 
   const handleTestConnection = async (config: OANDAConfig) => {
     await testConnection(config);
+  };
+
+  const handleManualConnect = async (config: OANDAConfig) => {
+    await manualConnect(config);
   };
 
   const resetConnectionStatus = () => {
@@ -32,6 +37,7 @@ export const useOANDAConnection = () => {
     lastConnectedAt,
     accountInfo,
     handleTestConnection,
+    handleManualConnect,
     resetConnectionStatus,
     disconnectOANDA,
     autoReconnect,

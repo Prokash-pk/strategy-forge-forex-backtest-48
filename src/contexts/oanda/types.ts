@@ -1,4 +1,3 @@
-
 export interface OANDAConnectionState {
   isConnected: boolean;
   connectionStatus: 'idle' | 'testing' | 'success' | 'error';
@@ -12,8 +11,9 @@ export interface OANDAConnectionState {
 export interface OANDAConnectionContextType extends OANDAConnectionState {
   setConnectionState: (state: Partial<OANDAConnectionState>) => void;
   testConnection: (config: OANDAConfig) => Promise<void>;
+  manualConnect: (config: OANDAConfig) => Promise<void>;
   disconnectOANDA: () => void;
-  autoReconnect: (config: OANDAConfig) => Promise<void>;
+  autoReconnect: (config: OANDAConfig, userRequested?: boolean) => Promise<void>;
 }
 
 export interface OANDAConfig {
