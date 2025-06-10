@@ -8,6 +8,7 @@ def validate_strategy_signals(result):
     
     entry = result.get('entry', [])
     exit = result.get('exit', [])
+    # Check for 'direction' first (your strategy uses this), then fallbacks
     direction = result.get('direction', result.get('entry_type', result.get('trade_direction', [])))
     
     # Check required fields exist
@@ -24,8 +25,8 @@ def validate_strategy_signals(result):
     if len(entry) != len(exit) or len(entry) != len(direction):
         return False, f"Arrays must be same length: entry({len(entry)}), exit({len(exit)}), direction({len(direction)})"
     
-    # Validate direction values
-    valid_directions = ['BUY', 'SELL', None]
+    # Validate direction values - allow None, null, and string values
+    valid_directions = ['BUY', 'SELL', None, 'None', 'NONE']
     invalid_directions = [d for d in direction if d not in valid_directions]
     if invalid_directions:
         return False, f"Invalid direction values: {set(invalid_directions)}. Must be 'BUY', 'SELL', or None"
@@ -99,7 +100,7 @@ def process_strategy_signals(result, reverse_signals):
     # Enforce directional signals (this will auto-fix if possible)
     result = enforce_directional_signals(result)
     
-    # Extract signals with fallbacks
+    # Extract signals with proper fallback order: direction -> entry_type -> trade_direction
     entry = result.get('entry', [])
     exit = result.get('exit', [])
     direction = result.get('direction', result.get('entry_type', result.get('trade_direction', [])))
@@ -133,7 +134,7 @@ def process_strategy_signals(result, reverse_signals):
     processed_result = {
         'entry': [bool(x) for x in entry] if entry else [],
         'exit': [bool(x) for x in exit] if exit else [],
-        'direction': [str(x) if x is not None else None for x in direction] if direction else [],
+        'direction': [str(x) if x is not None and x != 'None' else None for x in direction] if direction else [],
         'reverse_signals_applied': reverse_signals,
         'validation_passed': True,
         'validation_message': validation_message,

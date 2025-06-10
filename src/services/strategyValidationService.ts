@@ -20,10 +20,12 @@ export class StrategyValidationService {
       errors.push("Strategy must contain a 'strategy_logic' function");
     }
     
-    // Check for proper return structure guidance
+    // Check for proper return structure guidance - prioritize 'direction' array
+    const hasDirection = code.includes('direction') && code.includes('BUY') && code.includes('SELL');
     const hasEntryType = code.includes('entry_type') || code.includes('trade_direction');
-    if (!hasEntryType) {
-      warnings.push("Strategy should return 'entry_type' array with BUY/SELL signals for forward testing");
+    
+    if (!hasDirection && !hasEntryType) {
+      warnings.push("Strategy should return 'direction' array with BUY/SELL signals for forward testing");
     }
     
     // Check for basic signal arrays
@@ -62,8 +64,9 @@ export class StrategyValidationService {
       };
     }
     
-    const { entry, exit, entry_type, trade_direction } = result;
-    const direction_array = entry_type || trade_direction;
+    const { entry, exit, direction, entry_type, trade_direction } = result;
+    // Check for 'direction' first, then fallbacks
+    const direction_array = direction || entry_type || trade_direction;
     
     // Validate required arrays
     if (!Array.isArray(entry)) {
@@ -75,7 +78,7 @@ export class StrategyValidationService {
     }
     
     if (!Array.isArray(direction_array)) {
-      errors.push("Strategy must return 'entry_type' or 'trade_direction' array");
+      errors.push("Strategy must return 'direction', 'entry_type' or 'trade_direction' array");
     }
     
     if (errors.length > 0) {
@@ -89,7 +92,7 @@ export class StrategyValidationService {
     
     // Validate array lengths
     if (entry.length !== exit.length || entry.length !== direction_array.length) {
-      errors.push(`Array lengths must match: entry(${entry.length}), exit(${exit.length}), entry_type(${direction_array.length})`);
+      errors.push(`Array lengths must match: entry(${entry.length}), exit(${exit.length}), direction(${direction_array.length})`);
     }
     
     // Validate direction values
@@ -97,7 +100,7 @@ export class StrategyValidationService {
     const invalidDirections = direction_array.filter((d: any) => !validDirections.includes(d));
     
     if (invalidDirections.length > 0) {
-      errors.push(`Invalid direction values: ${[...new Set(invalidDirections)].join(', ')}. Must be 'BUY', 'SELL', or 'NONE'`);
+      errors.push(`Invalid direction values: ${[...new Set(invalidDirections)].join(', ')}. Must be 'BUY', 'SELL', or null`);
     }
     
     // Calculate signal statistics
@@ -123,12 +126,12 @@ export class StrategyValidationService {
   
   static getStrategyTemplate(): string {
     return `# Enhanced Strategy Template with Required Directional Signals
-def strategy_logic(data):
+def strategy_logic(data, reverse_signals=False):
     """
     REQUIRED: Your strategy MUST return these arrays:
     - entry: [True/False] - when to enter trades
     - exit: [True/False] - when to exit trades  
-    - entry_type: ["BUY"/"SELL"/"NONE"] - REQUIRED for forward testing
+    - direction: ["BUY"/"SELL"/None] - REQUIRED for forward testing
     """
     
     close = data['Close'].tolist()
@@ -139,13 +142,13 @@ def strategy_logic(data):
     
     entry = []
     exit = []
-    entry_type = []  # REQUIRED: Must specify BUY or SELL
+    direction = []  # REQUIRED: Must specify BUY or SELL
     
     for i in range(len(close)):
         if i < 20:  # Not enough data
             entry.append(False)
             exit.append(False)
-            entry_type.append('NONE')
+            direction.append(None)
         else:
             # Entry conditions
             bullish_cross = sma_fast[i] > sma_slow[i] and sma_fast[i-1] <= sma_slow[i-1]
@@ -153,13 +156,13 @@ def strategy_logic(data):
             
             if bullish_cross:
                 entry.append(True)
-                entry_type.append('BUY')  # REQUIRED: Specify direction
+                direction.append('BUY')  # REQUIRED: Specify direction
             elif bearish_cross:
                 entry.append(True)
-                entry_type.append('SELL')  # REQUIRED: Specify direction
+                direction.append('SELL')  # REQUIRED: Specify direction
             else:
                 entry.append(False)
-                entry_type.append('NONE')
+                direction.append(None)
             
             # Exit conditions
             exit.append(False)  # Add your exit logic
@@ -168,7 +171,7 @@ def strategy_logic(data):
     return {
         'entry': entry,
         'exit': exit,
-        'entry_type': entry_type,  # CRITICAL for forward testing
+        'direction': direction,  # CRITICAL for forward testing
         'sma_fast': sma_fast,
         'sma_slow': sma_slow
     }`;
