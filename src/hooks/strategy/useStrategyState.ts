@@ -17,14 +17,15 @@ const DEFAULT_STRATEGY = {
   reverseSignals: false,
   positionSizingMode: 'manual',
   riskRewardRatio: 2.0,
-  code: `# Smart Momentum Strategy - Enhanced with Signal Reversal Testing
-# Test both regular and reverse signals to find optimal direction
+  code: `# Smart Momentum Strategy - OANDA Compatible with BUY/SELL Signals
+# Enhanced with proper directional signals for auto trading
 
-def strategy_logic(data):
+def strategy_logic(data, reverse_signals=False):
     """
-    Enhanced momentum strategy that can test both directions:
+    Enhanced momentum strategy with REQUIRED directional signals:
     - Multiple timeframe trend filtering
-    - Volatility filtering
+    - Volatility filtering  
+    - EXPLICIT BUY/SELL direction array for OANDA execution
     - Reverse signal testing capability
     """
     
@@ -44,11 +45,13 @@ def strategy_logic(data):
     
     entry = []
     exit = []
+    direction = []  # CRITICAL: Trade direction for OANDA integration
     
     for i in range(len(close)):
         if i < 200:  # Need enough data for all indicators
             entry.append(False)
             exit.append(False)
+            direction.append(None)
         else:
             # Higher timeframe trend filter
             weekly_trend_up = close[i] > daily_ema[i]
@@ -65,7 +68,7 @@ def strategy_logic(data):
             rsi_good_long = 45 < rsi[i] < 75
             rsi_good_short = 25 < rsi[i] < 55
             
-            # CORE SIGNAL LOGIC (this will be reversed if reverseSignals=True)
+            # Base entry conditions with EXPLICIT directions
             base_long_entry = (trend_up and 
                               momentum_strong_up and 
                               rsi_good_long and
@@ -78,26 +81,42 @@ def strategy_logic(data):
                                weekly_trend_down and
                                high_volatility)
             
-            # REVERSE LOGIC TEST: If this strategy keeps losing, 
-            # try the opposite - sell when conditions look bullish, buy when bearish
-            # This tests if we're systematically entering at the wrong time
+            # Apply reverse signals if enabled (for testing opposite direction)
+            if reverse_signals:
+                actual_long = base_short_entry
+                actual_short = base_long_entry
+            else:
+                actual_long = base_long_entry
+                actual_short = base_short_entry
             
-            entry.append(base_long_entry or base_short_entry)
+            # Generate entry signals with EXPLICIT directions for OANDA
+            if actual_long:
+                entry.append(True)
+                direction.append("BUY")  # OANDA-compatible BUY signal
+            elif actual_short:
+                entry.append(True)
+                direction.append("SELL")  # OANDA-compatible SELL signal
+            else:
+                entry.append(False)
+                direction.append(None)  # No trade signal
             
             # Conservative exit conditions
             exit_signal = (rsi[i] > 80 or rsi[i] < 20 or not high_volatility)
             exit.append(exit_signal)
     
+    # CRITICAL: Return direction array for OANDA integration
     return {
         'entry': entry,
         'exit': exit,
+        'direction': direction,  # Required for OANDA trade execution
         'short_ema': short_ema,
         'long_ema': long_ema,
         'daily_ema': daily_ema,
         'rsi': rsi,
         'atr': atr,
         'avg_atr': avg_atr,
-        'note': 'Strategy ready for reverse signal testing'
+        'reverse_signals_applied': reverse_signals,
+        'note': 'Strategy with OANDA-compatible BUY/SELL directions for auto trading'
     }`
 };
 
