@@ -57,7 +57,7 @@ export const useDiagnosticChecks = () => {
         diagnosticChecks.push({
           name: 'OANDA API Connection',
           status: 'fail',
-          message: `❌ Connection failed: ${error.message}`,
+          message: `❌ Connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
           critical: true
         });
       }
@@ -95,117 +95,96 @@ export const useDiagnosticChecks = () => {
       diagnosticChecks.push({
         name: 'Python Strategy Engine',
         status: 'fail',
-        message: `❌ Engine error: ${error.message}`,
+        message: `❌ Engine error: ${error instanceof Error ? error.message : 'Unknown error'}`,
         critical: true
       });
     }
 
-    // 6. Enhanced Strategy Signal Validation with Better Detection
+    // 6. Strategy Signal Generation Test - FIXED VERSION
     if (selectedStrategy) {
       try {
-        console.log('🧪 Testing strategy signal generation with enhanced detection...');
+        console.log('🧪 Testing strategy signal generation...');
         
-        // Create realistic mock market data with correct property names
-        const mockData = {
-          open: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
-          high: Array(250).fill(0).map((_, i) => 1.1050 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
-          low: Array(250).fill(0).map((_, i) => 1.0950 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
-          close: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
+        // Create realistic test data
+        const testData = {
+          open: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.002),
+          high: Array(250).fill(0).map((_, i) => 1.1020 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.002),
+          low: Array(250).fill(0).map((_, i) => 0.9980 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.002),
+          close: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.002),
           volume: Array(250).fill(1000)
         };
 
-        console.log('🔍 Executing strategy with mock data...');
-        const result = await PythonExecutor.executeStrategy(selectedStrategy.strategy_code, mockData);
+        console.log('🔍 Executing strategy with test data...');
+        const result = await PythonExecutor.executeStrategy(selectedStrategy.strategy_code, testData);
         
         console.log('📊 Strategy execution result:', result);
         
-        // Enhanced signal validation with multiple fallback checks
-        const hasEntry = result.entry && Array.isArray(result.entry) && result.entry.some(Boolean);
+        // Enhanced validation with better error handling
+        const hasEntry = result.entry && Array.isArray(result.entry);
         const hasExit = result.exit && Array.isArray(result.exit);
+        const hasDirection = result.direction && Array.isArray(result.direction);
+        const hasTradeDirection = result.trade_direction && Array.isArray(result.trade_direction);
         
-        // Check for direction arrays with multiple naming conventions
-        const directionArray = result.direction || result.entry_type || result.trade_direction;
-        const hasDirectionArray = directionArray && Array.isArray(directionArray);
-        
-        // Count actual trading signals
-        let buySignals = 0;
-        let sellSignals = 0;
-        let totalEntrySignals = 0;
-        
-        if (hasEntry) {
-          totalEntrySignals = result.entry.filter(Boolean).length;
-          
-          if (hasDirectionArray) {
-            // Count BUY/SELL signals from direction array
-            buySignals = directionArray.filter((d, i) => result.entry[i] && (d === 'BUY' || d === 'buy')).length;
-            sellSignals = directionArray.filter((d, i) => result.entry[i] && (d === 'SELL' || d === 'sell')).length;
-          }
-        }
-
-        console.log(`📈 Signal Analysis: Entry=${totalEntrySignals}, BUY=${buySignals}, SELL=${sellSignals}`);
-
-        // Check if strategy has indicators for auto-detection
-        const hasIndicators = result.short_ema || result.long_ema || result.rsi || 
-                            result.ema_fast || result.ema_slow || result.sma_fast || result.sma_slow ||
-                            result.macd || result.signal || result.histogram;
-
-        // Enhanced validation logic
-        if (!hasEntry) {
+        if (result.error) {
           diagnosticChecks.push({
             name: 'Strategy Signal Generation',
             status: 'fail',
-            message: '❌ Strategy not generating any entry signals',
+            message: `❌ Strategy execution failed: ${result.error}`,
             critical: true
           });
-        } else if (buySignals > 0 || sellSignals > 0) {
-          // Perfect case: has entry signals AND direction
+        } else if (!hasEntry) {
           diagnosticChecks.push({
             name: 'Strategy Signal Generation',
-            status: 'pass',
-            message: `✅ Strategy generates directional signals: ${buySignals} BUY, ${sellSignals} SELL (${totalEntrySignals} total entries)`,
-            critical: false
+            status: 'fail',
+            message: '❌ Strategy not generating entry signals array',
+            critical: true
           });
-        } else if (hasEntry && hasIndicators) {
-          // Good case: has entry signals and indicators for auto-detection
+        } else if (!hasExit) {
           diagnosticChecks.push({
             name: 'Strategy Signal Generation',
-            status: 'warning',
-            message: `⚠️ Strategy generates ${totalEntrySignals} entry signals with indicators available for auto-direction detection`,
-            critical: false
+            status: 'fail',
+            message: '❌ Strategy not generating exit signals array',
+            critical: true
           });
-        } else if (hasEntry && !hasDirectionArray) {
-          // Moderate case: has entries but no direction info
+        } else if (!hasDirection && !hasTradeDirection) {
           diagnosticChecks.push({
             name: 'Strategy Signal Generation',
-            status: 'warning',
-            message: `⚠️ Strategy generates ${totalEntrySignals} entry signals but no BUY/SELL directions. System will attempt auto-detection.`,
-            critical: false
+            status: 'fail',
+            message: '❌ Strategy not generating directional signals (BUY/SELL)',
+            critical: true
           });
         } else {
-          // Problem case: missing critical components
-          diagnosticChecks.push({
-            name: 'Strategy Signal Generation',
-            status: 'fail',
-            message: '❌ Strategy missing both entry signals and directional information',
-            critical: true
-          });
-        }
-
-        // Additional check for result validation
-        if (result.validation_passed === false || result.error) {
-          diagnosticChecks.push({
-            name: 'Strategy Validation',
-            status: 'fail',
-            message: `❌ Strategy validation failed: ${result.error || result.validation_message || 'Unknown error'}`,
-            critical: true
-          });
-        } else if (result.auto_generated_direction) {
-          diagnosticChecks.push({
-            name: 'Auto Signal Enhancement',
-            status: 'pass',
-            message: '✅ System successfully auto-generated BUY/SELL directions from strategy logic',
-            critical: false
-          });
+          // Count actual signals
+          const totalEntries = result.entry.filter(Boolean).length;
+          const buySignals = (result.direction || result.trade_direction || []).filter((d, i) => 
+            result.entry[i] && (d === 'BUY' || d === 'buy')).length;
+          const sellSignals = (result.direction || result.trade_direction || []).filter((d, i) => 
+            result.entry[i] && (d === 'SELL' || d === 'sell')).length;
+          
+          console.log(`📈 Signal counts: Entry=${totalEntries}, BUY=${buySignals}, SELL=${sellSignals}`);
+          
+          if (totalEntries === 0) {
+            diagnosticChecks.push({
+              name: 'Strategy Signal Generation',
+              status: 'warning',
+              message: '⚠️ Strategy generates no entry signals with current test data',
+              critical: false
+            });
+          } else if (buySignals === 0 && sellSignals === 0) {
+            diagnosticChecks.push({
+              name: 'Strategy Signal Generation',
+              status: 'warning',
+              message: `⚠️ Strategy generates ${totalEntries} entry signals but no BUY/SELL directions`,
+              critical: false
+            });
+          } else {
+            diagnosticChecks.push({
+              name: 'Strategy Signal Generation',
+              status: 'pass',
+              message: `✅ Strategy generates ${buySignals} BUY and ${sellSignals} SELL signals (${totalEntries} total entries)`,
+              critical: false
+            });
+          }
         }
 
       } catch (error) {
@@ -213,7 +192,7 @@ export const useDiagnosticChecks = () => {
         diagnosticChecks.push({
           name: 'Strategy Signal Generation',
           status: 'fail',
-          message: `❌ Strategy execution failed: ${error.message}`,
+          message: `❌ Strategy test failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
           critical: true
         });
       }
@@ -239,6 +218,28 @@ export const useDiagnosticChecks = () => {
         : '⚠️ Risk management settings not configured',
       critical: false
     });
+
+    // 9. Server Session Check
+    try {
+      const activeSessions = await fetch('/api/check-sessions').then(r => r.json()).catch(() => []);
+      const sessionCount = Array.isArray(activeSessions) ? activeSessions.length : 0;
+      
+      diagnosticChecks.push({
+        name: 'Server Trading Sessions',
+        status: sessionCount > 0 ? 'pass' : 'warning',
+        message: sessionCount > 0 
+          ? `✅ ${sessionCount} active server-side trading sessions`
+          : '⚠️ No active server-side trading sessions',
+        critical: false
+      });
+    } catch (error) {
+      diagnosticChecks.push({
+        name: 'Server Trading Sessions',
+        status: 'warning',
+        message: '⚠️ Could not check server session status',
+        critical: false
+      });
+    }
 
     setChecks(diagnosticChecks);
 
