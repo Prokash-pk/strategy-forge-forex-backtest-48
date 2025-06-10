@@ -36,15 +36,23 @@ export class PythonExecutor {
       
       console.log('🚀 Executing Python strategy...');
       
-      // Execute the strategy with enhanced error handling
-      const result = pyodide.runPython(`
+      // Execute the strategy with enhanced error handling and result validation
+      const pythonResult = pyodide.runPython(`
 try:
     # Convert JS data to Python and execute strategy
     print("🔍 Python: Starting strategy execution...")
     result = execute_strategy(js_market_data, js_strategy_code)
     print(f"✅ Python: Strategy execution completed successfully")
-    print(f"📊 Python: Result keys: {list(result.keys()) if isinstance(result, dict) else 'Not a dict'}")
-    if isinstance(result, dict):
+    print(f"📊 Python: Result type: {type(result)}")
+    
+    if result is None:
+        print("⚠️ Python: Strategy returned None")
+        result = {"error": "Strategy returned None", "entry": [], "exit": [], "direction": []}
+    elif not isinstance(result, dict):
+        print(f"⚠️ Python: Strategy returned non-dict: {type(result)}")
+        result = {"error": f"Strategy returned {type(result)}, expected dict", "entry": [], "exit": [], "direction": []}
+    else:
+        print(f"📊 Python: Result keys: {list(result.keys())}")
         if 'entry' in result:
             entry_count = sum(1 for x in result['entry'] if x) if result['entry'] else 0
             print(f"📈 Python: Entry signals: {entry_count}")
@@ -52,27 +60,67 @@ try:
             buy_count = sum(1 for d in result['direction'] if d == 'BUY') if result['direction'] else 0
             sell_count = sum(1 for d in result['direction'] if d == 'SELL') if result['direction'] else 0
             print(f"📊 Python: BUY signals: {buy_count}, SELL signals: {sell_count}")
-        if 'trade_direction' in result:
-            trade_buy_count = sum(1 for d in result['trade_direction'] if d == 'BUY') if result['trade_direction'] else 0
-            trade_sell_count = sum(1 for d in result['trade_direction'] if d == 'SELL') if result['trade_direction'] else 0
-            print(f"🔄 Python: Trade BUY signals: {trade_buy_count}, Trade SELL signals: {trade_sell_count}")
+    
     result
 except Exception as e:
     print(f"❌ Python: Strategy execution failed: {str(e)}")
     import traceback
     traceback.print_exc()
-    {"error": str(e), "entry": [], "exit": [], "direction": [], "trade_direction": []}
+    {"error": str(e), "entry": [], "exit": [], "direction": []}
       `);
       
-      // Convert Python result to JavaScript
-      const jsResult = result.toJs({ dict_converter: Object.fromEntries });
+      // Validate Python result before converting
+      if (pythonResult === undefined || pythonResult === null) {
+        console.error('❌ Python execution returned undefined/null');
+        return {
+          entry: new Array(marketData.close.length).fill(false),
+          exit: new Array(marketData.close.length).fill(false),
+          direction: new Array(marketData.close.length).fill(null),
+          error: 'Python execution returned undefined result'
+        };
+      }
+
+      // Check if result has toJs method
+      if (typeof pythonResult.toJs !== 'function') {
+        console.error('❌ Python result does not have toJs method:', typeof pythonResult);
+        return {
+          entry: new Array(marketData.close.length).fill(false),
+          exit: new Array(marketData.close.length).fill(false),
+          direction: new Array(marketData.close.length).fill(null),
+          error: 'Python result cannot be converted to JavaScript'
+        };
+      }
+      
+      // Convert Python result to JavaScript with error handling
+      let jsResult;
+      try {
+        jsResult = pythonResult.toJs({ dict_converter: Object.fromEntries });
+      } catch (conversionError) {
+        console.error('❌ Error converting Python result to JavaScript:', conversionError);
+        return {
+          entry: new Array(marketData.close.length).fill(false),
+          exit: new Array(marketData.close.length).fill(false),
+          direction: new Array(marketData.close.length).fill(null),
+          error: `Result conversion failed: ${conversionError instanceof Error ? conversionError.message : 'Unknown conversion error'}`
+        };
+      }
+
+      // Validate the converted result
+      if (!jsResult || typeof jsResult !== 'object') {
+        console.error('❌ Converted result is not a valid object:', jsResult);
+        return {
+          entry: new Array(marketData.close.length).fill(false),
+          exit: new Array(marketData.close.length).fill(false),
+          direction: new Array(marketData.close.length).fill(null),
+          error: 'Converted result is not a valid object'
+        };
+      }
       
       console.log('✅ Python strategy executed successfully');
       console.log('📊 Final result:', {
         hasEntry: !!jsResult.entry,
         hasExit: !!jsResult.exit,
         hasDirection: !!jsResult.direction,
-        hasTradeDirection: !!jsResult.trade_direction,
         hasError: !!jsResult.error,
         keys: Object.keys(jsResult)
       });
@@ -87,7 +135,6 @@ except Exception as e:
         entry: new Array(marketData.close.length).fill(false),
         exit: new Array(marketData.close.length).fill(false),
         direction: new Array(marketData.close.length).fill(null),
-        trade_direction: new Array(marketData.close.length).fill(null),
         error: `Python execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
