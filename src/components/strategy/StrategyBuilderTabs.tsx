@@ -76,7 +76,16 @@ const StrategyBuilderTabs: React.FC<StrategyBuilderTabsProps> = ({
       </TabsContent>
 
       <TabsContent value="forward-testing" className="space-y-4">
-        <OANDAForwardTestingControl />
+        <OANDAForwardTestingControl
+          isForwardTestingActive={oandaIntegration.isForwardTestingActive}
+          selectedStrategy={oandaIntegration.selectedStrategy}
+          config={oandaIntegration.config}
+          canStartTesting={oandaIntegration.canStartTesting}
+          isConfigured={oandaIntegration.isConfigured}
+          connectionStatus={oandaIntegration.connectionStatus}
+          onToggleForwardTesting={oandaIntegration.handleToggleForwardTesting}
+          onShowGuide={oandaIntegration.handleShowGuide}
+        />
       </TabsContent>
 
       <TabsContent value="diagnostics" className="space-y-4">
