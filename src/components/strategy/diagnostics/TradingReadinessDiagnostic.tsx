@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -110,36 +109,101 @@ const TradingReadinessDiagnostic: React.FC = () => {
       });
     }
 
-    // 6. Strategy Signal Validation
+    // 6. Enhanced Strategy Signal Validation
     if (selectedStrategy) {
       try {
-        console.log('🧪 Testing strategy signal generation...');
+        console.log('🧪 Testing strategy signal generation with enhanced detection...');
         
-        // Create mock market data for testing
+        // Create more realistic mock market data for testing
         const mockData = {
-          open: Array(100).fill(0).map((_, i) => 1.1000 + Math.random() * 0.01),
-          high: Array(100).fill(0).map((_, i) => 1.1050 + Math.random() * 0.01),
-          low: Array(100).fill(0).map((_, i) => 1.0950 + Math.random() * 0.01),
-          close: Array(100).fill(0).map((_, i) => 1.1000 + Math.random() * 0.01),
-          volume: Array(100).fill(1000)
+          Open: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
+          High: Array(250).fill(0).map((_, i) => 1.1050 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
+          Low: Array(250).fill(0).map((_, i) => 1.0950 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
+          Close: Array(250).fill(0).map((_, i) => 1.1000 + Math.sin(i * 0.1) * 0.01 + Math.random() * 0.005),
+          Volume: Array(250).fill(1000)
         };
 
+        console.log('🔍 Executing strategy with mock data...');
         const result = await PythonExecutor.executeStrategy(selectedStrategy.strategy_code, mockData);
         
-        const hasValidSignals = result.entry && result.direction && 
-          result.entry.some(Boolean) && 
-          result.direction.some(d => d === 'BUY' || d === 'SELL');
+        console.log('📊 Strategy execution result:', result);
+        
+        // Check for various signal formats
+        const hasEntry = result.entry && Array.isArray(result.entry) && result.entry.some(Boolean);
+        const hasExit = result.exit && Array.isArray(result.exit);
+        
+        // Check for direction array (primary method)
+        const hasDirection = result.direction && Array.isArray(result.direction);
+        
+        // Check for alternative naming conventions
+        const hasEntryType = result.entry_type && Array.isArray(result.entry_type);
+        const hasTradeDirection = result.trade_direction && Array.isArray(result.trade_direction);
+        
+        // Count actual signals
+        let buySignals = 0;
+        let sellSignals = 0;
+        
+        if (hasDirection) {
+          buySignals = result.direction.filter((d, i) => result.entry[i] && d === 'BUY').length;
+          sellSignals = result.direction.filter((d, i) => result.entry[i] && d === 'SELL').length;
+        } else if (hasEntryType) {
+          buySignals = result.entry_type.filter((d, i) => result.entry[i] && d === 'BUY').length;
+          sellSignals = result.entry_type.filter((d, i) => result.entry[i] && d === 'SELL').length;
+        } else if (hasTradeDirection) {
+          buySignals = result.trade_direction.filter((d, i) => result.entry[i] && d === 'BUY').length;
+          sellSignals = result.trade_direction.filter((d, i) => result.entry[i] && d === 'SELL').length;
+        }
 
-        diagnosticChecks.push({
-          name: 'Strategy Signal Generation',
-          status: hasValidSignals ? 'pass' : 'warning',
-          message: hasValidSignals
-            ? `✅ Strategy generates valid BUY/SELL signals`
-            : '⚠️ Strategy not generating clear directional signals',
-          critical: false
-        });
+        console.log(`📈 Signal counts: BUY=${buySignals}, SELL=${sellSignals}`);
+
+        // Auto-detection logic for strategies without explicit direction
+        if (!hasDirection && !hasEntryType && !hasTradeDirection && hasEntry) {
+          console.log('🔧 No explicit direction found, checking for auto-detection capability...');
+          
+          // Check if strategy has indicators that can be used for direction detection
+          const hasIndicators = result.short_ema || result.long_ema || result.rsi || result.ema_fast || result.ema_slow;
+          
+          if (hasIndicators) {
+            console.log('✅ Strategy has indicators for auto-direction detection');
+            diagnosticChecks.push({
+              name: 'Strategy Signal Generation',
+              status: 'warning',
+              message: `⚠️ Strategy generates entry signals but no explicit BUY/SELL directions. System will auto-detect from indicators (${result.entry.filter(Boolean).length} entry signals found)`,
+              critical: false
+            });
+          } else {
+            diagnosticChecks.push({
+              name: 'Strategy Signal Generation',
+              status: 'fail',
+              message: '❌ Strategy missing both BUY/SELL directions and indicators for auto-detection',
+              critical: true
+            });
+          }
+        } else if (buySignals > 0 || sellSignals > 0) {
+          diagnosticChecks.push({
+            name: 'Strategy Signal Generation',
+            status: 'pass',
+            message: `✅ Strategy generates BUY/SELL signals: ${buySignals} BUY, ${sellSignals} SELL`,
+            critical: false
+          });
+        } else if (hasEntry) {
+          diagnosticChecks.push({
+            name: 'Strategy Signal Generation',
+            status: 'warning',
+            message: `⚠️ Strategy has entry signals (${result.entry.filter(Boolean).length}) but no BUY/SELL directions detected`,
+            critical: false
+          });
+        } else {
+          diagnosticChecks.push({
+            name: 'Strategy Signal Generation',
+            status: 'fail',
+            message: '❌ Strategy not generating any trading signals',
+            critical: true
+          });
+        }
 
       } catch (error) {
+        console.error('❌ Strategy execution error:', error);
         diagnosticChecks.push({
           name: 'Strategy Signal Generation',
           status: 'fail',
