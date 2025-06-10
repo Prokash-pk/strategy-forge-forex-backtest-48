@@ -16,65 +16,97 @@ export async function testOANDAConnection(config: OANDAConfig): Promise<any> {
     environment: config.environment
   });
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // Increased to 8 seconds
+  // Multiple attempts with different timeouts and strategies
+  const attempts = [
+    { timeout: 5000, description: 'Quick attempt' },
+    { timeout: 10000, description: 'Standard attempt' },
+    { timeout: 20000, description: 'Extended attempt' }
+  ];
 
-  try {
-    const response = await fetch(`${baseUrl}/v3/accounts/${config.accountId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${config.apiKey}`,
-        'Content-Type': 'application/json',
-        'Accept-Datetime-Format': 'UNIX'
-      },
-      signal: controller.signal
-    });
+  let lastError: Error;
 
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+  for (const attempt of attempts) {
+    try {
+      console.log(`🔄 ${attempt.description} (${attempt.timeout}ms timeout)`);
       
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.errorMessage || errorMessage;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), attempt.timeout);
+
+      const response = await fetch(`${baseUrl}/v3/accounts/${config.accountId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Accept-Datetime-Format': 'UNIX',
+          'User-Agent': 'TradingBot/1.0',
+          'Cache-Control': 'no-cache'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
         
-        // Provide specific guidance for common errors
-        if (response.status === 401) {
-          errorMessage = 'Invalid API key. Please check your OANDA API credentials.';
-        } else if (response.status === 403) {
-          errorMessage = 'Access forbidden. Please verify your API key has proper permissions.';
-        } else if (response.status === 404) {
-          errorMessage = 'Account not found. Please verify your Account ID is correct.';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.errorMessage || errorMessage;
+          
+          if (response.status === 401) {
+            throw new Error('Invalid API key. Please check your OANDA API credentials.');
+          } else if (response.status === 403) {
+            throw new Error('Access forbidden. Please verify your API key has proper permissions.');
+          } else if (response.status === 404) {
+            throw new Error('Account not found. Please verify your Account ID is correct.');
+          }
+        } catch (parseError) {
+          console.warn('Could not parse error response:', parseError);
         }
-      } catch (parseError) {
-        console.warn('Could not parse error response:', parseError);
+        
+        lastError = new Error(errorMessage);
+        console.warn(`⚠️ ${attempt.description} failed:`, errorMessage);
+        
+        // Don't retry auth errors
+        if (response.status === 401 || response.status === 403) {
+          throw lastError;
+        }
+        
+        continue; // Try next attempt
+      }
+
+      const data = await response.json();
+      console.log('✅ OANDA connection successful:', data);
+      
+      return data;
+
+    } catch (error) {
+      lastError = error as Error;
+      
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn(`⚠️ ${attempt.description} timed out`);
+        lastError = new Error(`Connection timeout (${attempt.timeout}ms) - OANDA servers may be slow`);
+      } else {
+        console.warn(`⚠️ ${attempt.description} failed:`, error);
       }
       
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-    console.log('✅ OANDA connection successful:', data);
-    
-    return data;
-  } catch (error) {
-    clearTimeout(timeoutId);
-    
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Connection timeout (8s) - OANDA servers may be slow. Please try again or check your internet connection.');
-    }
-    
-    // Enhanced error logging
-    console.error('❌ OANDA connection failed:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      config: {
-        environment: config.environment,
-        accountId: config.accountId,
-        hasApiKey: !!config.apiKey
+      // Don't retry non-timeout errors
+      if (!(error instanceof Error && error.name === 'AbortError')) {
+        break;
       }
-    });
-    
-    throw error;
+    }
   }
+  
+  // Enhanced error logging
+  console.error('❌ All OANDA connection attempts failed:', {
+    error: lastError?.message || 'Unknown error',
+    config: {
+      environment: config.environment,
+      accountId: config.accountId,
+      hasApiKey: !!config.apiKey
+    }
+  });
+  
+  throw lastError || new Error('Connection failed after multiple attempts');
 }

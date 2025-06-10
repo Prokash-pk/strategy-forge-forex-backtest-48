@@ -82,12 +82,12 @@ export const runForwardTestingFlagCheck = (): DiagnosticResult => {
   };
 };
 
-// Add timeout wrapper for async operations
-const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = 5000): Promise<T> => {
+// Enhanced timeout wrapper with proper error handling
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number = 8000): Promise<T> => {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) => 
-      setTimeout(() => reject(new Error('Operation timed out')), timeoutMs)
+      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs)
     )
   ]);
 };
@@ -122,37 +122,86 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
       ? 'https://api-fxpractice.oanda.com'
       : 'https://api-fxtrade.oanda.com';
 
-    // Add timeout to prevent hanging
-    const response = await withTimeout(
-      fetch(`${baseUrl}/v3/accounts/${parsedConfig.accountId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${parsedConfig.apiKey}`,
-          'Content-Type': 'application/json',
-        }
-      }),
-      3000 // 3 second timeout
-    );
+    console.log('🔍 Testing OANDA connectivity to:', baseUrl);
 
-    if (response.ok) {
-      return {
-        name: 'OANDA Connectivity',
-        status: 'SUCCESS',
-        message: 'Successfully connected to OANDA API',
-        details: { status: response.status },
-        iconType: 'wifi',
-        category: 'connectivity'
-      };
-    } else {
-      return {
-        name: 'OANDA Connectivity',
-        status: 'ERROR',
-        message: `OANDA API connection failed: ${response.status}`,
-        details: { status: response.status },
-        iconType: 'wifi',
-        category: 'connectivity'
-      };
+    // Multiple connectivity tests with increasing timeouts
+    const tests = [
+      { name: 'Quick Test', timeout: 3000 },
+      { name: 'Standard Test', timeout: 8000 },
+      { name: 'Extended Test', timeout: 15000 }
+    ];
+
+    let lastError = null;
+    
+    for (const test of tests) {
+      try {
+        console.log(`🔄 Running ${test.name} (${test.timeout}ms timeout)...`);
+        
+        const response = await withTimeout(
+          fetch(`${baseUrl}/v3/accounts/${parsedConfig.accountId}`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${parsedConfig.apiKey}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'User-Agent': 'TradingBot/1.0'
+            }
+          }),
+          test.timeout
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ OANDA connectivity successful:', data.account?.alias || 'Account found');
+          return {
+            name: 'OANDA Connectivity',
+            status: 'SUCCESS',
+            message: `Successfully connected to OANDA API (${test.name})`,
+            details: { 
+              status: response.status,
+              testType: test.name,
+              accountAlias: data.account?.alias || 'Unknown'
+            },
+            iconType: 'wifi',
+            category: 'connectivity'
+          };
+        } else {
+          const errorText = await response.text();
+          lastError = `HTTP ${response.status}: ${errorText}`;
+          console.warn(`⚠️ ${test.name} failed:`, lastError);
+          
+          // Don't continue if it's an auth error
+          if (response.status === 401 || response.status === 403) {
+            return {
+              name: 'OANDA Connectivity',
+              status: 'ERROR',
+              message: `Authentication failed: ${response.status === 401 ? 'Invalid API key' : 'Access forbidden'}`,
+              details: { status: response.status, error: lastError },
+              iconType: 'wifi',
+              category: 'connectivity'
+            };
+          }
+        }
+      } catch (error) {
+        lastError = error.message;
+        console.warn(`⚠️ ${test.name} failed:`, lastError);
+        
+        // If it's not a timeout, don't continue
+        if (!error.message.includes('timed out')) {
+          break;
+        }
+      }
     }
+
+    return {
+      name: 'OANDA Connectivity',
+      status: 'ERROR',
+      message: `All connectivity tests failed. Last error: ${lastError}`,
+      details: { error: lastError },
+      iconType: 'wifi',
+      category: 'connectivity'
+    };
+
   } catch (error) {
     return {
       name: 'OANDA Connectivity',
@@ -167,13 +216,12 @@ export const runOandaConnectivityCheck = async (): Promise<DiagnosticResult> => 
 
 export const runServerSessionsCheck = async (): Promise<DiagnosticResult> => {
   try {
-    // Add timeout to prevent hanging
     const response = await withTimeout(
       fetch('/api/server-sessions', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       }),
-      2000 // 2 second timeout
+      3000
     );
 
     if (response.ok) {
@@ -210,13 +258,12 @@ export const runServerSessionsCheck = async (): Promise<DiagnosticResult> => {
 
 export const runServerLogsCheck = async (): Promise<DiagnosticResult> => {
   try {
-    // Add timeout to prevent hanging
     const response = await withTimeout(
       fetch('/api/server-logs', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       }),
-      2000 // 2 second timeout
+      3000
     );
 
     if (response.ok) {
@@ -264,7 +311,6 @@ export const runDatabaseSessionsCheck = async (user: any): Promise<DiagnosticRes
   }
 
   try {
-    // Mock check - replace with actual database query if needed
     return {
       name: 'Database Sessions',
       status: 'SUCCESS',
@@ -287,13 +333,12 @@ export const runDatabaseSessionsCheck = async (user: any): Promise<DiagnosticRes
 
 export const runEdgeFunctionsCheck = async (): Promise<DiagnosticResult> => {
   try {
-    // Quick edge function availability check with timeout
     const response = await withTimeout(
       fetch('/functions/v1/health', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       }),
-      1500 // 1.5 second timeout
+      2000
     );
 
     if (response.ok) {
