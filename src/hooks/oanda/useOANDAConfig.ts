@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useOANDAConfigState } from './config/useOANDAConfigState';
 import { useOANDAConfigLoader } from './config/useOANDAConfigLoader';
@@ -35,17 +35,33 @@ export const useOANDAConfig = () => {
     handleDeleteConfig
   } = useOANDAConfigManager(setConfig, resetConfig, savedConfigs, loadSavedConfigs);
 
-  // Auto-load saved config on mount and when user changes
+  // Use ref to track if initial load has been completed
+  const hasInitializedRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(null);
+
+  // Only load configs once when user changes or on initial mount
   useEffect(() => {
+    const userId = user?.id || null;
+    
+    // Skip if already initialized for this user
+    if (hasInitializedRef.current && currentUserIdRef.current === userId) {
+      return;
+    }
+
+    console.log('🔄 User detected, loading OANDA configs and settings');
+    
     if (user) {
-      console.log('🔄 User detected, loading OANDA configs and settings');
+      console.log('👤 Loading configs for authenticated user');
       loadSavedConfigs();
       loadLastUsedConfig();
     } else {
       console.log('🔄 No user, attempting to load from localStorage');
       loadLastUsedConfig(); // This will try localStorage if no user
     }
-  }, [user, loadSavedConfigs, loadLastUsedConfig]);
+
+    hasInitializedRef.current = true;
+    currentUserIdRef.current = userId;
+  }, [user?.id]); // Only depend on user ID, not the functions
 
   return {
     config,

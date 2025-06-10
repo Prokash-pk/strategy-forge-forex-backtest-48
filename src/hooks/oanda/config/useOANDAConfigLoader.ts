@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { OANDAConfig } from '@/types/oanda';
 
@@ -7,7 +7,14 @@ export const useOANDAConfigLoader = (
   setConfig: (config: OANDAConfig) => void,
   setSavedConfigs: (configs: any[]) => void
 ) => {
+  // Use refs to track loading state and prevent duplicate calls
+  const isLoadingConfigRef = useRef(false);
+  const isLoadingSavedConfigsRef = useRef(false);
+
   const loadLastUsedConfig = useCallback(async () => {
+    if (isLoadingConfigRef.current) return;
+    isLoadingConfigRef.current = true;
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -65,10 +72,15 @@ export const useOANDAConfigLoader = (
       }
     } catch (error) {
       console.error('Failed to load OANDA config:', error);
+    } finally {
+      isLoadingConfigRef.current = false;
     }
   }, [setConfig]);
 
   const loadSavedConfigs = useCallback(async () => {
+    if (isLoadingSavedConfigsRef.current) return;
+    isLoadingSavedConfigsRef.current = true;
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -88,6 +100,8 @@ export const useOANDAConfigLoader = (
       console.log(`✅ Loaded ${data?.length || 0} saved OANDA configs from Supabase`);
     } catch (error) {
       console.error('Failed to load saved configs:', error);
+    } finally {
+      isLoadingSavedConfigsRef.current = false;
     }
   }, [setSavedConfigs]);
 
