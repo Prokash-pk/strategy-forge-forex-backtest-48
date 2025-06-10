@@ -1,16 +1,56 @@
+
 import type { StrategyResult, MarketData } from './python/types';
 import { PyodideLoader } from './python/pyodideLoader';
 import type { PyodideInstance } from './python/types';
 
 export class PythonExecutor {
   static async initializePyodide(): Promise<PyodideInstance> {
-    return PyodideLoader.initialize();
+    console.log('🔧 Initializing Pyodide...');
+    const pyodide = await PyodideLoader.initialize();
+    console.log('✅ Pyodide initialized successfully');
+    return pyodide;
   }
 
   static async executeStrategy(code: string, marketData: MarketData): Promise<StrategyResult> {
     try {
       console.log('🐍 Starting Python strategy execution...');
-      const pyodide = await this.initializePyodide();
+      console.log('📊 Market data input:', {
+        hasOpen: !!marketData.open,
+        hasHigh: !!marketData.high, 
+        hasLow: !!marketData.low,
+        hasClose: !!marketData.close,
+        hasVolume: !!marketData.volume,
+        closeLength: marketData.close?.length || 0
+      });
+
+      // Check if we have valid market data
+      if (!marketData || !marketData.close || marketData.close.length === 0) {
+        console.error('❌ Invalid market data provided');
+        return {
+          entry: [],
+          exit: [],
+          direction: [],
+          error: 'Invalid market data: no close prices available'
+        };
+      }
+
+      // Initialize Pyodide
+      let pyodide: PyodideInstance;
+      try {
+        pyodide = await this.initializePyodide();
+        if (!pyodide) {
+          throw new Error('Pyodide initialization returned null/undefined');
+        }
+        console.log('✅ Pyodide instance ready');
+      } catch (initError) {
+        console.error('❌ Failed to initialize Pyodide:', initError);
+        return {
+          entry: new Array(marketData.close.length).fill(false),
+          exit: new Array(marketData.close.length).fill(false),
+          direction: new Array(marketData.close.length).fill(null),
+          error: `Pyodide initialization failed: ${initError instanceof Error ? initError.message : 'Unknown error'}`
+        };
+      }
       
       console.log('📊 Converting market data for Python execution...');
       
@@ -29,9 +69,32 @@ export class PythonExecutor {
         sampleHigh: plainMarketData.high.slice(0, 3)
       });
       
+      // Validate the converted data
+      if (plainMarketData.close.some(isNaN)) {
+        console.error('❌ Invalid data detected: NaN values in close prices');
+        return {
+          entry: new Array(marketData.close.length).fill(false),
+          exit: new Array(marketData.close.length).fill(false),
+          direction: new Array(marketData.close.length).fill(null),
+          error: 'Invalid market data: NaN values detected in close prices'
+        };
+      }
+
       // Set the data and code in Python using proper conversion
-      pyodide.globals.set('js_market_data', plainMarketData);
-      pyodide.globals.set('js_strategy_code', code);
+      try {
+        console.log('📤 Setting data in Python environment...');
+        pyodide.globals.set('js_market_data', plainMarketData);
+        pyodide.globals.set('js_strategy_code', code);
+        console.log('✅ Data set in Python environment');
+      } catch (setError) {
+        console.error('❌ Failed to set data in Python:', setError);
+        return {
+          entry: new Array(marketData.close.length).fill(false),
+          exit: new Array(marketData.close.length).fill(false),
+          direction: new Array(marketData.close.length).fill(null),
+          error: `Failed to set data in Python: ${setError instanceof Error ? setError.message : 'Unknown error'}`
+        };
+      }
       
       console.log('🚀 Executing Python strategy...');
       
@@ -39,6 +102,33 @@ export class PythonExecutor {
       let pythonResult;
       try {
         console.log('🔄 Attempting Python execution...');
+        
+        // First, check if the execute_strategy function is available
+        const checkResult = pyodide.runPython(`
+try:
+    # Check if execute_strategy function exists
+    if 'execute_strategy' in globals():
+        print("✅ execute_strategy function found")
+        result = True
+    else:
+        print("❌ execute_strategy function not found")
+        result = False
+    result
+except Exception as e:
+    print(f"❌ Error checking execute_strategy: {e}")
+    False
+        `);
+        
+        if (!checkResult) {
+          console.error('❌ execute_strategy function not available in Python environment');
+          return {
+            entry: new Array(marketData.close.length).fill(false),
+            exit: new Array(marketData.close.length).fill(false),
+            direction: new Array(marketData.close.length).fill(null),
+            error: 'Python environment not properly initialized: execute_strategy function not found'
+          };
+        }
+        
         pythonResult = pyodide.runPython(`
 try:
     print("🔍 Python: Starting strategy execution...")
@@ -82,8 +172,12 @@ except Exception as e:
         };
       }
       
-      // Comprehensive result validation
+      // Enhanced result validation with detailed logging
       console.log('🔍 Validating Python result...');
+      console.log('📋 Raw Python result:', pythonResult);
+      console.log('📋 Python result type:', typeof pythonResult);
+      console.log('📋 Python result constructor:', pythonResult?.constructor?.name);
+      
       if (pythonResult === undefined || pythonResult === null) {
         console.error('❌ Python execution returned undefined/null');
         return {
@@ -94,25 +188,16 @@ except Exception as e:
         };
       }
 
-      console.log('📋 Python result details:', {
-        type: typeof pythonResult,
-        hasToJs: typeof pythonResult?.toJs,
-        isObject: pythonResult && typeof pythonResult === 'object',
-        constructor: pythonResult?.constructor?.name,
-        isNull: pythonResult === null,
-        isUndefined: pythonResult === undefined
-      });
-
       // Handle different result types safely
       let jsResult;
       
-      // Case 1: Result already is a JavaScript object
-      if (pythonResult && typeof pythonResult === 'object' && typeof pythonResult.toJs !== 'function') {
-        console.log('✅ Result is already a JavaScript object');
+      // Case 1: Result already is a JavaScript object (plain object)
+      if (pythonResult && typeof pythonResult === 'object' && pythonResult.constructor === Object) {
+        console.log('✅ Result is already a plain JavaScript object');
         jsResult = pythonResult;
       }
       // Case 2: Result is a Pyodide proxy object with toJs method
-      else if (pythonResult && typeof pythonResult.toJs === 'function') {
+      else if (pythonResult && typeof pythonResult === 'object' && typeof pythonResult.toJs === 'function') {
         console.log('🔄 Converting Pyodide proxy to JavaScript...');
         try {
           jsResult = pythonResult.toJs({ dict_converter: Object.fromEntries });
@@ -127,9 +212,26 @@ except Exception as e:
           };
         }
       }
-      // Case 3: Unexpected result type
+      // Case 3: Result is some other type of object
+      else if (pythonResult && typeof pythonResult === 'object') {
+        console.log('🔄 Converting non-proxy object...');
+        try {
+          // Try to convert to plain object
+          jsResult = JSON.parse(JSON.stringify(pythonResult));
+          console.log('✅ Object conversion successful');
+        } catch (conversionError) {
+          console.error('❌ Failed to convert object result:', conversionError);
+          return {
+            entry: new Array(marketData.close.length).fill(false),
+            exit: new Array(marketData.close.length).fill(false),
+            direction: new Array(marketData.close.length).fill(null),
+            error: `Object conversion failed: ${conversionError instanceof Error ? conversionError.message : 'Unknown conversion error'}`
+          };
+        }
+      }
+      // Case 4: Unexpected result type
       else {
-        console.error('❌ Unexpected Python result type:', typeof pythonResult);
+        console.error('❌ Unexpected Python result type:', typeof pythonResult, pythonResult);
         return {
           entry: new Array(marketData.close.length).fill(false),
           exit: new Array(marketData.close.length).fill(false),
@@ -162,12 +264,13 @@ except Exception as e:
       
     } catch (error) {
       console.error('❌ Critical error in Python strategy execution:', error);
+      console.error('📊 Error stack:', error instanceof Error ? error.stack : 'No stack trace');
       
       // Return fallback result with detailed error
       return {
-        entry: new Array(marketData.close.length).fill(false),
-        exit: new Array(marketData.close.length).fill(false),
-        direction: new Array(marketData.close.length).fill(null),
+        entry: new Array(marketData?.close?.length || 0).fill(false),
+        exit: new Array(marketData?.close?.length || 0).fill(false),
+        direction: new Array(marketData?.close?.length || 0).fill(null),
         error: `Critical execution error: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
