@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,7 +39,7 @@ const ComprehensiveForwardTestingDiagnostics: React.FC = () => {
   const { config, selectedStrategy, isConnected, connectionStatus } = useOANDAIntegration();
   const [diagnostics, setDiagnostics] = useState<DiagnosticItem[]>([]);
   const [isRunning, setIsRunning] = useState(false);
-  const [overallStatus, setOverallStatus: React.Dispatch<React.SetStateAction<"checking" | "ready" | "warning" | "critical">>] = useState<'checking' | 'ready' | 'warning' | 'critical'>('checking');
+  const [overallStatus, setOverallStatus] = useState<'checking' | 'ready' | 'warning' | 'critical'>('checking');
 
   const runComprehensiveDiagnostics = async () => {
     setIsRunning(true);
@@ -76,7 +77,7 @@ const ComprehensiveForwardTestingDiagnostics: React.FC = () => {
             critical: true,
             icon: <Play className="h-4 w-4" />
           });
-        } catch (error) {
+        } catch (error: any) {
           results.push({
             id: 'python-execution',
             category: 'python',
@@ -100,7 +101,7 @@ const ComprehensiveForwardTestingDiagnostics: React.FC = () => {
           icon: <XCircle className="h-4 w-4" />
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       results.push({
         id: 'python-engine',
         category: 'python',
@@ -220,7 +221,7 @@ const ComprehensiveForwardTestingDiagnostics: React.FC = () => {
               });
             }
           }
-        } catch (error) {
+        } catch (error: any) {
           results.push({
             id: 'strategy-signals',
             category: 'strategy',
@@ -271,7 +272,7 @@ const ComprehensiveForwardTestingDiagnostics: React.FC = () => {
           critical: true,
           icon: <Wifi className="h-4 w-4" />
         });
-      } catch (error) {
+      } catch (error: any) {
         results.push({
           id: 'oanda-connection',
           category: 'oanda',
@@ -321,7 +322,7 @@ const ComprehensiveForwardTestingDiagnostics: React.FC = () => {
           icon: <AlertTriangle className="h-4 w-4" />
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       results.push({
         id: 'server-sessions',
         category: 'server',
