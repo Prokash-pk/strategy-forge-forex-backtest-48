@@ -1,5 +1,5 @@
 
-import { useOANDAConnection as useGlobalOANDAConnection } from '@/contexts/OANDAConnectionContext';
+import { useOANDAConnection as useGlobalOANDAConnection } from '@/contexts/oanda/OANDAConnectionProvider';
 import { OANDAConfig } from '@/types/oanda';
 
 export const useOANDAConnection = () => {
