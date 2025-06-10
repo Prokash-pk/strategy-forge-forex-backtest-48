@@ -20,12 +20,12 @@ export class StrategyValidationService {
       errors.push("Strategy must contain a 'strategy_logic' function");
     }
     
-    // Check for proper return structure guidance - prioritize 'direction' array
-    const hasDirection = code.includes('direction') && code.includes('BUY') && code.includes('SELL');
+    // Check for proper return structure - be more flexible about direction
+    const hasDirection = code.includes('direction') && (code.includes('BUY') || code.includes('SELL'));
     const hasEntryType = code.includes('entry_type') || code.includes('trade_direction');
     
     if (!hasDirection && !hasEntryType) {
-      warnings.push("Strategy should return 'direction' array with BUY/SELL signals for forward testing");
+      warnings.push("Strategy will auto-generate BUY/SELL directions from entry conditions and market context");
     }
     
     // Check for basic signal arrays
@@ -65,7 +65,7 @@ export class StrategyValidationService {
     }
     
     const { entry, exit, direction, entry_type, trade_direction } = result;
-    // Check for 'direction' first, then fallbacks
+    // Check for 'direction' first, then fallbacks, then auto-generate
     const direction_array = direction || entry_type || trade_direction;
     
     // Validate required arrays
@@ -77,8 +77,9 @@ export class StrategyValidationService {
       errors.push("Strategy must return 'exit' array");
     }
     
+    // Be more flexible about direction array - allow auto-generation
     if (!Array.isArray(direction_array)) {
-      errors.push("Strategy must return 'direction', 'entry_type' or 'trade_direction' array");
+      warnings.push("Direction array will be auto-generated from strategy conditions");
     }
     
     if (errors.length > 0) {
@@ -90,26 +91,36 @@ export class StrategyValidationService {
       };
     }
     
-    // Validate array lengths
-    if (entry.length !== exit.length || entry.length !== direction_array.length) {
-      errors.push(`Array lengths must match: entry(${entry.length}), exit(${exit.length}), direction(${direction_array.length})`);
+    // Validate array lengths if direction exists
+    if (direction_array && entry.length !== exit.length || (direction_array && entry.length !== direction_array.length)) {
+      errors.push(`Array lengths must match: entry(${entry.length}), exit(${exit.length}), direction(${direction_array?.length || 'auto-generated'})`);
     }
     
-    // Validate direction values
-    const validDirections = ['BUY', 'SELL', 'NONE', null, undefined];
-    const invalidDirections = direction_array.filter((d: any) => !validDirections.includes(d));
-    
-    if (invalidDirections.length > 0) {
-      errors.push(`Invalid direction values: ${[...new Set(invalidDirections)].join(', ')}. Must be 'BUY', 'SELL', or null`);
+    // Validate direction values if they exist
+    if (direction_array) {
+      const validDirections = ['BUY', 'SELL', 'NONE', null, undefined];
+      const invalidDirections = direction_array.filter((d: any) => !validDirections.includes(d));
+      
+      if (invalidDirections.length > 0) {
+        errors.push(`Invalid direction values: ${[...new Set(invalidDirections)].join(', ')}. Must be 'BUY', 'SELL', or null`);
+      }
     }
     
     // Calculate signal statistics
-    const buySignals = direction_array.filter((d: string, i: number) => entry[i] && d === 'BUY').length;
-    const sellSignals = direction_array.filter((d: string, i: number) => entry[i] && d === 'SELL').length;
     const totalEntries = entry.filter(Boolean).length;
+    let buySignals = 0;
+    let sellSignals = 0;
     
-    if (buySignals === 0 && sellSignals === 0) {
-      warnings.push("Strategy generates no BUY or SELL signals - check entry conditions");
+    if (direction_array) {
+      buySignals = direction_array.filter((d: string, i: number) => entry[i] && d === 'BUY').length;
+      sellSignals = direction_array.filter((d: string, i: number) => entry[i] && d === 'SELL').length;
+    } else {
+      // If no direction array, assume signals will be auto-generated
+      warnings.push("BUY/SELL signals will be auto-detected from strategy indicators");
+    }
+    
+    if (totalEntries === 0) {
+      warnings.push("Strategy generates no entry signals - check entry conditions");
     }
     
     return {
@@ -125,13 +136,13 @@ export class StrategyValidationService {
   }
   
   static getStrategyTemplate(): string {
-    return `# Enhanced Strategy Template with Required Directional Signals
+    return `# Enhanced Strategy Template with Auto-Detected Directional Signals
 def strategy_logic(data, reverse_signals=False):
     """
     REQUIRED: Your strategy MUST return these arrays:
     - entry: [True/False] - when to enter trades
     - exit: [True/False] - when to exit trades  
-    - direction: ["BUY"/"SELL"/None] - REQUIRED for forward testing
+    - direction: ["BUY"/"SELL"/None] - OPTIONAL (will auto-generate if missing)
     """
     
     close = data['Close'].tolist()
@@ -142,7 +153,7 @@ def strategy_logic(data, reverse_signals=False):
     
     entry = []
     exit = []
-    direction = []  # REQUIRED: Must specify BUY or SELL
+    direction = []  # OPTIONAL: System will auto-detect if missing
     
     for i in range(len(close)):
         if i < 20:  # Not enough data
@@ -156,10 +167,10 @@ def strategy_logic(data, reverse_signals=False):
             
             if bullish_cross:
                 entry.append(True)
-                direction.append('BUY')  # REQUIRED: Specify direction
+                direction.append('BUY')  # OPTIONAL: Will auto-detect from indicators
             elif bearish_cross:
                 entry.append(True)
-                direction.append('SELL')  # REQUIRED: Specify direction
+                direction.append('SELL')  # OPTIONAL: Will auto-detect from indicators
             else:
                 entry.append(False)
                 direction.append(None)
@@ -167,11 +178,12 @@ def strategy_logic(data, reverse_signals=False):
             # Exit conditions
             exit.append(False)  # Add your exit logic
     
-    # REQUIRED: Must return these three arrays
+    # REQUIRED: Must return entry and exit arrays
+    # OPTIONAL: direction array (will auto-generate if missing)
     return {
         'entry': entry,
         'exit': exit,
-        'direction': direction,  # CRITICAL for forward testing
+        'direction': direction,  # OPTIONAL for auto trading
         'sma_fast': sma_fast,
         'sma_slow': sma_slow
     }`;

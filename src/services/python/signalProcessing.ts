@@ -18,8 +18,10 @@ def validate_strategy_signals(result):
     if not exit:
         return False, "Strategy must return 'exit' array"
     
+    # If no direction array exists, we'll auto-generate it
     if not direction:
-        return False, "Strategy must return 'direction' array with BUY/SELL/None signals"
+        print("⚠️ No direction array found - will auto-generate BUY/SELL signals")
+        return True, "Strategy valid - will auto-generate directional signals"
     
     # Check array lengths match
     if len(entry) != len(exit) or len(entry) != len(direction):
@@ -42,51 +44,85 @@ def validate_strategy_signals(result):
     
     return True, f"✅ Strategy valid: {buy_signals} BUY signals, {sell_signals} SELL signals"
 
+def auto_detect_trade_direction(result, close_prices):
+    """Auto-detect trade direction from strategy conditions and market context"""
+    
+    entry = result.get('entry', [])
+    if not entry:
+        return []
+    
+    direction = []
+    
+    # Try to extract strategy variables that indicate direction
+    short_ema = result.get('short_ema', [])
+    long_ema = result.get('long_ema', [])
+    rsi = result.get('rsi', [])
+    
+    for i, has_entry in enumerate(entry):
+        if not has_entry:
+            direction.append(None)
+        else:
+            # Auto-detect direction based on available indicators
+            detected_direction = 'BUY'  # Default to BUY
+            
+            # Method 1: Use EMA crossover if available
+            if short_ema and long_ema and i < len(short_ema) and i < len(long_ema):
+                if short_ema[i] > long_ema[i]:
+                    detected_direction = 'BUY'
+                else:
+                    detected_direction = 'SELL'
+            
+            # Method 2: Use RSI if available
+            elif rsi and i < len(rsi):
+                if rsi[i] < 50:
+                    detected_direction = 'BUY'  # Oversold condition
+                else:
+                    detected_direction = 'SELL'  # Overbought condition
+            
+            # Method 3: Use price momentum if available
+            elif close_prices and len(close_prices) > i and i > 5:
+                # Check price momentum over last 5 periods
+                recent_momentum = close_prices[i] - close_prices[i-5]
+                if recent_momentum > 0:
+                    detected_direction = 'BUY'
+                else:
+                    detected_direction = 'SELL'
+            
+            direction.append(detected_direction)
+    
+    print(f"🔧 Auto-generated {direction.count('BUY')} BUY and {direction.count('SELL')} SELL signals")
+    return direction
+
 def enforce_directional_signals(result):
     """Enforce that strategies have proper directional signals"""
     
     # First validate the existing structure
     is_valid, message = validate_strategy_signals(result)
     
-    if is_valid:
+    if is_valid and result.get('direction'):
         print(f"📊 {message}")
         return result
     
-    print(f"⚠️ Strategy validation failed: {message}")
-    print("🔧 Attempting to auto-fix strategy signals...")
+    print(f"🔧 Auto-generating directional signals...")
     
-    # Try to auto-fix missing directional signals
+    # Try to auto-detect direction based on strategy logic
     entry = result.get('entry', [])
-    exit = result.get('exit', [])
     
     if not entry:
         print("❌ Cannot fix: No entry signals found")
-        return {'entry': [], 'exit': [], 'direction': [], 'error': message}
+        return {'entry': [], 'exit': [], 'direction': [], 'error': 'No entry signals found'}
     
-    # Auto-generate direction based on simple momentum
-    direction = []
+    # Get close prices from data if available
     close_prices = result.get('close', [])
     
-    for i, has_entry in enumerate(entry):
-        if not has_entry:
-            direction.append(None)
-        else:
-            # Simple heuristic: if we have price data, use momentum
-            if close_prices and len(close_prices) > i and i > 0:
-                if close_prices[i] > close_prices[i-1]:
-                    direction.append('BUY')
-                else:
-                    direction.append('SELL')
-            else:
-                # Default to BUY if no price context
-                direction.append('BUY')
+    # Auto-generate direction based on strategy indicators
+    direction = auto_detect_trade_direction(result, close_prices)
     
     # Update result with auto-generated signals
     result['direction'] = direction
-    result['auto_fixed'] = True
-    result['original_error'] = message
+    result['auto_generated_direction'] = True
     
-    print(f"🔧 Auto-fixed strategy with {direction.count('BUY')} BUY and {direction.count('SELL')} SELL signals")
+    print(f"✅ Auto-generated directional signals: {direction.count('BUY')} BUY, {direction.count('SELL')} SELL")
     
     return result
 
@@ -97,7 +133,7 @@ def process_strategy_signals(result, reverse_signals):
     if not isinstance(result, dict):
         return {'entry': [], 'exit': [], 'direction': [], 'error': 'Invalid strategy result format'}
     
-    # Enforce directional signals (this will auto-fix if possible)
+    # Enforce directional signals (this will auto-generate if missing)
     result = enforce_directional_signals(result)
     
     # Extract signals with proper fallback order: direction -> entry_type -> trade_direction
@@ -105,7 +141,7 @@ def process_strategy_signals(result, reverse_signals):
     exit = result.get('exit', [])
     direction = result.get('direction', result.get('entry_type', result.get('trade_direction', [])))
     
-    # Final validation after potential auto-fix
+    # Final validation after potential auto-generation
     is_valid, validation_message = validate_strategy_signals(result)
     
     if not is_valid:
@@ -138,6 +174,7 @@ def process_strategy_signals(result, reverse_signals):
         'reverse_signals_applied': reverse_signals,
         'validation_passed': True,
         'validation_message': validation_message,
+        'auto_generated_direction': result.get('auto_generated_direction', False),
         'signal_stats': {
             'total_entries': sum(entry) if entry else 0,
             'buy_signals': direction.count('BUY') if direction else 0,
