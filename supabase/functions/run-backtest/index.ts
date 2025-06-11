@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const corsHeaders = {
@@ -211,39 +210,10 @@ class TechnicalAnalysis {
 // Strategy Executor
 class StrategyExecutor {
   static executeStrategy(code: string, marketData: any, pythonSignals?: any) {
-    // ENHANCED DEBUGGING: Check Python signals first
+    // If Python signals are provided, use them directly
     if (pythonSignals && !pythonSignals.error) {
-      console.log('🐍 Using Python-generated signals');
-      console.log('📊 Python signals debug:', {
-        entrySignalsLength: pythonSignals.entry?.length || 0,
-        exitSignalsLength: pythonSignals.exit?.length || 0,
-        entrySignalsCount: pythonSignals.entry?.filter?.(Boolean)?.length || 0,
-        exitSignalsCount: pythonSignals.exit?.filter?.(Boolean)?.length || 0,
-        hasDirection: !!pythonSignals.direction,
-        directionLength: pythonSignals.direction?.length || 0,
-        sampleEntries: pythonSignals.entry?.slice(0, 10) || [],
-        sampleDirections: pythonSignals.direction?.slice(0, 10) || [],
-        indicatorKeys: Object.keys(pythonSignals.indicators || {})
-      });
-      
-      // Check for any true values in entry signals
-      const hasAnyEntrySignals = pythonSignals.entry?.some?.(signal => signal === true);
-      console.log('🎯 Has any entry signals:', hasAnyEntrySignals);
-      
-      if (hasAnyEntrySignals) {
-        // Find indices of true signals
-        const entryIndices = pythonSignals.entry
-          ?.map?.((signal, index) => signal ? index : -1)
-          ?.filter?.(index => index !== -1) || [];
-        console.log('📍 Entry signal indices:', entryIndices.slice(0, 10));
-      }
-      
+      console.log('Using Python-generated signals');
       return pythonSignals;
-    }
-
-    console.log('⚠️ Python signals not available or error, using JavaScript fallback');
-    if (pythonSignals?.error) {
-      console.log('❌ Python signals error:', pythonSignals.error);
     }
 
     try {
@@ -428,28 +398,13 @@ serve(async (req) => {
   try {
     const { data, strategy, pythonSignals, timeframeInfo, enhancedMode }: BacktestRequest = await req.json();
     
-    console.log(`🚀 Running backtest for ${strategy.name} with ${data.length} data points`);
-    console.log(`📊 Position Sizing Mode: ${strategy.positionSizingMode || 'manual'}`);
-    console.log(`💰 Risk per Trade: ${strategy.riskPerTrade}%`);
-    console.log(`📉 Stop Loss: ${strategy.stopLoss} pips, Take Profit: ${strategy.takeProfit} pips`);
-    
-    // ENHANCED DEBUGGING: Log market data sample
-    if (data.length > 0) {
-      console.log('📈 Market data sample:', {
-        firstBar: data[0],
-        lastBar: data[data.length - 1],
-        totalBars: data.length,
-        priceRange: {
-          min: Math.min(...data.map(d => d.low)),
-          max: Math.max(...data.map(d => d.high))
-        }
-      });
-    }
+    console.log(`Running backtest for ${strategy.name} with ${data.length} data points`);
+    console.log(`Position Sizing Mode: ${strategy.positionSizingMode || 'manual'}`);
+    console.log(`Risk per Trade: ${strategy.riskPerTrade}%`);
+    console.log(`Stop Loss: ${strategy.stopLoss} pips, Take Profit: ${strategy.takeProfit} pips`);
     
     if (pythonSignals) {
-      console.log('🐍 Python signals provided:', pythonSignals.error ? `Error: ${pythonSignals.error}` : 'Valid signals');
-    } else {
-      console.log('⚠️ No Python signals provided, will use JavaScript fallback');
+      console.log('Python signals provided:', pythonSignals.error ? `Error: ${pythonSignals.error}` : 'Valid signals');
     }
 
     // Prepare market data for strategy execution
@@ -463,18 +418,7 @@ serve(async (req) => {
 
     // Execute the user's strategy (with Python signals if available)
     const signals = StrategyExecutor.executeStrategy(strategy.code, marketData, pythonSignals);
-    
-    // ENHANCED DEBUGGING: Detailed signal analysis
-    const entryCount = signals.entry.filter(Boolean).length;
-    const exitCount = signals.exit.filter(Boolean).length;
-    console.log('📊 Strategy signals generated:', {
-      totalEntrySignals: entryCount,
-      totalExitSignals: exitCount,
-      signalArrayLength: signals.entry.length,
-      firstFewEntries: signals.entry.slice(0, 20),
-      lastFewEntries: signals.entry.slice(-20),
-      entryIndices: signals.entry.map((signal, index) => signal ? index : -1).filter(i => i !== -1).slice(0, 10)
-    });
+    console.log('Strategy signals generated:', signals.entry.filter(Boolean).length, 'entry signals');
 
     // Calculate position sizing based on risk management
     const calculatePositionSize = (currentPrice: number) => {
@@ -491,7 +435,7 @@ serve(async (req) => {
       // Ensure position size doesn't exceed maximum
       const finalPositionSize = Math.min(calculatedPositionSize, strategy.maxPositionSize);
       
-      console.log(`💱 Position sizing: Risk Amount: $${riskAmount}, Stop Distance: ${stopLossDistance}, Calculated Size: ${calculatedPositionSize.toFixed(0)} units, Final Size: ${finalPositionSize.toFixed(0)} units`);
+      console.log(`Risk Amount: $${riskAmount}, Stop Distance: ${stopLossDistance}, Calculated Size: ${calculatedPositionSize.toFixed(0)} units, Final Size: ${finalPositionSize.toFixed(0)} units`);
       
       return finalPositionSize;
     };
@@ -509,7 +453,7 @@ serve(async (req) => {
     const spreadDistance = strategy.spread * pipValue;
     const slippageDistance = strategy.slippage * pipValue;
 
-    console.log(`📏 Trading distances - Stop Loss: ${stopLossDistance}, Take Profit: ${takeProfitDistance}`);
+    console.log(`Stop Loss Distance: ${stopLossDistance}, Take Profit Distance: ${takeProfitDistance}`);
 
     // Generate equity curve
     const equityCurve = [];
@@ -526,7 +470,7 @@ serve(async (req) => {
       
       // If date is in the future, cap it to current time
       if (currentDate > currentTime) {
-        console.log(`⏰ Capping future date ${currentDate.toISOString()} to current time`);
+        console.log(`Capping future date ${currentDate.toISOString()} to current time`);
         currentDate = new Date(currentTime.getTime() - (data.length - i) * (timeframeInfo?.minutes || 5) * 60000);
       }
 
@@ -546,9 +490,9 @@ serve(async (req) => {
           id: tradeId,
           positionSize: positionSize
         };
-        console.log(`🟢 Opening BUY position: ${positionSize.toFixed(0)} units at ${entryPrice} on ${currentDate.toISOString()}`);
-        console.log(`🛑 Stop Loss will trigger at: ${entryPrice - stopLossDistance}`);
-        console.log(`🎯 Take Profit will trigger at: ${entryPrice + takeProfitDistance}`);
+        console.log(`Opening BUY position: ${positionSize.toFixed(0)} units at ${entryPrice} on ${currentDate.toISOString()}`);
+        console.log(`Stop Loss will trigger at: ${entryPrice - stopLossDistance}`);
+        console.log(`Take Profit will trigger at: ${entryPrice + takeProfitDistance}`);
       }
 
       // Exit conditions
@@ -568,7 +512,7 @@ serve(async (req) => {
           shouldExit = true;
           exitReason = 'Stop loss';
           finalExitPrice = position.entry - stopLossDistance - slippageDistance;
-          console.log(`🛑 Stop loss triggered: Current price ${currentPrice} <= Stop level ${position.entry - stopLossDistance}`);
+          console.log(`Stop loss triggered: Current price ${currentPrice} <= Stop level ${position.entry - stopLossDistance}`);
         }
 
         // Take profit - FIXED CALCULATION  
@@ -576,7 +520,7 @@ serve(async (req) => {
           shouldExit = true;
           exitReason = 'Take profit';
           finalExitPrice = position.entry + takeProfitDistance - slippageDistance;
-          console.log(`🎯 Take profit triggered: Current price ${currentPrice} >= TP level ${position.entry + takeProfitDistance}`);
+          console.log(`Take profit triggered: Current price ${currentPrice} >= TP level ${position.entry + takeProfitDistance}`);
         }
 
         if (shouldExit) {
@@ -597,7 +541,7 @@ serve(async (req) => {
           });
 
           balance += pnl;
-          console.log(`🔴 Closing position ${position.id}: Size ${position.positionSize.toFixed(0)} units, Entry ${position.entry}, Exit ${finalExitPrice}, PnL ${pnl.toFixed(2)}, reason: ${exitReason}`);
+          console.log(`Closing position ${position.id}: Size ${position.positionSize.toFixed(0)} units, Entry ${position.entry}, Exit ${finalExitPrice}, PnL ${pnl.toFixed(2)}, reason: ${exitReason}`);
           position = null;
           tradeId++;
         }
@@ -668,10 +612,10 @@ serve(async (req) => {
       }
     };
 
-    console.log(`✅ Backtest completed: ${trades.length} trades, ${totalReturn.toFixed(2)}% return`);
-    console.log(`📊 Risk-based position sizing applied: ${strategy.riskPerTrade}% risk per trade`);
-    console.log(`📈 Average position size: ${trades.length > 0 ? (trades.reduce((sum, t) => sum + t.positionSize, 0) / trades.length).toFixed(0) : 0} units`);
-    console.log(`🔧 Strategy used: ${strategy.name} (${results.executionMethod})`);
+    console.log(`Backtest completed: ${trades.length} trades, ${totalReturn.toFixed(2)}% return`);
+    console.log(`Risk-based position sizing applied: ${strategy.riskPerTrade}% risk per trade`);
+    console.log(`Average position size: ${trades.length > 0 ? (trades.reduce((sum, t) => sum + t.positionSize, 0) / trades.length).toFixed(0) : 0} units`);
+    console.log(`Strategy used: ${strategy.name} (${results.executionMethod})`);
 
     return new Response(
       JSON.stringify({
@@ -685,7 +629,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('❌ Error in run-backtest:', error);
+    console.error('Error in run-backtest:', error);
     return new Response(
       JSON.stringify({
         success: false,

@@ -1,210 +1,239 @@
 
-import { SignalValidator } from './signalValidator';
-import { TradeConverter } from './tradeConverter';
-import { PositionSizer } from './positionSizer';
-import { RiskManager } from './riskManager';
-import type { TradeSignal, TradeOrder, BacktestSignals } from './types';
+import { supabase } from '@/integrations/supabase/client';
+import { RealOANDATradeExecutor, TradeRequest } from '../oanda/realTradeExecutor';
 
-export class SignalToTradeBridge {
-  private static instances: Map<string, SignalToTradeBridge> = new Map();
-  private strategyId: string;
-  private userId: string;
-  private config: any;
-
-  constructor(strategyId: string, userId: string, config: any) {
-    this.strategyId = strategyId;
-    this.userId = userId;
-    this.config = config;
-  }
-
-  static async createFromSavedConfig(strategyId: string, userId: string): Promise<SignalToTradeBridge | null> {
-    try {
-      // This would typically load saved OANDA configuration
-      // For now, return a basic instance
-      const config = {
-        accountBalance: 10000,
-        riskPerTrade: 2,
-        maxPositionSize: 100000,
-        stopLoss: 40,
-        takeProfit: 80
-      };
-
-      const bridge = new SignalToTradeBridge(strategyId, userId, config);
-      this.instances.set(`${strategyId}-${userId}`, bridge);
-      return bridge;
-    } catch (error) {
-      console.error('Failed to create trade bridge from saved config:', error);
-      return null;
-    }
-  }
-
-  async processSignal(signal: any): Promise<{ success: boolean; message: string; tradeId?: string }> {
-    try {
-      // Convert the signal format
-      const tradeSignal: TradeSignal = {
-        action: signal.signal as 'BUY' | 'SELL' | 'CLOSE',
-        symbol: signal.symbol,
-        direction: signal.signal === 'CLOSE' ? null : signal.signal as 'BUY' | 'SELL',
-        confidence: signal.confidence / 100, // Convert from percentage
-        timestamp: new Date().toISOString()
-      };
-
-      // Process the trade signal
-      const order = this.processTradeSignal(
-        tradeSignal,
-        this.strategyId,
-        this.userId,
-        this.config.accountBalance || 10000,
-        this.config
-      );
-
-      if (!order) {
-        return {
-          success: false,
-          message: 'Failed to create trade order from signal'
-        };
-      }
-
-      // In a real implementation, this would execute the trade via OANDA API
-      console.log('Trade order created:', order);
-
-      return {
-        success: true,
-        message: `${order.action} order created for ${order.symbol} with ${order.units} units`,
-        tradeId: `trade_${Date.now()}`
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: `Error processing signal: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
-    }
-  }
-
-  static processTradeSignal(
-    signal: TradeSignal,
-    strategyId: string,
-    userId: string,
-    accountBalance: number,
-    riskConfig: any
-  ): TradeOrder | null {
-    // Validate the incoming signal
-    if (!SignalValidator.validateTradeSignal(signal)) {
-      console.error('Invalid trade signal received');
-      return null;
-    }
-
-    // Convert signal to trade order
-    try {
-      const order = TradeConverter.convertSignalToOrder(
-        signal,
-        strategyId,
-        userId,
-        accountBalance,
-        riskConfig
-      );
-
-      console.log('Trade signal processed successfully:', order);
-      return order;
-    } catch (error) {
-      console.error('Failed to process trade signal:', error);
-      return null;
-    }
-  }
-
-  processTradeSignal(
-    signal: TradeSignal,
-    strategyId: string,
-    userId: string,
-    accountBalance: number,
-    riskConfig: any
-  ): TradeOrder | null {
-    return SignalToTradeBridge.processTradeSignal(signal, strategyId, userId, accountBalance, riskConfig);
-  }
-
-  static processBacktestSignals(
-    signals: BacktestSignals,
-    symbol: string,
-    strategyId: string,
-    userId: string,
-    accountBalance: number = 10000,
-    riskConfig: any = {}
-  ): TradeOrder[] {
-    // Validate backtest signals
-    if (!SignalValidator.validateBacktestSignals(signals)) {
-      console.error('Invalid backtest signals');
-      return [];
-    }
-
-    // Check if there are any valid trading signals
-    if (!SignalValidator.hasValidTradingSignals(signals)) {
-      console.warn('No valid trading signals found in backtest results');
-      return [];
-    }
-
-    // Convert signals to trade orders
-    try {
-      const orders = TradeConverter.convertBacktestSignalsToOrders(
-        signals,
-        symbol,
-        strategyId,
-        userId,
-        accountBalance,
-        riskConfig
-      );
-
-      console.log(`Processed ${orders.length} trade orders from backtest signals`);
-      return orders;
-    } catch (error) {
-      console.error('Failed to process backtest signals:', error);
-      return [];
-    }
-  }
-
-  static validateOrderRisk(
-    order: TradeOrder,
-    accountBalance: number,
-    riskConfig: any
-  ): { isValid: boolean; warnings: string[] } {
-    const warnings: string[] = [];
-
-    // Validate position size
-    const positionConfig = {
-      accountBalance,
-      riskPerTrade: riskConfig.riskPerTrade || 2,
-      maxPositionSize: riskConfig.maxPositionSize || 100000,
-      minPositionSize: 100
-    };
-
-    if (!PositionSizer.validatePositionSize(order.units, positionConfig)) {
-      warnings.push('Position size outside acceptable limits');
-    }
-
-    // Assess trade risk if we have stop loss information
-    if (order.stopLoss && riskConfig.stopLoss) {
-      const riskAssessment = RiskManager.assessTradeRisk(
-        accountBalance,
-        order.units,
-        riskConfig.stopLoss,
-        {
-          stopLossDistance: riskConfig.stopLoss || 40,
-          takeProfitDistance: riskConfig.takeProfit || 80,
-          maxDailyLoss: riskConfig.maxDailyLoss || 5,
-          maxDrawdown: riskConfig.maxDrawdown || 10
-        }
-      );
-
-      warnings.push(...riskAssessment.warnings);
-      
-      if (!riskAssessment.isAcceptable) {
-        return { isValid: false, warnings };
-      }
-    }
-
-    return { isValid: warnings.length === 0, warnings };
-  }
+export interface StrategySignal {
+  signal: 'BUY' | 'SELL' | 'CLOSE' | 'NONE';
+  symbol: string;
+  confidence: number;
+  currentPrice: number;
+  entryPrice?: number;
+  stopLoss?: number;
+  takeProfit?: number;
+  strategyName: string;
 }
 
-// Export for backward compatibility
-export { SignalValidator, TradeConverter, PositionSizer, RiskManager };
-export type { TradeSignal, TradeOrder, BacktestSignals };
+export interface TradingConfig {
+  riskPercentage: number;
+  maxPositionSize: number;
+  minConfidence: number;
+  stopLossPercentage: number;
+  takeProfitPercentage: number;
+}
+
+export class SignalToTradeBridge {
+  private tradeExecutor: RealOANDATradeExecutor;
+  private config: TradingConfig;
+
+  constructor(
+    accountId: string,
+    apiKey: string,
+    environment: 'practice' | 'live',
+    config?: Partial<TradingConfig>
+  ) {
+    this.tradeExecutor = new RealOANDATradeExecutor(accountId, apiKey, environment);
+    this.config = {
+      riskPercentage: 2.0,
+      maxPositionSize: 10000,
+      minConfidence: 70,
+      stopLossPercentage: 1.0,
+      takeProfitPercentage: 2.0,
+      ...config
+    };
+  }
+
+  async processSignal(signal: StrategySignal): Promise<{ success: boolean; message: string; tradeId?: string }> {
+    try {
+      console.log('🔍 Processing strategy signal:', signal);
+
+      // Filter by confidence threshold
+      if (signal.confidence < this.config.minConfidence) {
+        const message = `Signal confidence ${signal.confidence}% below threshold ${this.config.minConfidence}%`;
+        console.log('⚠️', message);
+        await this.logSignalProcessing(signal, 'FILTERED_LOW_CONFIDENCE', message);
+        return { success: false, message };
+      }
+
+      // Skip if no actionable signal
+      if (signal.signal === 'NONE') {
+        const message = 'No actionable signal detected';
+        console.log('📊', message);
+        await this.logSignalProcessing(signal, 'NO_SIGNAL', message);
+        return { success: false, message };
+      }
+
+      // Get account info for risk management
+      const accountInfo = await this.tradeExecutor.getAccountInfo();
+      if (!accountInfo) {
+        const message = 'Unable to fetch account information';
+        console.error('❌', message);
+        return { success: false, message };
+      }
+
+      // Calculate position size based on risk management
+      const positionSize = this.calculatePositionSize(
+        accountInfo.balance,
+        signal.currentPrice,
+        this.config.riskPercentage
+      );
+
+      if (positionSize === 0) {
+        const message = 'Position size calculated as 0 - insufficient funds or high risk';
+        console.log('⚠️', message);
+        return { success: false, message };
+      }
+
+      // Check for existing positions to prevent duplicates
+      const existingPositions = await this.tradeExecutor.getOpenPositions(signal.symbol);
+      if (existingPositions.length > 0 && signal.signal !== 'CLOSE') {
+        const message = `Position already exists for ${signal.symbol}`;
+        console.log('⚠️', message);
+        await this.logSignalProcessing(signal, 'DUPLICATE_POSITION', message);
+        return { success: false, message };
+      }
+
+      // Prepare trade request
+      const tradeRequest: TradeRequest = {
+        symbol: signal.symbol,
+        action: signal.signal,
+        units: positionSize,
+        confidence: signal.confidence,
+        stopLoss: signal.stopLoss || this.calculateStopLoss(signal.currentPrice, signal.signal),
+        takeProfit: signal.takeProfit || this.calculateTakeProfit(signal.currentPrice, signal.signal)
+      };
+
+      // Execute the trade
+      console.log('🚀 Executing real trade from signal:', tradeRequest);
+      const tradeResult = await this.tradeExecutor.executeTrade(tradeRequest);
+
+      if (tradeResult.success) {
+        const message = `Real trade executed successfully: ${signal.signal} ${positionSize} units of ${signal.symbol}`;
+        console.log('✅', message);
+        await this.logSignalProcessing(signal, 'TRADE_EXECUTED', message, tradeResult.tradeId);
+        return { 
+          success: true, 
+          message, 
+          tradeId: tradeResult.tradeId 
+        };
+      } else {
+        const message = `Trade execution failed: ${tradeResult.error}`;
+        console.error('❌', message);
+        await this.logSignalProcessing(signal, 'TRADE_FAILED', message);
+        return { success: false, message };
+      }
+
+    } catch (error) {
+      const message = `Signal processing error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      console.error('❌', message);
+      await this.logSignalProcessing(signal, 'PROCESSING_ERROR', message);
+      return { success: false, message };
+    }
+  }
+
+  private calculatePositionSize(accountBalance: number, currentPrice: number, riskPercentage: number): number {
+    // Calculate position size based on risk management
+    const riskAmount = accountBalance * (riskPercentage / 100);
+    const stopLossDistance = currentPrice * (this.config.stopLossPercentage / 100);
+    
+    // Calculate units based on risk and stop loss
+    let units = Math.floor(riskAmount / stopLossDistance);
+    
+    // Apply maximum position size limit
+    units = Math.min(units, this.config.maxPositionSize);
+    
+    // Ensure minimum viable trade size
+    if (units < 100) {
+      units = 0; // Too small to trade
+    }
+
+    console.log('💰 Position sizing:', {
+      accountBalance,
+      currentPrice,
+      riskAmount,
+      stopLossDistance,
+      calculatedUnits: units
+    });
+
+    return units;
+  }
+
+  private calculateStopLoss(currentPrice: number, action: 'BUY' | 'SELL' | 'CLOSE'): number {
+    if (action === 'CLOSE') return 0;
+    
+    const stopLossDistance = currentPrice * (this.config.stopLossPercentage / 100);
+    return action === 'BUY' 
+      ? currentPrice - stopLossDistance 
+      : currentPrice + stopLossDistance;
+  }
+
+  private calculateTakeProfit(currentPrice: number, action: 'BUY' | 'SELL' | 'CLOSE'): number {
+    if (action === 'CLOSE') return 0;
+    
+    const takeProfitDistance = currentPrice * (this.config.takeProfitPercentage / 100);
+    return action === 'BUY' 
+      ? currentPrice + takeProfitDistance 
+      : currentPrice - takeProfitDistance;
+  }
+
+  private async logSignalProcessing(
+    signal: StrategySignal, 
+    status: string, 
+    message: string, 
+    tradeId?: string
+  ) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      await supabase.from('trading_logs').insert({
+        user_id: user.id,
+        session_id: crypto.randomUUID(),
+        log_type: status.includes('ERROR') || status.includes('FAILED') ? 'error' : 'info',
+        message: `SIGNAL PROCESSING: ${message}`,
+        trade_data: {
+          signal_processing: {
+            signal: signal.signal,
+            symbol: signal.symbol,
+            confidence: signal.confidence,
+            current_price: signal.currentPrice,
+            strategy_name: signal.strategyName,
+            status: status,
+            trade_id: tradeId,
+            timestamp: new Date().toISOString()
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Failed to log signal processing:', error);
+    }
+  }
+
+  // Static factory method to create bridge from saved OANDA config
+  static async createFromSavedConfig(strategyId: string, userId: string): Promise<SignalToTradeBridge | null> {
+    try {
+      // Get OANDA config from database
+      const { data: configs, error } = await supabase
+        .from('oanda_configs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('enabled', true)
+        .limit(1);
+
+      if (error || !configs || configs.length === 0) {
+        console.error('No OANDA configuration found for user:', userId);
+        return null;
+      }
+
+      const config = configs[0];
+      
+      return new SignalToTradeBridge(
+        config.account_id,
+        config.api_key,
+        config.environment as 'practice' | 'live'
+      );
+    } catch (error) {
+      console.error('Failed to create SignalToTradeBridge from saved config:', error);
+      return null;
+    }
+  }
+}

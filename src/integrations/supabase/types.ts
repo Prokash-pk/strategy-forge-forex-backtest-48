@@ -222,65 +222,6 @@ export type Database = {
         }
         Relationships: []
       }
-      trades: {
-        Row: {
-          closed_at: string | null
-          executed_at: string | null
-          id: string
-          notes: string | null
-          pnl: number | null
-          price: number
-          session_id: string | null
-          side: string
-          size: number
-          status: string
-          stop_loss: number | null
-          strategy_id: string
-          symbol: string
-          take_profit: number | null
-        }
-        Insert: {
-          closed_at?: string | null
-          executed_at?: string | null
-          id?: string
-          notes?: string | null
-          pnl?: number | null
-          price: number
-          session_id?: string | null
-          side: string
-          size: number
-          status: string
-          stop_loss?: number | null
-          strategy_id: string
-          symbol: string
-          take_profit?: number | null
-        }
-        Update: {
-          closed_at?: string | null
-          executed_at?: string | null
-          id?: string
-          notes?: string | null
-          pnl?: number | null
-          price?: number
-          session_id?: string | null
-          side?: string
-          size?: number
-          status?: string
-          stop_loss?: number | null
-          strategy_id?: string
-          symbol?: string
-          take_profit?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "trades_session_id_fkey"
-            columns: ["session_id"]
-            isOneToOne: false
-            referencedRelation: "trading_sessions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       trading_logs: {
         Row: {
           id: string

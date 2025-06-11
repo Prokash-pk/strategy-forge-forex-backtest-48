@@ -1,101 +1,122 @@
 
-import { OptimizedExecutionManager } from './python/optimizedExecutionManager';
-import { TradeExecutionDebugger } from './trading/tradeExecutionDebugger';
+import type { StrategyResult, MarketData } from './python/types';
+import { PyodideLoader } from './python/pyodideLoader';
+import type { PyodideInstance } from './python/types';
+import { ExecutionManager } from './python/executionManager';
+import { ResultProcessor } from './python/resultProcessor';
+import { DataConverter } from './python/dataConverter';
 
 export class PythonExecutor {
+  static async initializePyodide(): Promise<PyodideInstance> {
+    console.log('🔧 Initializing Pyodide...');
+    const pyodide = await PyodideLoader.initialize();
+    console.log('✅ Pyodide initialized successfully');
+    return pyodide;
+  }
+
+  static async executeStrategy(code: string, marketData: MarketData): Promise<StrategyResult> {
+    try {
+      console.log('🐍 Starting Python strategy execution...');
+      console.log('📊 Market data input:', {
+        hasOpen: !!marketData.open,
+        hasHigh: !!marketData.high, 
+        hasLow: !!marketData.low,
+        hasClose: !!marketData.close,
+        hasVolume: !!marketData.volume,
+        closeLength: marketData.close?.length || 0
+      });
+
+      // Validate market data first
+      const validation = DataConverter.validateMarketData(marketData);
+      if (!validation.isValid) {
+        console.error('❌ Invalid market data provided');
+        return ResultProcessor.createFallbackResult(marketData, validation.error!);
+      }
+
+      // Initialize Pyodide
+      let pyodide: PyodideInstance;
+      try {
+        pyodide = await this.initializePyodide();
+        if (!pyodide) {
+          throw new Error('Pyodide initialization returned null/undefined');
+        }
+        console.log('✅ Pyodide instance ready');
+      } catch (initError) {
+        console.error('❌ Failed to initialize Pyodide:', initError);
+        return ResultProcessor.createFallbackResult(
+          marketData, 
+          `Pyodide initialization failed: ${initError instanceof Error ? initError.message : 'Unknown error'}`
+        );
+      }
+      
+      // Execute strategy
+      let pythonResult;
+      try {
+        pythonResult = await ExecutionManager.executePythonStrategy(pyodide, marketData, code);
+      } catch (executionError) {
+        console.error('❌ Strategy execution failed:', executionError);
+        return ResultProcessor.createFallbackResult(
+          marketData,
+          `Strategy execution failed: ${executionError instanceof Error ? executionError.message : 'Unknown execution error'}`
+        );
+      }
+      
+      // Process and validate result
+      const processedResult = ResultProcessor.processResult(pythonResult, marketData);
+      const resultValidation = ResultProcessor.validateResult(processedResult, marketData);
+      
+      if (!resultValidation.isValid) {
+        console.error('❌ Result validation failed:', resultValidation.error);
+        return ResultProcessor.createFallbackResult(marketData, resultValidation.error!);
+      }
+      
+      console.log('✅ Python strategy executed successfully');
+      console.log('📊 Final result:', {
+        hasEntry: !!processedResult.entry,
+        hasExit: !!processedResult.exit,
+        hasDirection: !!processedResult.direction,
+        hasError: !!processedResult.error,
+        keys: Object.keys(processedResult)
+      });
+      
+      return processedResult;
+      
+    } catch (error) {
+      console.error('❌ Critical error in Python strategy execution:', error);
+      console.error('📊 Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
+      return ResultProcessor.createFallbackResult(
+        marketData,
+        `Critical execution error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
   static async isAvailable(): Promise<boolean> {
     try {
-      console.log('🔍 Checking Python availability...');
-      const manager = OptimizedExecutionManager.getInstance();
-      await manager.initializePyodide();
-      console.log('✅ Python environment available');
-      return true;
+      console.log('🔍 Checking Python environment availability...');
+      const result = await PyodideLoader.isAvailable();
+      console.log(`📊 Python availability result: ${result}`);
+      
+      if (!result) {
+        const lastError = PyodideLoader.getLastError();
+        if (lastError) {
+          console.error('🐍 Last Python error:', lastError.message);
+        }
+      }
+      
+      return result;
     } catch (error) {
-      console.warn('⚠️ Python not available:', error);
+      console.error('❌ Python availability check failed:', error);
       return false;
     }
   }
 
-  static async executeStrategy(strategyCode: string, marketData: any): Promise<any> {
-    try {
-      console.log('🧠 Executing strategy logic...');
-      console.log('🐍 Starting Python strategy execution...');
-      
-      // Enhanced debugging using static method
-      TradeExecutionDebugger.logExecutionStep('PYTHON_EXECUTOR_START', {
-        hasStrategyCode: !!strategyCode,
-        strategyCodeLength: strategyCode?.length || 0,
-        marketDataKeys: marketData ? Object.keys(marketData) : [],
-        dataPoints: marketData?.close?.length || 0
-      });
-
-      const manager = OptimizedExecutionManager.getInstance();
-      const result = await manager.executePythonStrategy(strategyCode, marketData);
-      
-      // ENHANCED FIX: Handle null/undefined results with better validation
-      if (result === null || result === undefined) {
-        console.warn('🔍 Python execution returned null/undefined result');
-        TradeExecutionDebugger.logExecutionStep('PYTHON_EXECUTOR_NULL_RESULT', {
-          strategyCodeLength: strategyCode?.length || 0,
-          dataPoints: marketData?.close?.length || 0,
-          resultType: typeof result,
-          resultValue: result
-        });
-        
-        return {
-          entry: Array(marketData?.close?.length || 100).fill(false),
-          exit: Array(marketData?.close?.length || 100).fill(false),
-          direction: Array(marketData?.close?.length || 100).fill(null),
-          error: 'Python execution returned null/undefined result'
-        };
-      }
-      
-      // Validate result structure
-      if (typeof result !== 'object') {
-        console.warn('🔍 Python execution returned non-object result:', typeof result);
-        const dataLength = marketData?.close?.length || 100;
-        return {
-          entry: Array(dataLength).fill(false),
-          exit: Array(dataLength).fill(false),
-          direction: Array(dataLength).fill(null),
-          error: `Python execution returned ${typeof result} instead of object`
-        };
-      }
-      
-      // Enhanced result validation and debugging
-      const entryCount = Array.isArray(result.entry) ? result.entry.filter(Boolean).length : 0;
-      const hasError = !!result.error;
-      
-      TradeExecutionDebugger.logExecutionStep('PYTHON_EXECUTOR_SUCCESS', {
-        hasResult: !!result,
-        resultKeys: result ? Object.keys(result) : [],
-        entrySignalsCount: entryCount,
-        error: result?.error || undefined,
-        resultType: typeof result
-      });
-
-      console.log('✅ Python strategy execution completed');
-      return result;
-      
-    } catch (error) {
-      console.error('❌ Python strategy execution failed:', error);
-      
-      // Enhanced error logging using static method
-      TradeExecutionDebugger.logExecutionStep('PYTHON_EXECUTOR_ERROR', {
-        error: error instanceof Error ? error.message : 'Unknown execution error',
-        strategyCodeLength: strategyCode?.length || 0,
-        dataPoints: marketData?.close?.length || 0,
-        errorType: error?.constructor?.name || 'Unknown'
-      });
-      
-      // Return safe fallback instead of throwing
-      const dataLength = marketData?.close?.length || 100;
-      return {
-        entry: Array(dataLength).fill(false),
-        exit: Array(dataLength).fill(false),
-        direction: Array(dataLength).fill(null),
-        error: error instanceof Error ? error.message : 'Unknown execution error'
-      };
-    }
+  static resetPythonEnvironment(): void {
+    console.log('🔄 Resetting Python environment...');
+    PyodideLoader.reset();
   }
 }
+
+// Re-export types for backward compatibility
+export type { StrategyResult, MarketData };
