@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 
 const DEFAULT_STRATEGY = {
@@ -16,121 +17,118 @@ const DEFAULT_STRATEGY = {
   reverseSignals: false,
   positionSizingMode: 'manual',
   riskRewardRatio: 2.0,
-  code: `# Smart Momentum Strategy - OANDA Compatible with Auto-Detected BUY/SELL
-# Enhanced with automatic signal direction detection for forward trading
+  code: `# Relaxed Smart Momentum Strategy - GENERATES SIGNALS
+# More practical version that actually triggers trades
 
 def strategy_logic(data, reverse_signals=False):
     """
-    Enhanced momentum strategy with AUTO-DETECTED directional signals:
-    - Multiple timeframe trend filtering
-    - Volatility filtering  
-    - AUTOMATIC BUY/SELL direction detection from conditions
-    - Reverse signal testing capability
+    RELAXED momentum strategy that ACTUALLY generates signals:
+    - Only needs 3 out of 4 conditions (not all 5)
+    - More realistic thresholds
+    - AUTO-DETECTED BUY/SELL directions
     """
     
     close = data['Close'].tolist()
     high = data['High'].tolist()
     low = data['Low'].tolist()
     
-    # Calculate all technical indicators
-    short_ema = TechnicalAnalysis.ema(close, 21)
-    long_ema = TechnicalAnalysis.ema(close, 55)
-    daily_ema = TechnicalAnalysis.ema(close, 200)  # Higher timeframe trend
+    # Calculate indicators with RELAXED parameters
+    short_ema = TechnicalAnalysis.ema(close, 12)  # Faster response
+    long_ema = TechnicalAnalysis.ema(close, 26)   # Shorter period
+    trend_ema = TechnicalAnalysis.ema(close, 100) # Shorter trend filter
     rsi = TechnicalAnalysis.rsi(close, 14)
     
-    # Volatility filter using ATR
+    # Volatility filter - MORE LENIENT
     atr = TechnicalAnalysis.atr(high, low, close, 14)
-    avg_atr = TechnicalAnalysis.sma(atr, 20)
+    avg_atr = TechnicalAnalysis.sma(atr, 10)  # Shorter average
     
     entry = []
     exit = []
-    direction = []  # CRITICAL: Auto-detected trade direction for OANDA
+    direction = []
     
     for i in range(len(close)):
-        if i < 200:  # Need enough data for all indicators
+        if i < 100:  # Reduced from 200 to 100
             entry.append(False)
             exit.append(False)
             direction.append(None)
         else:
-            # Higher timeframe trend filter
-            weekly_trend_up = close[i] > daily_ema[i]
-            weekly_trend_down = close[i] < daily_ema[i]
+            # RELAXED CONDITIONS - only need 3 out of 4
+            conditions_met = 0
             
-            # Volatility filter - only trade during high volatility
-            high_volatility = atr[i] > avg_atr[i] * 1.2 if not math.isnan(atr[i]) and not math.isnan(avg_atr[i]) else False
+            # Condition 1: EMA trend
+            trend_up = short_ema[i] > long_ema[i]
+            trend_down = short_ema[i] < long_ema[i]
+            if trend_up or trend_down:
+                conditions_met += 1
             
-            # Enhanced momentum conditions
-            trend_up = short_ema[i] > long_ema[i] and short_ema[i-1] > short_ema[i-5]
-            trend_down = short_ema[i] < long_ema[i] and short_ema[i-1] < short_ema[i-5]
-            momentum_strong_up = close[i] > short_ema[i] * 1.001
-            momentum_strong_down = close[i] < short_ema[i] * 0.999
-            rsi_good_long = 45 < rsi[i] < 75
-            rsi_good_short = 25 < rsi[i] < 55
+            # Condition 2: Price momentum (more lenient)
+            momentum_up = close[i] > short_ema[i] * 1.0005  # Reduced from 1.001
+            momentum_down = close[i] < short_ema[i] * 0.9995 # Reduced threshold
+            if momentum_up or momentum_down:
+                conditions_met += 1
+                
+            # Condition 3: RSI range (wider range)
+            rsi_good_long = 40 < rsi[i] < 80  # Wider range
+            rsi_good_short = 20 < rsi[i] < 60 # Wider range
+            if rsi_good_long or rsi_good_short:
+                conditions_met += 1
             
-            # AUTO-DETECT BUY CONDITIONS
-            base_long_entry = (trend_up and 
-                              momentum_strong_up and 
-                              rsi_good_long and
-                              weekly_trend_up and
-                              high_volatility)
+            # Condition 4: Volatility (more lenient)
+            high_volatility = atr[i] > avg_atr[i] * 1.1 if not math.isnan(atr[i]) and not math.isnan(avg_atr[i]) else True
+            if high_volatility:
+                conditions_met += 1
             
-            # AUTO-DETECT SELL CONDITIONS  
-            base_short_entry = (trend_down and 
-                               momentum_strong_down and 
-                               rsi_good_short and
-                               weekly_trend_down and
-                               high_volatility)
+            # GENERATE SIGNALS if 3+ conditions met
+            base_long_entry = (trend_up and momentum_up and rsi_good_long and conditions_met >= 3)
+            base_short_entry = (trend_down and momentum_down and rsi_good_short and conditions_met >= 3)
             
-            # Apply reverse signals if enabled (for testing opposite direction)
+            # Apply reverse signals if enabled
             if reverse_signals:
-                actual_long = base_short_entry   # Reverse: use short conditions for BUY
-                actual_short = base_long_entry   # Reverse: use long conditions for SELL
+                actual_long = base_short_entry
+                actual_short = base_long_entry
             else:
-                actual_long = base_long_entry    # Normal: use long conditions for BUY
-                actual_short = base_short_entry  # Normal: use short conditions for SELL
+                actual_long = base_long_entry
+                actual_short = base_short_entry
             
-            # AUTO-GENERATE DIRECTIONAL SIGNALS for OANDA
+            # Generate directional signals
             if actual_long:
                 entry.append(True)
-                direction.append("BUY")  # AUTO-DETECTED BUY signal
+                direction.append("BUY")
             elif actual_short:
-                entry.append(True) 
-                direction.append("SELL")  # AUTO-DETECTED SELL signal
+                entry.append(True)
+                direction.append("SELL")
             else:
                 entry.append(False)
-                direction.append(None)  # No trade signal
+                direction.append(None)
             
-            # Conservative exit conditions
-            exit_signal = (rsi[i] > 80 or rsi[i] < 20 or not high_volatility)
+            # Simple exit conditions
+            exit_signal = (rsi[i] > 85 or rsi[i] < 15)  # Wider exit range
             exit.append(exit_signal)
     
-    # CRITICAL: Return direction array for OANDA auto trading
     return {
         'entry': entry,
         'exit': exit,
-        'direction': direction,  # AUTO-DETECTED BUY/SELL directions
+        'direction': direction,
         'short_ema': short_ema,
         'long_ema': long_ema,
-        'daily_ema': daily_ema,
+        'trend_ema': trend_ema,
         'rsi': rsi,
         'atr': atr,
         'avg_atr': avg_atr,
         'reverse_signals_applied': reverse_signals,
-        'note': 'Strategy with AUTO-DETECTED BUY/SELL directions for OANDA forward trading'
+        'note': 'RELAXED strategy that ACTUALLY generates trading signals'
     }`
 };
 
 export const useStrategyState = (initialStrategy?: any) => {
-  const [strategy, setStrategy] = useState(DEFAULT_STRATEGY);
-
-  // Update strategy when initialStrategy changes
-  useEffect(() => {
+  const [strategy, setStrategy] = useState(() => {
     if (initialStrategy) {
-      setStrategy(prev => ({ ...prev, ...initialStrategy }));
+      return { ...DEFAULT_STRATEGY, ...initialStrategy };
     }
-  }, [initialStrategy]);
+    return DEFAULT_STRATEGY;
+  });
 
-  const updateStrategy = (updates: any) => {
+  const updateStrategy = (updates: Partial<typeof strategy>) => {
     setStrategy(prev => ({ ...prev, ...updates }));
   };
 
