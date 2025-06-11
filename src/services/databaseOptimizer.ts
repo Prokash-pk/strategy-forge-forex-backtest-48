@@ -10,7 +10,14 @@ export class DatabaseOptimizer {
       
       console.log(`🗄️ Archiving trading logs older than ${daysToKeep} days...`);
       
-      const { data, error } = await supabase
+      // First count the records we're going to delete
+      const { count } = await supabase
+        .from('trading_logs')
+        .select('*', { count: 'exact', head: true })
+        .lt('timestamp', cutoffDate.toISOString());
+      
+      // Then delete them
+      const { error } = await supabase
         .from('trading_logs')
         .delete()
         .lt('timestamp', cutoffDate.toISOString());
@@ -20,7 +27,7 @@ export class DatabaseOptimizer {
         return 0;
       }
       
-      const archivedCount = data ? data.length : 0;
+      const archivedCount = count || 0;
       console.log(`✅ Archived ${archivedCount} old trading logs`);
       return archivedCount;
       
@@ -94,7 +101,16 @@ export class DatabaseOptimizer {
 
       console.log(`🧹 Cleaning up sessions inactive for ${daysInactive} days...`);
 
-      const { data, error } = await supabase
+      // First count the records we're going to update
+      const { count } = await supabase
+        .from('trading_sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .lt('last_execution', cutoffDate.toISOString());
+
+      // Then update them
+      const { error } = await supabase
         .from('trading_sessions')
         .update({ is_active: false })
         .eq('user_id', user.id)
@@ -106,7 +122,7 @@ export class DatabaseOptimizer {
         return 0;
       }
 
-      const cleanedCount = data ? data.length : 0;
+      const cleanedCount = count || 0;
       console.log(`✅ Cleaned up ${cleanedCount} inactive sessions`);
       return cleanedCount;
 
