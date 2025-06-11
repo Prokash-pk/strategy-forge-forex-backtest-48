@@ -10,20 +10,33 @@ export const useOANDAStrategies = () => {
   const [selectedStrategy, setSelectedStrategy] = useState<StrategySettings | null>(null);
   const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
 
-  // Simplified initialization - load strategies and selected strategy in parallel
   useEffect(() => {
     const initializeStrategies = async () => {
       setIsLoadingStrategies(true);
       
       try {
-        // Load selected strategy from localStorage immediately
+        console.log('🚀 Initializing OANDA strategies for user...');
+        
+        // Check if user is authenticated
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.warn('⚠️ No authenticated user found during strategy initialization');
+          setSavedStrategies([]);
+          setSelectedStrategy(null);
+          return;
+        }
+
+        console.log('👤 User authenticated, loading strategies for:', user.id);
+
+        // Load selected strategy from localStorage
         const savedSelectedStrategy = localStorage.getItem('selected_strategy_settings');
         if (savedSelectedStrategy) {
           try {
             const strategySettings = JSON.parse(savedSelectedStrategy);
+            console.log('📱 Loaded strategy from localStorage:', strategySettings.strategy_name);
             setSelectedStrategy(strategySettings);
           } catch (error) {
-            console.warn('Failed to parse saved strategy from localStorage:', error);
+            console.warn('❌ Failed to parse saved strategy from localStorage:', error);
             localStorage.removeItem('selected_strategy_settings');
           }
         }
@@ -31,7 +44,8 @@ export const useOANDAStrategies = () => {
         // Load saved strategies from database
         await loadSavedStrategies();
       } catch (error) {
-        console.error('Failed to initialize strategies:', error);
+        console.error('❌ Failed to initialize strategies:', error);
+        setSavedStrategies([]);
       } finally {
         setIsLoadingStrategies(false);
       }
@@ -42,8 +56,11 @@ export const useOANDAStrategies = () => {
 
   const loadSavedStrategies = async () => {
     try {
+      console.log('📖 Loading saved strategies from database...');
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
+        console.warn('⚠️ No authenticated user for strategy loading');
         setSavedStrategies([]);
         return;
       }
@@ -53,24 +70,30 @@ export const useOANDAStrategies = () => {
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(20); // Reduced limit for faster loading
+        .limit(20);
 
       if (error) {
-        console.error('Error loading strategies:', error);
+        console.error('❌ Database error loading strategies:', error);
         throw error;
       }
       
+      console.log(`✅ Loaded ${data?.length || 0} strategies from database`);
       setSavedStrategies(data || []);
     } catch (error) {
-      console.error('Failed to load saved strategies:', error);
+      console.error('❌ Failed to load saved strategies:', error);
       setSavedStrategies([]);
     }
   };
 
   const loadStrategyById = async (strategyId: string) => {
     try {
+      console.log('🔍 Loading strategy by ID:', strategyId);
+      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.warn('⚠️ No authenticated user for strategy loading by ID');
+        return;
+      }
 
       const { data, error } = await supabase
         .from('strategy_results')
@@ -80,19 +103,22 @@ export const useOANDAStrategies = () => {
         .single();
 
       if (error) {
-        console.error('Error loading strategy by ID:', error);
+        console.error('❌ Error loading strategy by ID:', error);
         return;
       }
 
       if (data) {
+        console.log('✅ Strategy loaded by ID:', data.strategy_name);
         handleLoadStrategy(data);
       }
     } catch (error) {
-      console.error('Failed to load strategy by ID:', error);
+      console.error('❌ Failed to load strategy by ID:', error);
     }
   };
 
   const handleLoadStrategy = (strategySettings: StrategySettings) => {
+    console.log('📤 Loading strategy:', strategySettings.strategy_name);
+    
     const completeStrategy: StrategySettings = {
       id: strategySettings.id,
       strategy_name: strategySettings.strategy_name,
@@ -122,6 +148,8 @@ export const useOANDAStrategies = () => {
     localStorage.setItem('selected_strategy_settings', JSON.stringify(completeStrategy));
     localStorage.setItem('activeStrategyId', completeStrategy.id);
     
+    console.log('✅ Strategy loaded and cached');
+    
     toast({
       title: "Strategy Loaded",
       description: `${completeStrategy.strategy_name} loaded successfully`,
@@ -130,6 +158,8 @@ export const useOANDAStrategies = () => {
 
   const handleDeleteStrategy = async (strategyId: string) => {
     try {
+      console.log('🗑️ Deleting strategy:', strategyId);
+      
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
@@ -148,7 +178,10 @@ export const useOANDAStrategies = () => {
         setSelectedStrategy(null);
         localStorage.removeItem('selected_strategy_settings');
         localStorage.removeItem('activeStrategyId');
+        console.log('🧹 Cleared selected strategy cache');
       }
+
+      console.log('✅ Strategy deleted successfully');
 
       toast({
         title: "Strategy Deleted",
@@ -159,7 +192,7 @@ export const useOANDAStrategies = () => {
       loadSavedStrategies();
 
     } catch (error) {
-      console.error('Delete strategy error:', error);
+      console.error('❌ Delete strategy error:', error);
       toast({
         title: "Delete Failed",
         description: error instanceof Error ? error.message : "Failed to delete strategy",

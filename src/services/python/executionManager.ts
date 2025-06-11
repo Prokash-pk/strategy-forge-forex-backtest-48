@@ -23,7 +23,7 @@ export class ExecutionManager {
       pyodide.globals.set('js_strategy_code', strategyCode);
       console.log('✅ Data set in Python environment');
       
-      // Check if execute_strategy function is available and re-initialize if needed
+      // Check if execute_strategy function is available with detailed logging
       const checkResult = pyodide.runPython(`
 try:
     if 'execute_strategy' in globals():
@@ -31,17 +31,19 @@ try:
         result = True
     else:
         print("❌ execute_strategy function not found in globals")
-        print(f"Available globals: {list(globals().keys())}")
+        available_funcs = [k for k in globals().keys() if callable(globals()[k]) and not k.startswith('_')]
+        print(f"Available functions: {available_funcs}")
         result = False
     result
 except Exception as e:
     print(f"❌ Error checking execute_strategy: {e}")
+    import traceback
+    traceback.print_exc()
     False
       `);
       
       if (!checkResult) {
         console.warn('🔄 execute_strategy function not found, attempting to reinitialize...');
-        // Try to reinitialize the environment
         try {
           await PyodideLoader.reinitializeEnvironment(pyodide);
           console.log('✅ Python environment reinitialized successfully');
@@ -53,13 +55,13 @@ except Exception as e:
           // Check again
           const recheckResult = pyodide.runPython(`'execute_strategy' in globals()`);
           if (!recheckResult) {
-            throw new Error('Failed to reinitialize execute_strategy function');
+            throw new Error('execute_strategy function still not available after reinitialization');
           }
         } catch (reinitError) {
           console.error('❌ Failed to reinitialize Python environment:', reinitError);
-          // Force complete reset
+          // Force complete reset and retry once
           PyodideLoader.reset();
-          throw new Error('Python environment failed to initialize properly. Please try again.');
+          throw new Error('Python environment corrupted. Please refresh the page and try again.');
         }
       }
       
