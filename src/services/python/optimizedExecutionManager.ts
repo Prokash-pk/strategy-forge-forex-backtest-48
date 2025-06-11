@@ -419,8 +419,8 @@ except Exception as e:
       });
 
       // Log to trade debugger with enhanced details
-      const debugger = TradeExecutionDebugger.getInstance();
-      debugger.logStep('PYTHON_EXECUTION_COMPLETE', {
+      const tradeDebugger = TradeExecutionDebugger.getInstance();
+      tradeDebugger.logStep('PYTHON_EXECUTION_COMPLETE', {
         dataPoints: marketData?.close?.length || 0,
         entrySignalsCount: entryCount,
         buySignalsCount: buySignals,
@@ -438,8 +438,8 @@ except Exception as e:
       console.error('❌ Python execution failed:', error);
       
       // Enhanced error logging
-      const debugger = TradeExecutionDebugger.getInstance();
-      debugger.logStep('PYTHON_EXECUTION_ERROR', {
+      const tradeDebugger = TradeExecutionDebugger.getInstance();
+      tradeDebugger.logStep('PYTHON_EXECUTION_ERROR', {
         error: error instanceof Error ? error.message : 'Unknown execution error',
         dataPoints: marketData?.close?.length || 0
       });
