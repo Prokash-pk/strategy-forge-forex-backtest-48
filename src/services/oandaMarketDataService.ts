@@ -1,3 +1,4 @@
+
 export interface OANDACandle {
   time: string;
   bid: {
@@ -30,11 +31,25 @@ export class OANDAMarketDataService {
     granularity: string = 'M1',
     count: number = 100
   ): Promise<any> {
-    // Validate inputs first
+    // Enhanced validation with detailed logging
     if (!accountId || !apiKey || !instrument) {
-      console.error('❌ Missing required OANDA credentials or instrument');
+      console.error('❌ Missing required OANDA credentials or instrument:', {
+        hasAccountId: !!accountId,
+        hasApiKey: !!apiKey,
+        hasInstrument: !!instrument,
+        accountIdLength: accountId?.length || 0,
+        apiKeyLength: apiKey?.length || 0
+      });
       throw new Error('Missing OANDA credentials or instrument');
     }
+
+    // Debug log the credentials being used (without exposing the full API key)
+    console.log('🔐 Using OANDA credentials:', {
+      accountId: accountId,
+      environment: environment,
+      apiKeyPrefix: apiKey.substring(0, 8) + '...', // Only show first 8 chars
+      apiKeyLength: apiKey.length
+    });
 
     // Convert symbol to proper OANDA format BEFORE making the request
     const oandaInstrument = this.convertSymbolToOANDA(instrument);
@@ -51,15 +66,26 @@ export class OANDAMarketDataService {
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
     try {
+      const headers = {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Accept-Datetime-Format': 'UNIX'
+      };
+
+      console.log('📤 Making request to OANDA API:', {
+        url: `${baseUrl}/v3/instruments/${oandaInstrument}/candles`,
+        headers: {
+          'Authorization': `Bearer ${apiKey.substring(0, 8)}...`,
+          'Content-Type': headers['Content-Type'],
+          'Accept-Datetime-Format': headers['Accept-Datetime-Format']
+        }
+      });
+
       const response = await fetch(
         `${baseUrl}/v3/instruments/${oandaInstrument}/candles?count=${count}&granularity=${granularity}&price=MBA`,
         {
           method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-            'Accept-Datetime-Format': 'UNIX'
-          },
+          headers,
           signal: controller.signal
         }
       );
@@ -75,6 +101,13 @@ export class OANDAMarketDataService {
           
           // Provide specific guidance for common errors
           if (response.status === 401) {
+            console.error('🔑 401 Authentication Error Details:', {
+              accountId: accountId,
+              environment: environment,
+              apiKeyLength: apiKey.length,
+              apiKeyStart: apiKey.substring(0, 8),
+              fullErrorData: errorData
+            });
             errorMessage = 'Invalid OANDA API key. Please check your credentials in the Configuration tab.';
           } else if (response.status === 403) {
             errorMessage = 'OANDA API access forbidden. Verify your API key permissions.';
@@ -221,6 +254,7 @@ export class OANDAMarketDataService {
         
         // Don't retry on authentication errors
         if (error instanceof Error && (error.message.includes('401') || error.message.includes('Invalid API key'))) {
+          console.error('🔑 Authentication error - not retrying');
           throw error;
         }
         

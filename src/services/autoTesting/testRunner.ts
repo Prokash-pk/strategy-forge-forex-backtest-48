@@ -12,18 +12,30 @@ export class StrategyTestRunner {
       console.log(`\n⏰ [${new Date().toLocaleTimeString()}] Testing Strategy Signals...`);
       console.log('=' .repeat(60));
 
+      // Verify config has all required fields before proceeding
+      if (!config.accountId || !config.apiKey) {
+        throw new Error('Missing OANDA credentials. Please check your configuration.');
+      }
+
+      console.log('🔍 Using credentials from config:', {
+        accountId: config.accountId,
+        environment: config.environment,
+        hasApiKey: !!config.apiKey
+      });
+
       // Convert symbol to OANDA format
       const oandaSymbol = OANDAMarketDataService.convertSymbolToOANDA(strategy.symbol);
       console.log(`🔍 Fetching live data for: ${oandaSymbol}`);
 
-      // Fetch live market data
-      const marketData = await OANDAMarketDataService.fetchLiveMarketData(
+      // Fetch live market data with retry mechanism
+      const marketData = await OANDAMarketDataService.fetchWithRetry(
         config.accountId,
         config.apiKey,
         config.environment,
         oandaSymbol,
-        'M1', // 1-minute candles
-        100   // Last 100 candles for strategy analysis
+        'M15', // 15-minute candles instead of M1 for better stability
+        100,   // Last 100 candles for strategy analysis
+        2      // Max 2 retries
       );
 
       console.log(`📊 Fetched ${marketData.close.length} data points`);
@@ -116,7 +128,19 @@ export class StrategyTestRunner {
       return result;
 
     } catch (error) {
-      console.error('❌ Auto-testing error:', error);
+      console.error('❌ Strategy test failed:', error);
+      
+      // More specific error handling
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      if (errorMessage.includes('401') || errorMessage.includes('Invalid API key')) {
+        console.error('🔑 API Authentication Error - This should not happen if Test Connection works');
+        console.error('📋 Debug Info:', {
+          hasAccountId: !!config.accountId,
+          hasApiKey: !!config.apiKey,
+          environment: config.environment
+        });
+      }
       
       return {
         timestamp: new Date().toISOString(),
