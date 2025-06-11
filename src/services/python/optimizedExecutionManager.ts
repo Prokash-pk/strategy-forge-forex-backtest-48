@@ -270,22 +270,33 @@ data = {
 }
 `);
 
-      // Execute the strategy with proper error handling
-      const result = await this.pyodide.runPython(`
+      // Execute the strategy with proper error handling and result capture
+      await this.pyodide.runPython(`
 try:
     strategy_result = execute_strategy(data)
-    strategy_result
+    print(f"✅ Strategy execution result type: {type(strategy_result)}")
+    if hasattr(strategy_result, 'keys'):
+        print(f"📊 Result keys: {list(strategy_result.keys())}")
 except Exception as e:
     print(f"❌ Final execution error: {e}")
     import traceback
     traceback.print_exc()
-    {
+    strategy_result = {
         'entry': [False] * len(data['close']) if len(data['close']) > 0 else [False] * 100,
         'exit': [False] * len(data['close']) if len(data['close']) > 0 else [False] * 100,
         'direction': [None] * len(data['close']) if len(data['close']) > 0 else [None] * 100,
         'error': str(e)
     }
 `);
+
+      // Get the result from Python globals
+      const result = this.pyodide.globals.get('strategy_result');
+      
+      console.log('🔍 Retrieved result from Python:', {
+        resultExists: !!result,
+        resultType: typeof result,
+        hasToJs: result && typeof result.toJs === 'function'
+      });
 
       // Handle undefined result (execution failure)
       if (result === undefined || result === null) {
