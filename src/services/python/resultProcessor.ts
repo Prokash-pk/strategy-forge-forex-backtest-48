@@ -2,6 +2,12 @@
 export class PythonResultProcessor {
   static processExecutionResult(result: any): any {
     try {
+      // Handle undefined/null results first
+      if (result === undefined || result === null) {
+        console.warn('⚠️ Python execution returned null/undefined result');
+        return null;
+      }
+
       // Convert PyProxy to JavaScript object if needed
       const jsResult = result.toJs ? result.toJs({ dict_converter: Object.fromEntries }) : result;
       

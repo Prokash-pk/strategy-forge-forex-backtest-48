@@ -32,19 +32,33 @@ export class PythonExecutor {
       const manager = OptimizedExecutionManager.getInstance();
       const result = await manager.executePythonStrategy(strategyCode, marketData);
       
-      // CRITICAL FIX: Handle null/undefined results properly
-      if (!result) {
+      // ENHANCED FIX: Handle null/undefined results with better validation
+      if (result === null || result === undefined) {
         console.warn('🔍 Python execution returned null/undefined result');
         TradeExecutionDebugger.logExecutionStep('PYTHON_EXECUTOR_NULL_RESULT', {
           strategyCodeLength: strategyCode?.length || 0,
-          dataPoints: marketData?.close?.length || 0
+          dataPoints: marketData?.close?.length || 0,
+          resultType: typeof result,
+          resultValue: result
         });
         
         return {
           entry: Array(marketData?.close?.length || 100).fill(false),
           exit: Array(marketData?.close?.length || 100).fill(false),
           direction: Array(marketData?.close?.length || 100).fill(null),
-          error: 'Python execution returned null result'
+          error: 'Python execution returned null/undefined result'
+        };
+      }
+      
+      // Validate result structure
+      if (typeof result !== 'object') {
+        console.warn('🔍 Python execution returned non-object result:', typeof result);
+        const dataLength = marketData?.close?.length || 100;
+        return {
+          entry: Array(dataLength).fill(false),
+          exit: Array(dataLength).fill(false),
+          direction: Array(dataLength).fill(null),
+          error: `Python execution returned ${typeof result} instead of object`
         };
       }
       
@@ -56,7 +70,8 @@ export class PythonExecutor {
         hasResult: !!result,
         resultKeys: result ? Object.keys(result) : [],
         entrySignalsCount: entryCount,
-        error: result?.error || undefined
+        error: result?.error || undefined,
+        resultType: typeof result
       });
 
       console.log('✅ Python strategy execution completed');
@@ -69,7 +84,8 @@ export class PythonExecutor {
       TradeExecutionDebugger.logExecutionStep('PYTHON_EXECUTOR_ERROR', {
         error: error instanceof Error ? error.message : 'Unknown execution error',
         strategyCodeLength: strategyCode?.length || 0,
-        dataPoints: marketData?.close?.length || 0
+        dataPoints: marketData?.close?.length || 0,
+        errorType: error?.constructor?.name || 'Unknown'
       });
       
       // Return safe fallback instead of throwing

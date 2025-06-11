@@ -84,14 +84,21 @@ export class BacktestExecutionService {
         pythonMarketData
       );
       
-      // CRITICAL FIX: Handle null/undefined results properly
-      if (!strategyResult) {
-        console.warn('Python execution returned null/undefined, falling back to pattern matching');
+      // ENHANCED FIX: Handle null/undefined results properly with better error messages
+      if (!strategyResult || strategyResult === null || strategyResult === undefined) {
+        console.warn('🔍 Python execution returned null/undefined, falling back to pattern matching');
         return await this.executeJavaScriptStrategy(strategy, marketData, onStepUpdate);
       }
       
-      if (strategyResult.error) {
+      // Check for explicit error property
+      if (strategyResult && typeof strategyResult === 'object' && strategyResult.error) {
         console.warn('Python execution error, falling back to pattern matching:', strategyResult.error);
+        return await this.executeJavaScriptStrategy(strategy, marketData, onStepUpdate);
+      }
+      
+      // Validate that we have the required signal arrays
+      if (!strategyResult.entry || !Array.isArray(strategyResult.entry)) {
+        console.warn('Python execution missing entry signals, falling back to pattern matching');
         return await this.executeJavaScriptStrategy(strategy, marketData, onStepUpdate);
       }
       
