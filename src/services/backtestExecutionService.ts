@@ -18,6 +18,7 @@ export class BacktestExecutionService {
     // Step 4: Run enhanced backtest with risk management
     setCurrentStep('Running enhanced backtest with adaptive risk management...');
     
+    // Ensure all data is properly serializable
     const requestBody = {
       data: marketData.map((item: any) => ({
         date: item.datetime,
@@ -43,7 +44,7 @@ export class BacktestExecutionService {
         positionSizingMode: strategy.positionSizingMode || 'manual',
         riskRewardRatio: strategy.riskRewardRatio || 1.5
       },
-      pythonSignals: executionResult.success ? executionResult.signals : undefined,
+      pythonSignals: executionResult.success ? executionResult.signals : null,
       timeframeInfo: {
         minutes: metadata.timeframeMinutes || 15,
         description: metadata.timeframeDescription || '15 minutes'
@@ -51,10 +52,13 @@ export class BacktestExecutionService {
       enhancedMode: true
     };
 
-    console.log('🚀 Sending backtest request with body:', JSON.stringify(requestBody, null, 2));
+    // Convert to JSON string for the request
+    const jsonString = JSON.stringify(requestBody);
+
+    console.log('🚀 Sending backtest request with JSON string:', jsonString.substring(0, 500) + '...');
 
     const { data: results, error } = await supabase.functions.invoke('run-backtest', {
-      body: JSON.stringify(requestBody),
+      body: jsonString,
       headers: {
         'Content-Type': 'application/json'
       }
