@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { PythonExecutor } from '@/services/pythonExecutor';
 import { StrategyStorage } from '@/services/strategyStorage';
@@ -28,9 +29,9 @@ export class BacktestExecutionService {
       backtestResponse = await this.executeJavaScriptStrategy(strategy, marketData, onStepUpdate);
     }
 
-    if (!backtestResponse.success) {
-      console.error('Backtest error:', backtestResponse.error);
-      throw new Error(backtestResponse.error || 'Backtest execution failed');
+    if (!backtestResponse || !backtestResponse.success) {
+      console.error('Backtest error:', backtestResponse?.error || 'Unknown error');
+      throw new Error(backtestResponse?.error || 'Backtest execution failed');
     }
 
     const results = backtestResponse.results;
@@ -66,55 +67,69 @@ export class BacktestExecutionService {
     console.log('Using enhanced Python execution for strategy');
     console.log('Reverse signals enabled:', strategy.reverseSignals);
     
-    // Prepare market data for Python with proper data structure
-    const pythonMarketData = {
-      open: marketData.map((d: any) => parseFloat(d.open)),
-      high: marketData.map((d: any) => parseFloat(d.high)),
-      low: marketData.map((d: any) => parseFloat(d.low)),
-      close: marketData.map((d: any) => parseFloat(d.close)),
-      volume: marketData.map((d: any) => parseFloat(d.volume || 0)),
-      reverse_signals: strategy.reverseSignals || false
-    };
-    
-    // Execute strategy with Python - pass reverse signals as part of the strategy code parameters
-    const strategyResult = await PythonExecutor.executeStrategy(
-      strategy.code, 
-      pythonMarketData
-    );
-    
-    if (strategyResult.error) {
-      console.warn('Python execution error, falling back to pattern matching:', strategyResult.error);
-    }
-    
-    // Get timeframe info for accurate duration calculation
-    const timeframeInfo = getTimeframeInfo(strategy.timeframe);
-    
-    // Run enhanced backtest with Python-generated signals and timeframe info
-    const { data: response, error } = await supabase.functions.invoke('run-backtest', {
-      body: {
-        data: marketData,
-        strategy: {
-          code: strategy.code,
-          name: strategy.name,
-          initialBalance: strategy.initialBalance,
-          riskPerTrade: strategy.riskPerTrade,
-          stopLoss: strategy.stopLoss,
-          takeProfit: strategy.takeProfit,
-          spread: strategy.spread,
-          commission: strategy.commission,
-          slippage: strategy.slippage,
-          maxPositionSize: strategy.maxPositionSize,
-          riskModel: strategy.riskModel,
-          reverseSignals: strategy.reverseSignals || false
-        },
-        pythonSignals: strategyResult.error ? undefined : strategyResult,
-        timeframeInfo: timeframeInfo,
-        enhancedMode: true
+    try {
+      // Prepare market data for Python with proper data structure
+      const pythonMarketData = {
+        open: marketData.map((d: any) => parseFloat(d.open)),
+        high: marketData.map((d: any) => parseFloat(d.high)),
+        low: marketData.map((d: any) => parseFloat(d.low)),
+        close: marketData.map((d: any) => parseFloat(d.close)),
+        volume: marketData.map((d: any) => parseFloat(d.volume || 0)),
+        reverse_signals: strategy.reverseSignals || false
+      };
+      
+      // Execute strategy with Python - pass reverse signals as part of the strategy code parameters
+      const strategyResult = await PythonExecutor.executeStrategy(
+        strategy.code, 
+        pythonMarketData
+      );
+      
+      // CRITICAL FIX: Handle null/undefined results properly
+      if (!strategyResult) {
+        console.warn('Python execution returned null/undefined, falling back to pattern matching');
+        return await this.executeJavaScriptStrategy(strategy, marketData, onStepUpdate);
       }
-    });
-    
-    if (error) throw new Error(`Enhanced backtest execution failed: ${error.message}`);
-    return response;
+      
+      if (strategyResult.error) {
+        console.warn('Python execution error, falling back to pattern matching:', strategyResult.error);
+        return await this.executeJavaScriptStrategy(strategy, marketData, onStepUpdate);
+      }
+      
+      // Get timeframe info for accurate duration calculation
+      const timeframeInfo = getTimeframeInfo(strategy.timeframe);
+      
+      // Run enhanced backtest with Python-generated signals and timeframe info
+      const { data: response, error } = await supabase.functions.invoke('run-backtest', {
+        body: {
+          data: marketData,
+          strategy: {
+            code: strategy.code,
+            name: strategy.name,
+            initialBalance: strategy.initialBalance,
+            riskPerTrade: strategy.riskPerTrade,
+            stopLoss: strategy.stopLoss,
+            takeProfit: strategy.takeProfit,
+            spread: strategy.spread,
+            commission: strategy.commission,
+            slippage: strategy.slippage,
+            maxPositionSize: strategy.maxPositionSize,
+            riskModel: strategy.riskModel,
+            reverseSignals: strategy.reverseSignals || false
+          },
+          pythonSignals: strategyResult,
+          timeframeInfo: timeframeInfo,
+          enhancedMode: true
+        }
+      });
+      
+      if (error) throw new Error(`Enhanced backtest execution failed: ${error.message}`);
+      return response;
+      
+    } catch (error) {
+      console.error('Python strategy execution failed:', error);
+      console.log('Falling back to JavaScript strategy execution...');
+      return await this.executeJavaScriptStrategy(strategy, marketData, onStepUpdate);
+    }
   }
 
   private static async executeJavaScriptStrategy(strategy: BacktestStrategy, marketData: any[], onStepUpdate: (step: string) => void) {
