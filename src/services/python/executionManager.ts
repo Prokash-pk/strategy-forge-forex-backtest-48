@@ -40,10 +40,27 @@ except Exception as e:
       `);
       
       if (!checkResult) {
-        console.warn('🔄 execute_strategy function not found, reinitializing Python environment...');
-        // Force reinitialize the Python environment
-        PyodideLoader.reset();
-        throw new Error('Python environment not properly initialized: execute_strategy function not found');
+        console.warn('🔄 execute_strategy function not found, attempting to reinitialize...');
+        // Try to reinitialize the environment
+        try {
+          await PyodideLoader.reinitializeEnvironment(pyodide);
+          console.log('✅ Python environment reinitialized successfully');
+          
+          // Reset data after reinitialization
+          pyodide.globals.set('js_market_data', plainMarketData);
+          pyodide.globals.set('js_strategy_code', strategyCode);
+          
+          // Check again
+          const recheckResult = pyodide.runPython(`'execute_strategy' in globals()`);
+          if (!recheckResult) {
+            throw new Error('Failed to reinitialize execute_strategy function');
+          }
+        } catch (reinitError) {
+          console.error('❌ Failed to reinitialize Python environment:', reinitError);
+          // Force complete reset
+          PyodideLoader.reset();
+          throw new Error('Python environment failed to initialize properly. Please try again.');
+        }
       }
       
       // Execute the strategy with comprehensive error handling

@@ -10,19 +10,22 @@ export class PyodideLoader {
 
   static async initialize(): Promise<PyodideInstance> {
     if (this.pyodideInstance) {
-      console.log('🐍 Returning existing Pyodide instance');
-      // Re-run the strategy executor code to ensure execute_strategy is available
+      console.log('🐍 Checking existing Pyodide instance...');
+      // Verify execute_strategy is still available
       try {
-        this.pyodideInstance.runPython(STRATEGY_EXECUTOR_PYTHON_CODE);
-        console.log('🐍 Re-initialized strategy executor code in existing instance');
+        const checkResult = this.pyodideInstance.runPython(`'execute_strategy' in globals()`);
+        if (checkResult) {
+          console.log('🐍 Existing instance is valid with execute_strategy function');
+          return this.pyodideInstance;
+        } else {
+          console.log('🐍 Existing instance missing execute_strategy, reinitializing...');
+          await this.reinitializeEnvironment(this.pyodideInstance);
+          return this.pyodideInstance;
+        }
       } catch (error) {
-        console.warn('🐍 Failed to re-initialize strategy code, creating new instance:', error);
+        console.warn('🐍 Failed to check existing instance, creating new one:', error);
         this.pyodideInstance = null;
         this.loadPromise = null;
-      }
-      
-      if (this.pyodideInstance) {
-        return this.pyodideInstance;
       }
     }
 
@@ -45,6 +48,24 @@ export class PyodideLoader {
       throw this.lastError;
     } finally {
       this.isLoading = false;
+    }
+  }
+
+  static async reinitializeEnvironment(pyodideInstance: PyodideInstance): Promise<void> {
+    console.log('🔄 Reinitializing Python environment...');
+    try {
+      // Re-run the strategy executor code
+      pyodideInstance.runPython(STRATEGY_EXECUTOR_PYTHON_CODE);
+      
+      // Verify execute_strategy is now available
+      const checkResult = pyodideInstance.runPython(`'execute_strategy' in globals()`);
+      if (!checkResult) {
+        throw new Error('execute_strategy function still not available after reinitialization');
+      }
+      console.log('✅ Python environment successfully reinitialized');
+    } catch (error) {
+      console.error('❌ Failed to reinitialize Python environment:', error);
+      throw error;
     }
   }
 
@@ -96,30 +117,7 @@ export class PyodideLoader {
       }
 
       // Set up the Python environment with helper functions
-      console.log('🐍 Setting up Python strategy execution environment...');
-      pyodide.runPython(STRATEGY_EXECUTOR_PYTHON_CODE);
-
-      // Test that execute_strategy function is available
-      console.log('🐍 Testing Python environment...');
-      const testResult = pyodide.runPython(`
-import numpy as np
-import pandas as pd
-
-# Check if execute_strategy function exists
-if 'execute_strategy' in globals():
-    print("✅ execute_strategy function found and ready")
-    result = "success_with_execute_strategy"
-else:
-    print("❌ execute_strategy function not found")
-    print(f"Available functions: {[name for name in globals().keys() if callable(globals()[name]) and not name.startswith('_')]}")
-    result = "missing_execute_strategy"
-
-result
-      `);
-
-      if (testResult !== "success_with_execute_strategy") {
-        throw new Error('Python environment test failed: execute_strategy function not available after initialization');
-      }
+      await this.reinitializeEnvironment(pyodide);
 
       console.log('🐍 Pyodide fully initialized with execute_strategy function ready');
       return pyodide as PyodideInstance;
@@ -136,16 +134,13 @@ result
       if (this.pyodideInstance) {
         // Verify execute_strategy is still available
         try {
-          const checkResult = this.pyodideInstance.runPython(`
-'execute_strategy' in globals()
-          `);
+          const checkResult = this.pyodideInstance.runPython(`'execute_strategy' in globals()`);
           if (checkResult) {
             console.log('🐍 Pyodide already available with execute_strategy function');
             return true;
           } else {
-            console.log('🐍 Pyodide instance exists but execute_strategy missing, reinitializing...');
-            this.pyodideInstance = null;
-            this.loadPromise = null;
+            console.log('🐍 Pyodide instance exists but execute_strategy missing, will reinitialize on next use');
+            // Don't reset here, let initialize() handle it
           }
         } catch (checkError) {
           console.warn('🐍 Failed to check execute_strategy availability:', checkError);
