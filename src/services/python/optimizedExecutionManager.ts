@@ -1,3 +1,4 @@
+
 import { PyodideManager } from './pyodideManager';
 import { TradeExecutionDebugger } from '../trading/tradeExecutionDebugger';
 
@@ -269,19 +270,23 @@ data = {
 }
 `);
 
-      // Execute the strategy and directly return the result
-      const result = await this.pyodide.runPython(`
+      // Execute the strategy and get result with proper error handling
+      await this.pyodide.runPython(`
 try:
     strategy_result = execute_strategy(data)
     print(f"✅ Strategy execution result type: {type(strategy_result)}")
     if hasattr(strategy_result, 'keys'):
         print(f"📊 Result keys: {list(strategy_result.keys())}")
-    strategy_result  # Return the result directly
+    
+    # Store result in global variable for retrieval
+    globals()['final_result'] = strategy_result
+    print("📊 Result stored in globals as 'final_result'")
+    
 except Exception as e:
     print(f"❌ Final execution error: {e}")
     import traceback
     traceback.print_exc()
-    {
+    globals()['final_result'] = {
         'entry': [False] * len(data['close']) if len(data['close']) > 0 else [False] * 100,
         'exit': [False] * len(data['close']) if len(data['close']) > 0 else [False] * 100,
         'direction': [None] * len(data['close']) if len(data['close']) > 0 else [None] * 100,
@@ -289,14 +294,16 @@ except Exception as e:
     }
 `);
 
-      console.log('🔍 Direct result from Python execution:', {
-        resultExists: !!result,
-        resultType: typeof result,
-        hasToJs: result && typeof result.toJs === 'function'
+      // Get the result from Python globals
+      const pythonResult = this.pyodide.globals.get('final_result');
+      console.log('🔍 Retrieved Python result:', {
+        resultExists: !!pythonResult,
+        resultType: typeof pythonResult,
+        hasToJs: pythonResult && typeof pythonResult.toJs === 'function'
       });
 
       // Handle undefined result (execution failure)
-      if (result === undefined || result === null) {
+      if (pythonResult === undefined || pythonResult === null) {
         console.error('❌ Python execution returned undefined/null result');
         const dataLength = marketData?.close?.length || 100;
         return {
@@ -310,7 +317,13 @@ except Exception as e:
       // Convert result to JavaScript with proper error handling
       let jsResult;
       try {
-        jsResult = result.toJs ? result.toJs({ dict_converter: Object.fromEntries }) : result;
+        if (pythonResult.toJs) {
+          jsResult = pythonResult.toJs({ dict_converter: Object.fromEntries });
+        } else {
+          // If toJs is not available, try direct conversion
+          jsResult = pythonResult;
+        }
+        console.log('✅ Successfully converted Python result to JavaScript');
       } catch (error) {
         console.error('❌ Error converting Python result to JavaScript:', error);
         const dataLength = marketData?.close?.length || 100;
