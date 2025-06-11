@@ -404,6 +404,76 @@ result = strategy_logic()
       return null;
     }
   }
+
+  // NEW: Test any user strategy against live USDJPY 15min data
+  async testUserStrategy(strategyCode: string, symbol: string = 'USD_JPY', timeframe: string = 'M15'): Promise<any> {
+    console.log(`🎯 Testing USER STRATEGY on ${symbol} ${timeframe} data (last 24 hours)...`);
+    console.log(`📝 Strategy code length: ${strategyCode.length} characters`);
+    
+    try {
+      // Get real market data
+      const marketData = await this.getRealMarketData(symbol, timeframe);
+      
+      // Test the user's strategy
+      const result = await this.testSignalGeneration(strategyCode, marketData);
+      
+      // Count and display results
+      const entryCount = result?.entry?.filter?.(Boolean)?.length || 0;
+      const buySignals = result?.direction?.filter?.(d => d === 'BUY')?.length || 0;
+      const sellSignals = result?.direction?.filter?.(d => d === 'SELL')?.length || 0;
+      
+      console.log('📊 USER STRATEGY TEST RESULTS:');
+      console.log('================================');
+      console.log(`📈 Data points analyzed: ${marketData?.close?.length || 0}`);
+      console.log(`🚨 Total entry signals: ${entryCount}`);
+      console.log(`📈 BUY signals: ${buySignals}`);
+      console.log(`📉 SELL signals: ${sellSignals}`);
+      console.log(`⏰ Time period: Last 24 hours (${timeframe} candles)`);
+      console.log(`💱 Currency pair: ${symbol}`);
+      
+      if (marketData?.close?.length > 0) {
+        console.log(`💰 Price range: ${Math.min(...marketData.close).toFixed(3)} - ${Math.max(...marketData.close).toFixed(3)}`);
+        console.log(`📊 Latest price: ${marketData.close[marketData.close.length - 1].toFixed(3)}`);
+      }
+
+      // Show signal breakdown by time if there are signals
+      if (entryCount > 0 && result?.entry && result?.direction) {
+        console.log('\n🕐 SIGNAL TIMING BREAKDOWN:');
+        console.log('============================');
+        for (let i = 0; i < result.entry.length; i++) {
+          if (result.entry[i] && result.direction[i]) {
+            const candleNumber = i + 1;
+            const timeAgo = Math.floor((result.entry.length - i) * 15 / 60); // Approximate hours ago for 15min candles
+            console.log(`   📍 Signal ${candleNumber}: ${result.direction[i]} (~${timeAgo}h ago)`);
+          }
+        }
+      }
+
+      // Show additional strategy info if available
+      if (result?.reverse_signals_applied !== undefined) {
+        console.log(`\n🔄 Reverse signals mode: ${result.reverse_signals_applied ? 'ON' : 'OFF'}`);
+      }
+      
+      return {
+        symbol,
+        timeframe,
+        dataPoints: marketData?.close?.length || 0,
+        totalEntries: entryCount,
+        buySignals,
+        sellSignals,
+        priceRange: marketData?.close?.length > 0 ? {
+          min: Math.min(...marketData.close),
+          max: Math.max(...marketData.close),
+          latest: marketData.close[marketData.close.length - 1]
+        } : null,
+        result
+      };
+      
+    } catch (error) {
+      console.error('❌ User strategy test failed:', error);
+      return null;
+    }
+  }
 }
 
 // Enhanced debugging tools for browser console
@@ -429,15 +499,21 @@ if (typeof window !== 'undefined') {
     );
   };
 
-  // NEW: Simple USDJPY 15min test
+  // Simple USDJPY 15min test
   (window as any).testUSDJPY = () => processor.testUSDJPY15min();
+  
+  // NEW: Test any user strategy on USDJPY 15min
+  (window as any).testUserStrategy = (strategyCode: string, symbol?: string, timeframe?: string) => 
+    processor.testUserStrategy(strategyCode, symbol || 'USD_JPY', timeframe || 'M15');
   
   console.log('🎯 Enhanced signal testing tools available:');
   console.log('   testUSDJPY() - Test simple EMA strategy on USDJPY 15-min (RECOMMENDED)');
+  console.log('   testUserStrategy(code, symbol?, timeframe?) - Test YOUR strategy on live data');
   console.log('   testStrategy(symbol?, timeframe?) - Test current strategy with real market data');
   console.log('   testWithSampleData(code) - Test custom strategy with sample data');
   console.log('   testWithRealData(code, symbol?, timeframe?) - Test custom strategy with real data');
   console.log('   Examples:');
   console.log('     testUSDJPY() - Test USDJPY 15-min with simple EMA crossover');
+  console.log('     testUserStrategy(`your_strategy_code`) - Test your strategy on USDJPY 15-min');
   console.log('     testStrategy("GBP_USD", "H1") - Test with GBP/USD hourly data');
 }
