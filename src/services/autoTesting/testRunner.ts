@@ -93,8 +93,12 @@ export class StrategyTestRunner {
     const entryCount = entry.filter(Boolean).length;
     const exitCount = exit.filter(Boolean).length;
 
-    // Get unique directions
-    const uniqueDirections = [...new Set(direction.filter(d => d && d !== 'None'))];
+    // Get unique directions and ensure they are strings
+    const uniqueDirections = [...new Set(
+      direction
+        .filter((d: any) => d && d !== 'None')
+        .map((d: any) => String(d)) // Convert to string to fix type issue
+    )];
 
     // Calculate confidence
     const confidence = rawResult.confidence 

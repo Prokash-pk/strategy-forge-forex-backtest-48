@@ -1,5 +1,5 @@
 import { OANDAConfig, StrategySettings } from '@/types/oanda';
-import { StrategyTestRunner } from './testRunner';
+import { StrategyTestRunner, StrategyTestConfig } from './testRunner';
 import { TestLogger } from './testLogger';
 import { ConsoleLogger } from './consoleLogger';
 import { AutoTestResult } from './types';
@@ -74,19 +74,31 @@ export class AutoStrategyTester {
     // Initial test (delayed to avoid startup spam)
     setTimeout(async () => {
       if (this.isRunning && this.currentConfig && this.currentStrategy) {
-        await StrategyTestRunner.runSingleTest(this.currentConfig, this.currentStrategy);
+        await this.runTest();
       }
     }, 10000); // 10 second delay
 
     // Set up periodic testing with longer intervals
     this.testInterval = setInterval(async () => {
       if (this.isRunning && this.currentConfig && this.currentStrategy) {
-        await StrategyTestRunner.runSingleTest(this.currentConfig, this.currentStrategy);
+        await this.runTest();
       }
     }, intervalSeconds * 1000);
 
     // Start the console logging cycle (every 5 minutes)
     this.startConsoleLogging();
+  }
+
+  private async runTest() {
+    if (!this.currentConfig || !this.currentStrategy) return;
+    
+    const testConfig: StrategyTestConfig = {
+      symbol: this.currentStrategy.symbol,
+      timeframe: this.currentStrategy.timeframe || 'M15',
+      candleCount: 100
+    };
+    
+    await StrategyTestRunner.runSingleTest(this.currentStrategy.strategy_code, testConfig);
   }
 
   private startConsoleLogging() {
@@ -156,7 +168,33 @@ export class AutoStrategyTester {
   }
 
   async runSingleTest(config: OANDAConfig, strategy: StrategySettings): Promise<AutoTestResult> {
-    return StrategyTestRunner.runSingleTest(config, strategy);
+    const testConfig: StrategyTestConfig = {
+      symbol: strategy.symbol,
+      timeframe: strategy.timeframe || 'M15',
+      candleCount: 100
+    };
+    
+    const testResult = await StrategyTestRunner.runSingleTest(strategy.strategy_code, testConfig);
+    
+    // Convert StrategyTestResult to AutoTestResult
+    const autoTestResult: AutoTestResult = {
+      timestamp: new Date().toISOString(),
+      symbol: strategy.symbol,
+      currentPrice: 0, // Will be updated with real data
+      candleData: [],
+      strategySignals: {
+        hasSignals: testResult.hasSignals,
+        entryCount: testResult.entryCount,
+        exitCount: testResult.exitCount,
+        directions: testResult.directions,
+        confidence: testResult.confidence,
+        technicalIndicators: testResult.technicalIndicators,
+        rawResult: testResult.rawResult,
+        error: testResult.error
+      }
+    };
+    
+    return autoTestResult;
   }
 
   isActive(): boolean {

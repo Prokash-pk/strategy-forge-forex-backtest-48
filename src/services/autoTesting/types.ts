@@ -3,23 +3,31 @@ export interface AutoTestResult {
   timestamp: string;
   symbol: string;
   currentPrice: number;
-  candleData: {
-    open: number;
-    high: number;
-    low: number;
-    close: number;
-    volume: number;
-  };
+  candleData: any[];
   strategySignals: {
-    hasEntry: boolean;
-    hasExit: boolean;
-    direction: 'BUY' | 'SELL' | null;
+    hasSignals: boolean;
+    entryCount: number;
+    exitCount: number;
+    directions: string[];
     confidence: number;
+    technicalIndicators: any;
+    rawResult: any;
+    error?: string;
   };
-  technicalIndicators: {
-    rsi?: number;
-    ema_fast?: number;
-    ema_slow?: number;
-    macd?: number;
-  };
+}
+
+export interface TestConfig {
+  symbol: string;
+  timeframe: string;
+  interval: number;
+  candleCount: number;
+}
+
+export interface TestSession {
+  id: string;
+  config: TestConfig;
+  startTime: string;
+  lastTest: string;
+  isActive: boolean;
+  testCount: number;
 }

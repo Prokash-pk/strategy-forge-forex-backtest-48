@@ -20,6 +20,11 @@ export class ExecutionManager {
     }
   }
 
+  reset(): void {
+    this.pyodide = null;
+    PyodideManager.getInstance().reset();
+  }
+
   async executePythonStrategy(strategyCode: string, marketData: any): Promise<any> {
     try {
       await this.initializePyodide();

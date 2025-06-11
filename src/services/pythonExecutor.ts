@@ -27,4 +27,25 @@ export class PythonExecutor {
       throw error;
     }
   }
+
+  static async isAvailable(): Promise<boolean> {
+    try {
+      const executionManager = ExecutionManager.getInstance();
+      await executionManager.initializePyodide();
+      return true;
+    } catch (error) {
+      console.error('❌ Python environment not available:', error);
+      return false;
+    }
+  }
+
+  static resetPythonEnvironment(): void {
+    try {
+      const executionManager = ExecutionManager.getInstance();
+      executionManager.reset();
+      console.log('🔄 Python environment reset');
+    } catch (error) {
+      console.error('❌ Failed to reset Python environment:', error);
+    }
+  }
 }
