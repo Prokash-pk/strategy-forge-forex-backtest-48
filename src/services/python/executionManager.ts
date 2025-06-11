@@ -1,105 +1,162 @@
 
-import { PyodideLoader } from './pyodideLoader';
-import type { PyodideInstance } from './types';
-import { DataConverter } from './dataConverter';
-import { ResultProcessor } from './resultProcessor';
+import { PyodideManager } from './pyodideManager';
 
 export class ExecutionManager {
-  static async executePythonStrategy(pyodide: PyodideInstance, marketData: any, strategyCode: string): Promise<any> {
+  private static instance: ExecutionManager;
+  private pyodide: any = null;
+
+  static getInstance(): ExecutionManager {
+    if (!ExecutionManager.instance) {
+      ExecutionManager.instance = new ExecutionManager();
+    }
+    return ExecutionManager.instance;
+  }
+
+  async initializePyodide(): Promise<void> {
+    if (!this.pyodide) {
+      console.log('🔧 Initializing Pyodide...');
+      this.pyodide = await PyodideManager.getInstance().getPyodide();
+      console.log('✅ Pyodide initialized successfully');
+    }
+  }
+
+  async executePythonStrategy(strategyCode: string, marketData: any): Promise<any> {
     try {
-      console.log('🚀 Executing Python strategy...');
+      await this.initializePyodide();
       
-      // Convert and validate market data
-      const plainMarketData = DataConverter.convertMarketData(marketData);
-      const validation = DataConverter.validateMarketData(marketData);
-      
-      if (!validation.isValid) {
-        throw new Error(validation.error);
+      if (!this.pyodide) {
+        throw new Error('Pyodide not initialized');
       }
 
-      // Set the data and code in Python using proper conversion
+      console.log('✅ Pyodide instance ready');
+      console.log('🚀 Executing Python strategy...');
+
+      // Set market data in Python environment
       console.log('📤 Setting data in Python environment...');
-      pyodide.globals.set('js_market_data', plainMarketData);
-      pyodide.globals.set('js_strategy_code', strategyCode);
+      this.pyodide.globals.set('open_prices', marketData.open);
+      this.pyodide.globals.set('high_prices', marketData.high);
+      this.pyodide.globals.set('low_prices', marketData.low);
+      this.pyodide.globals.set('close_prices', marketData.close);
+      this.pyodide.globals.set('volume_data', marketData.volume);
       console.log('✅ Data set in Python environment');
+
+      // Import required Python libraries and define execute_strategy function
+      const pythonSetup = `
+import numpy as np
+import pandas as pd
+import math
+from typing import Dict, List, Any, Optional, Union
+
+# Convert data to numpy arrays
+open_data = np.array(open_prices)
+high_data = np.array(high_prices)
+low_data = np.array(low_prices)
+close_data = np.array(close_prices)
+volume_data = np.array(volume_data)
+
+# Create data dictionary
+data = {
+    'open': open_data,
+    'high': high_data,
+    'low': low_data,
+    'close': close_data,
+    'volume': volume_data
+}
+
+def execute_strategy(data):
+    """Main strategy execution function"""
+    try:
+        # Execute the user's strategy code
+        local_vars = {'data': data}
+        exec(strategy_code, globals(), local_vars)
+        
+        # Return the result from local variables
+        if 'result' in local_vars:
+            return local_vars['result']
+        else:
+            # If no result variable, try to construct one from common variables
+            entry = local_vars.get('entry', [])
+            exit = local_vars.get('exit', [])
+            direction = local_vars.get('direction', local_vars.get('trade_direction', []))
+            
+            if not entry and not exit and not direction:
+                # Try to find any boolean arrays that might be signals
+                for key, value in local_vars.items():
+                    if isinstance(value, (list, np.ndarray)) and len(value) > 0:
+                        if key.lower() in ['buy_signals', 'sell_signals', 'signals', 'entries']:
+                            entry = value
+                            break
+                
+                # Generate basic signals if none found
+                if not entry:
+                    entry = [False] * len(data['close'])
+                    exit = [False] * len(data['close'])
+                    direction = [None] * len(data['close'])
+            
+            return {
+                'entry': entry,
+                'exit': exit if exit else [False] * len(entry),
+                'direction': direction if direction else [None] * len(entry)
+            }
+    except Exception as e:
+        print(f"Strategy execution error: {e}")
+        return {
+            'entry': [False] * len(data['close']),
+            'exit': [False] * len(data['close']),
+            'direction': [None] * len(data['close']),
+            'error': str(e)
+        }
+`;
+
+      // Set the strategy code as a global variable
+      this.pyodide.globals.set('strategy_code', strategyCode);
       
-      // Check if execute_strategy function is available
-      const checkResult = pyodide.runPython(`
-try:
-    if 'execute_strategy' in globals():
-        print("✅ execute_strategy function found")
-        result = True
-    else:
-        print("❌ execute_strategy function not found")
-        result = False
-    result
-except Exception as e:
-    print(f"❌ Error checking execute_strategy: {e}")
-    False
-      `);
-      
-      if (!checkResult) {
+      // Execute Python setup
+      await this.pyodide.runPython(pythonSetup);
+
+      // Check if execute_strategy function exists
+      const hasExecuteFunction = await this.pyodide.runPython(`
+'execute_strategy' in globals() and callable(execute_strategy)
+`);
+
+      console.log('✅ execute_strategy function found:', hasExecuteFunction);
+
+      if (!hasExecuteFunction) {
         throw new Error('Python environment not properly initialized: execute_strategy function not found');
       }
-      
-      // Execute the strategy with comprehensive error handling
-      const pythonResult = pyodide.runPython(`
+
+      // Execute the strategy
+      const result = await this.pyodide.runPython(`
 try:
-    print("🔍 Python: Starting strategy execution...")
-    raw_result = execute_strategy(js_market_data, js_strategy_code)
-    print(f"✅ Python: Strategy execution completed")
-    print(f"📊 Python: Raw result type: {type(raw_result)}")
-    
-    # Ensure we always have a valid result
-    if raw_result is None:
-        print("⚠️ Python: Strategy returned None - creating default result")
-        result = {
-            "entry": [False] * len(js_market_data["close"]),
-            "exit": [False] * len(js_market_data["close"]),
-            "direction": [None] * len(js_market_data["close"]),
-            "error": "Strategy returned None"
-        }
-    elif not isinstance(raw_result, dict):
-        print(f"⚠️ Python: Strategy returned non-dict: {type(raw_result)} - creating default result")
-        result = {
-            "entry": [False] * len(js_market_data["close"]),
-            "exit": [False] * len(js_market_data["close"]),
-            "direction": [None] * len(js_market_data["close"]),
-            "error": f"Strategy returned {type(raw_result)}, expected dict"
-        }
-    else:
-        result = raw_result
-        print(f"📊 Python: Valid result keys: {list(result.keys())}")
-        if 'entry' in result and result['entry']:
-            entry_count = sum(1 for x in result['entry'] if x) if result['entry'] else 0
-            print(f"📈 Python: Entry signals: {entry_count}")
-        if 'direction' in result and result['direction']:
-            buy_count = sum(1 for d in result['direction'] if d == 'BUY') if result['direction'] else 0
-            sell_count = sum(1 for d in result['direction'] if d == 'SELL') if result['direction'] else 0
-            print(f"📊 Python: BUY signals: {buy_count}, SELL signals: {sell_count}")
-    
-    print(f"📊 Python: Final result type: {type(result)}")
-    result
+    strategy_result = execute_strategy(data)
+    strategy_result
 except Exception as e:
-    print(f"❌ Python: Strategy execution failed: {str(e)}")
-    import traceback
-    traceback.print_exc()
     {
-        "entry": [False] * len(js_market_data["close"]),
-        "exit": [False] * len(js_market_data["close"]),
-        "direction": [None] * len(js_market_data["close"]),
-        "error": str(e)
+        'entry': [False] * len(data['close']),
+        'exit': [False] * len(data['close']),
+        'direction': [None] * len(data['close']),
+        'error': str(e)
     }
-      `);
+`);
+
+      console.log('🎯 Strategy execution completed');
       
-      console.log('✅ Python execution completed, result received');
-      console.log('🔍 Raw Python result:', pythonResult);
+      // Convert PyProxy to JavaScript object if needed
+      const jsResult = result.toJs ? result.toJs({ dict_converter: Object.fromEntries }) : result;
       
-      return pythonResult;
-      
+      console.log('📊 Strategy result:', {
+        hasEntry: jsResult.entry?.length > 0,
+        hasExit: jsResult.exit?.length > 0,
+        hasDirection: jsResult.direction?.length > 0,
+        entrySignals: jsResult.entry?.filter(Boolean).length || 0,
+        error: jsResult.error
+      });
+
+      return jsResult;
+
     } catch (error) {
       console.error('❌ Python execution failed:', error);
-      throw error;
+      throw new Error(`Python environment not properly initialized: ${error.message}`);
     }
   }
 }

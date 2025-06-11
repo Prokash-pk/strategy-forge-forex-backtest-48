@@ -1,71 +1,70 @@
 
 export const SIGNAL_PROCESSOR_PYTHON_CODE = `
-def process_strategy_signals(result, reverse_signals):
-    """Process and validate strategy signals with enforced directional structure"""
+def process_strategy_signals(result, reverse_signals=False):
+    """Process and enhance strategy signals with proper directional logic"""
     
-    # Ensure we have the basic required signals
-    if not isinstance(result, dict):
-        return {'entry': [], 'exit': [], 'direction': [], 'error': 'Invalid strategy result format'}
+    print("🔧 Processing strategy signals...")
     
-    # Enforce directional signals (this will auto-generate if missing)
+    # First validate and enforce directional signals
     result = enforce_directional_signals(result)
     
-    # Extract signals with proper fallback order
-    entry = result.get('entry', [])
-    exit = result.get('exit', [])
-    direction = result.get('direction', result.get('entry_type', result.get('trade_direction', [])))
+    if result.get('error'):
+        print(f"❌ Signal processing failed: {result['error']}")
+        return result
     
-    # Final validation after potential auto-generation
-    is_valid, validation_message = validate_strategy_signals(result)
+    # Apply signal reversal if requested
+    if reverse_signals:
+        print("🔄 Applying signal reversal...")
+        result = reverse_strategy_signals(result)
+    
+    # Final validation
+    is_valid, message = validate_strategy_signals(result)
     
     if not is_valid:
-        print(f"❌ Final validation failed: {validation_message}")
+        print(f"❌ Final validation failed: {message}")
         return {
-            'entry': [], 
-            'exit': [], 
-            'direction': [], 
-            'error': f"Strategy validation failed: {validation_message}"
+            'entry': [],
+            'exit': [],
+            'direction': [],
+            'error': f'Signal validation failed: {message}'
         }
     
-    # Apply reverse signals if requested
-    if reverse_signals and direction:
-        print("🔄 Applying reverse signals transformation")
-        reversed_direction = []
-        for dir_signal in direction:
-            if dir_signal == 'BUY':
-                reversed_direction.append('SELL')
-            elif dir_signal == 'SELL':
-                reversed_direction.append('BUY')
-            else:
-                reversed_direction.append(dir_signal)
-        direction = reversed_direction
+    print(f"✅ {message}")
+    return result
+
+def enhance_signal_confidence(result):
+    """Add confidence scoring to signals"""
     
-    # Convert to JavaScript-compatible format
-    processed_result = {
-        'entry': [bool(x) for x in entry] if entry else [],
-        'exit': [bool(x) for x in exit] if exit else [],
-        'direction': [str(x) if x is not None and x != 'None' else None for x in direction] if direction else [],
-        'reverse_signals_applied': reverse_signals,
-        'validation_passed': True,
-        'validation_message': validation_message,
-        'auto_generated_direction': result.get('auto_generated_direction', False),
-        'signal_stats': {
-            'total_entries': sum(entry) if entry else 0,
-            'buy_signals': direction.count('BUY') if direction else 0,
-            'sell_signals': direction.count('SELL') if direction else 0
-        }
-    }
+    entry = result.get('entry', [])
+    direction = result.get('direction', [])
     
-    # Include other indicators if present
-    for key, value in result.items():
-        if key not in ['entry', 'exit', 'direction', 'entry_type', 'trade_direction']:
-            if hasattr(value, '__iter__') and not isinstance(value, str):
-                try:
-                    processed_result[key] = [float(x) if not math.isnan(x) else 0 for x in value]
-                except (TypeError, ValueError):
-                    processed_result[key] = value
-            else:
-                processed_result[key] = value
+    if not entry or not direction:
+        return result
     
-    return processed_result
+    # Calculate confidence based on signal consistency
+    confidence_scores = []
+    
+    for i in range(len(entry)):
+        if entry[i] and direction[i]:
+            # Base confidence
+            confidence = 0.7
+            
+            # Boost confidence for consecutive signals in same direction
+            if i > 0 and direction[i-1] == direction[i]:
+                confidence += 0.1
+            
+            # Boost confidence if we have technical indicators
+            if result.get('rsi') and i < len(result['rsi']):
+                rsi_val = result['rsi'][i]
+                if direction[i] == 'BUY' and rsi_val < 30:
+                    confidence += 0.15
+                elif direction[i] == 'SELL' and rsi_val > 70:
+                    confidence += 0.15
+            
+            confidence_scores.append(min(confidence, 1.0))
+        else:
+            confidence_scores.append(0.0)
+    
+    result['confidence'] = confidence_scores
+    return result
 `;
