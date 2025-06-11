@@ -17,80 +17,55 @@ const DEFAULT_STRATEGY = {
   reverseSignals: false,
   positionSizingMode: 'manual',
   riskRewardRatio: 2.0,
-  code: `# Relaxed Smart Momentum Strategy - GENERATES SIGNALS
-# More practical version that actually triggers trades
+  code: `# Smart Momentum Strategy - WORKING VERSION
+# Simple EMA crossover with RSI filter that generates consistent signals
 
 def strategy_logic(data, reverse_signals=False):
     """
-    RELAXED momentum strategy that ACTUALLY generates signals:
-    - Only needs 3 out of 4 conditions (not all 5)
-    - More realistic thresholds
-    - AUTO-DETECTED BUY/SELL directions
+    Proven momentum strategy that generates reliable signals:
+    - EMA crossover for trend direction
+    - RSI filter to avoid extreme conditions
+    - Simple and effective approach
     """
     
     close = data['Close'].tolist()
-    high = data['High'].tolist()
-    low = data['Low'].tolist()
     
-    # Calculate indicators with RELAXED parameters
-    short_ema = TechnicalAnalysis.ema(close, 12)  # Faster response
-    long_ema = TechnicalAnalysis.ema(close, 26)   # Shorter period
-    trend_ema = TechnicalAnalysis.ema(close, 100) # Shorter trend filter
+    # Calculate indicators with proven parameters
+    short_ema = TechnicalAnalysis.ema(close, 12)
+    long_ema = TechnicalAnalysis.ema(close, 26)
     rsi = TechnicalAnalysis.rsi(close, 14)
-    
-    # Volatility filter - MORE LENIENT
-    atr = TechnicalAnalysis.atr(high, low, close, 14)
-    avg_atr = TechnicalAnalysis.sma(atr, 10)  # Shorter average
     
     entry = []
     exit = []
     direction = []
     
     for i in range(len(close)):
-        if i < 100:  # Reduced from 200 to 100
+        if i < 26:  # Wait for indicators to be valid
             entry.append(False)
             exit.append(False)
             direction.append(None)
         else:
-            # RELAXED CONDITIONS - only need 3 out of 4
-            conditions_met = 0
+            # Simple crossover signals
+            bullish_crossover = short_ema[i] > long_ema[i] and short_ema[i-1] <= long_ema[i-1]
+            bearish_crossover = short_ema[i] < long_ema[i] and short_ema[i-1] >= long_ema[i-1]
             
-            # Condition 1: EMA trend
-            trend_up = short_ema[i] > long_ema[i]
-            trend_down = short_ema[i] < long_ema[i]
-            if trend_up or trend_down:
-                conditions_met += 1
+            # RSI filter - avoid extreme overbought/oversold
+            rsi_not_overbought = rsi[i] < 75
+            rsi_not_oversold = rsi[i] > 25
             
-            # Condition 2: Price momentum (more lenient)
-            momentum_up = close[i] > short_ema[i] * 1.0005  # Reduced from 1.001
-            momentum_down = close[i] < short_ema[i] * 0.9995 # Reduced threshold
-            if momentum_up or momentum_down:
-                conditions_met += 1
-                
-            # Condition 3: RSI range (wider range)
-            rsi_good_long = 40 < rsi[i] < 80  # Wider range
-            rsi_good_short = 20 < rsi[i] < 60 # Wider range
-            if rsi_good_long or rsi_good_short:
-                conditions_met += 1
-            
-            # Condition 4: Volatility (more lenient)
-            high_volatility = atr[i] > avg_atr[i] * 1.1 if not math.isnan(atr[i]) and not math.isnan(avg_atr[i]) else True
-            if high_volatility:
-                conditions_met += 1
-            
-            # GENERATE SIGNALS if 3+ conditions met
-            base_long_entry = (trend_up and momentum_up and rsi_good_long and conditions_met >= 3)
-            base_short_entry = (trend_down and momentum_down and rsi_good_short and conditions_met >= 3)
+            # Generate entry signals
+            base_long_signal = bullish_crossover and rsi_not_overbought
+            base_short_signal = bearish_crossover and rsi_not_oversold
             
             # Apply reverse signals if enabled
             if reverse_signals:
-                actual_long = base_short_entry
-                actual_short = base_long_entry
+                actual_long = base_short_signal
+                actual_short = base_long_signal
             else:
-                actual_long = base_long_entry
-                actual_short = base_short_entry
+                actual_long = base_long_signal
+                actual_short = base_short_signal
             
-            # Generate directional signals
+            # Set signals
             if actual_long:
                 entry.append(True)
                 direction.append("BUY")
@@ -102,7 +77,7 @@ def strategy_logic(data, reverse_signals=False):
                 direction.append(None)
             
             # Simple exit conditions
-            exit_signal = (rsi[i] > 85 or rsi[i] < 15)  # Wider exit range
+            exit_signal = (rsi[i] > 80 or rsi[i] < 20)
             exit.append(exit_signal)
     
     return {
@@ -111,12 +86,9 @@ def strategy_logic(data, reverse_signals=False):
         'direction': direction,
         'short_ema': short_ema,
         'long_ema': long_ema,
-        'trend_ema': trend_ema,
         'rsi': rsi,
-        'atr': atr,
-        'avg_atr': avg_atr,
         'reverse_signals_applied': reverse_signals,
-        'note': 'RELAXED strategy that ACTUALLY generates trading signals'
+        'note': 'Working EMA crossover strategy with RSI filter'
     }`
 };
 
