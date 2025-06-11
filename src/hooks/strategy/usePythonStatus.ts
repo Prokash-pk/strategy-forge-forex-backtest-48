@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { PythonExecutor } from '@/services/pythonExecutor';
+import { OptimizedExecutionManager } from '@/services/python/optimizedExecutionManager';
 
 export const usePythonStatus = () => {
   const [pythonStatus, setPythonStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
@@ -9,31 +9,27 @@ export const usePythonStatus = () => {
   useEffect(() => {
     const checkPythonStatus = async () => {
       try {
-        console.log('🔍 Starting Python status check...');
+        console.log('🔍 Starting optimized Python status check...');
         setPythonStatus('checking');
         
-        const isAvailable = await PythonExecutor.isAvailable();
+        const executionManager = OptimizedExecutionManager.getInstance();
+        await executionManager.initializePyodide();
         
-        if (isAvailable) {
-          console.log('✅ Python environment available');
-          setPythonStatus('available');
-          setRetryCount(0);
-        } else {
-          console.warn('⚠️ Python environment unavailable');
-          setPythonStatus('unavailable');
-          
-          // Auto-retry up to 2 times with increasing delays
-          if (retryCount < 2) {
-            const delay = (retryCount + 1) * 5000; // 5s, 10s
-            console.log(`🔄 Retrying Python check in ${delay}ms (attempt ${retryCount + 1})`);
-            setTimeout(() => {
-              setRetryCount(prev => prev + 1);
-            }, delay);
-          }
-        }
+        console.log('✅ Optimized Python environment available');
+        setPythonStatus('available');
+        setRetryCount(0);
       } catch (error) {
-        console.error('❌ Python status check error:', error);
+        console.error('❌ Optimized Python status check error:', error);
         setPythonStatus('unavailable');
+        
+        // Auto-retry only once to avoid memory overload
+        if (retryCount < 1) {
+          const delay = 3000; // 3 seconds
+          console.log(`🔄 Retrying optimized Python check in ${delay}ms (attempt ${retryCount + 1})`);
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+          }, delay);
+        }
       }
     };
 
@@ -41,8 +37,8 @@ export const usePythonStatus = () => {
   }, [retryCount]);
 
   const forceRefresh = () => {
-    console.log('🔄 Force refreshing Python status...');
-    PythonExecutor.resetPythonEnvironment();
+    console.log('🔄 Force refreshing optimized Python status...');
+    OptimizedExecutionManager.getInstance().reset();
     setRetryCount(0);
     setPythonStatus('checking');
   };
