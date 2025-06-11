@@ -12,7 +12,8 @@ export class BacktestExecutionService {
     // Step 3: Execute Python strategy
     setCurrentStep('Executing Python strategy analysis...');
     const { OptimizedExecutionManager } = await import('@/services/python/optimizedExecutionManager');
-    const executionResult = await OptimizedExecutionManager.executeStrategy(strategy.code, marketData);
+    const executionManager = OptimizedExecutionManager.getInstance();
+    const executionResult = await executionManager.executePythonStrategy(strategy.code, marketData);
 
     // Step 4: Run enhanced backtest with risk management
     setCurrentStep('Running enhanced backtest with adaptive risk management...');
