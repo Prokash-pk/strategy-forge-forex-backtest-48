@@ -143,24 +143,31 @@ export class LightweightSignalProcessor {
   }
 }
 
-// FIXED: Properly bind lightweight version to window for console access
+// IMMEDIATE WINDOW BINDING - Execute immediately when this file loads
 if (typeof window !== 'undefined') {
-  // Create processor instance
+  console.log('🔧 Binding lightweight strategy functions to window...');
+  
+  // Create processor instance immediately
   const lightweightProcessor = LightweightSignalProcessor.getInstance();
   
-  // Make processor available globally
+  // Bind to window object immediately
   (window as any).lightweightProcessor = lightweightProcessor;
   
-  // Main testing function (memory optimized) - FIXED binding
-  (window as any).testUserStrategy = async (strategyCode: string, symbol?: string, timeframe?: string) => {
-    console.log('🚀 Starting lightweight strategy test...');
-    return await lightweightProcessor.testUserStrategy(strategyCode, symbol || 'USD_JPY', timeframe || 'M15');
+  // Bind test functions immediately with proper error handling
+  (window as any).testUserStrategy = async function(strategyCode: string, symbol?: string, timeframe?: string) {
+    try {
+      console.log('🚀 Starting lightweight strategy test...');
+      return await lightweightProcessor.testUserStrategy(strategyCode, symbol || 'USD_JPY', timeframe || 'M15');
+    } catch (error) {
+      console.error('❌ Strategy test error:', error);
+      return null;
+    }
   };
   
-  // Simple test function - FIXED binding
-  (window as any).quickTest = async () => {
-    console.log('🚀 Running quick EMA crossover test...');
-    const simpleStrategy = `
+  (window as any).quickTest = async function() {
+    try {
+      console.log('🚀 Running quick EMA crossover test...');
+      const simpleStrategy = `
 def strategy_logic(data):
     close = data['Close']
     
@@ -196,16 +203,20 @@ def strategy_logic(data):
 
 result = strategy_logic()
 `;
-    return await lightweightProcessor.testUserStrategy(simpleStrategy);
+      return await lightweightProcessor.testUserStrategy(simpleStrategy);
+    } catch (error) {
+      console.error('❌ Quick test error:', error);
+      return null;
+    }
   };
   
-  // Force immediate availability
-  console.log('🚀 LIGHTWEIGHT Strategy Testing Tools Available:');
-  console.log('================================================');
-  console.log('   testUserStrategy(code, symbol?, timeframe?) - Test your strategy (MEMORY OPTIMIZED)');
-  console.log('   quickTest() - Test simple EMA crossover strategy');
-  console.log('   lightweightProcessor - Direct access to processor');
+  // Log immediately when functions are bound
+  console.log('✅ LIGHTWEIGHT Strategy Testing Functions Available:');
+  console.log('====================================================');
+  console.log('📝 testUserStrategy(code, symbol?, timeframe?) - Test your strategy');
+  console.log('⚡ quickTest() - Test simple EMA crossover');
+  console.log('🔧 lightweightProcessor - Direct access to processor');
   console.log('');
-  console.log('💡 This version uses lightweight technical analysis to avoid memory issues!');
-  console.log('🔧 Functions are now properly bound to window object');
+  console.log('💡 Memory-optimized for browser testing!');
+  console.log('🎯 Try: quickTest() or testUserStrategy(`your_code_here`)');
 }
