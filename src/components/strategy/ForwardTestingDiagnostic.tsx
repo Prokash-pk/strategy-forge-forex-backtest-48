@@ -178,9 +178,9 @@ const ForwardTestingDiagnostic: React.FC = () => {
           
           results.push({
             step: 'Manual Signal Test',
-            status: testResult.strategySignals.hasEntry ? 'success' : 'warning',
-            message: testResult.strategySignals.hasEntry 
-              ? `Signal detected: ${testResult.strategySignals.direction} at ${testResult.currentPrice}`
+            status: testResult.strategySignals.hasSignals ? 'success' : 'warning',
+            message: testResult.strategySignals.hasSignals 
+              ? `Signal detected: ${testResult.strategySignals.directions.join(', ')} at ${testResult.currentPrice}`
               : 'No entry signals detected in current market conditions',
             details: testResult
           });
