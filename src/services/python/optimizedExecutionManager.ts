@@ -270,7 +270,7 @@ data = {
 }
 `);
 
-      // Execute the strategy with proper error handling and result capture
+      // Execute the strategy and capture result properly
       await this.pyodide.runPython(`
 try:
     strategy_result = execute_strategy(data)
@@ -289,14 +289,19 @@ except Exception as e:
     }
 `);
 
-      // Get the result from Python globals
-      const result = this.pyodide.globals.get('strategy_result');
-      
-      console.log('🔍 Retrieved result from Python:', {
-        resultExists: !!result,
-        resultType: typeof result,
-        hasToJs: result && typeof result.toJs === 'function'
-      });
+      // Get the result from Python globals with better error handling
+      let result;
+      try {
+        result = this.pyodide.globals.get('strategy_result');
+        console.log('🔍 Retrieved result from Python:', {
+          resultExists: !!result,
+          resultType: typeof result,
+          hasToJs: result && typeof result.toJs === 'function'
+        });
+      } catch (error) {
+        console.error('❌ Error retrieving strategy_result from Python globals:', error);
+        result = null;
+      }
 
       // Handle undefined result (execution failure)
       if (result === undefined || result === null) {
@@ -310,8 +315,20 @@ except Exception as e:
         };
       }
 
-      // Convert result to JavaScript
-      const jsResult = result.toJs ? result.toJs({ dict_converter: Object.fromEntries }) : result;
+      // Convert result to JavaScript with proper error handling
+      let jsResult;
+      try {
+        jsResult = result.toJs ? result.toJs({ dict_converter: Object.fromEntries }) : result;
+      } catch (error) {
+        console.error('❌ Error converting Python result to JavaScript:', error);
+        const dataLength = marketData?.close?.length || 100;
+        return {
+          entry: Array(dataLength).fill(false),
+          exit: Array(dataLength).fill(false),
+          direction: Array(dataLength).fill(null),
+          error: 'Failed to convert Python result to JavaScript'
+        };
+      }
       
       console.log('🎯 Strategy execution completed:', {
         hasEntry: jsResult?.entry?.length > 0,
