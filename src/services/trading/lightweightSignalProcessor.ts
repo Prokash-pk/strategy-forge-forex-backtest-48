@@ -65,13 +65,50 @@ export class LightweightSignalProcessor {
 
   async getSampleMarketData(): Promise<any> {
     // Generate sample OHLCV data for testing
+    const length = 100;
+    const basePrice = 1.1000;
+    
     const sampleData = {
-      open: Array.from({length: 100}, (_, i) => 1.1000 + Math.random() * 0.01),
-      high: Array.from({length: 100}, (_, i) => 1.1010 + Math.random() * 0.01),
-      low: Array.from({length: 100}, (_, i) => 1.0990 + Math.random() * 0.01),
-      close: Array.from({length: 100}, (_, i) => 1.1000 + Math.random() * 0.01),
-      volume: Array.from({length: 100}, (_, i) => 1000 + Math.random() * 500)
+      open: [],
+      high: [],
+      low: [],
+      close: [],
+      volume: [],
+      Open: [],
+      High: [],
+      Low: [],
+      Close: [],
+      Volume: []
     };
+
+    // Generate realistic price movements
+    let currentPrice = basePrice;
+    for (let i = 0; i < length; i++) {
+      // Random walk with some trend
+      const change = (Math.random() - 0.5) * 0.002; // ±0.1% max change
+      currentPrice = Math.max(0.9000, Math.min(1.3000, currentPrice + change));
+      
+      const open = currentPrice;
+      const high = currentPrice + Math.random() * 0.001;
+      const low = currentPrice - Math.random() * 0.001;
+      const close = low + Math.random() * (high - low);
+      const volume = 1000 + Math.random() * 500;
+
+      // Both lowercase and uppercase for compatibility
+      sampleData.open.push(open);
+      sampleData.high.push(high);
+      sampleData.low.push(low);
+      sampleData.close.push(close);
+      sampleData.volume.push(volume);
+
+      sampleData.Open.push(open);
+      sampleData.High.push(high);
+      sampleData.Low.push(low);
+      sampleData.Close.push(close);
+      sampleData.Volume.push(volume);
+
+      currentPrice = close;
+    }
 
     console.log('📊 Generated sample market data for testing');
     return sampleData;
