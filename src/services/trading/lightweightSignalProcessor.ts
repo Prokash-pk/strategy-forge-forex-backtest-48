@@ -85,9 +85,43 @@ export class LightweightSignalProcessor {
       // Get real market data
       const marketData = await this.getRealMarketData(symbol, timeframe);
       
-      // Use optimized execution manager
+      // Use optimized execution manager with FIXED strategy code
       const executionManager = OptimizedExecutionManager.getInstance();
-      const result = await executionManager.executePythonStrategy(strategyCode, marketData);
+      
+      // IMPORTANT: Wrap the strategy code to call it properly with data
+      const wrappedStrategyCode = `
+# User's strategy code
+${strategyCode}
+
+# Execute the strategy with the provided data
+try:
+    if 'strategy_logic' in locals():
+        print("🎯 Found strategy_logic function, calling with data...")
+        result = strategy_logic(data)
+        print(f"✅ Strategy executed successfully, result type: {type(result)}")
+    else:
+        print("⚠️ No strategy_logic function found, returning empty result")
+        result = {
+            'entry': [False] * len(data.get('close', [])),
+            'exit': [False] * len(data.get('close', [])),
+            'direction': [None] * len(data.get('close', []))
+        }
+except Exception as e:
+    print(f"❌ Strategy execution error: {e}")
+    import traceback
+    traceback.print_exc()
+    result = {
+        'entry': [False] * len(data.get('close', [])),
+        'exit': [False] * len(data.get('close', [])),
+        'direction': [None] * len(data.get('close', [])),
+        'error': str(e)
+    }
+
+# Return the result
+result
+`;
+      
+      const result = await executionManager.executePythonStrategy(wrappedStrategyCode, marketData);
       
       // Count and display results
       const entryCount = result?.entry?.filter?.(Boolean)?.length || 0;
@@ -200,8 +234,6 @@ def strategy_logic(data):
         'exit': [False] * len(close),
         'direction': direction
     }
-
-result = strategy_logic()
 `;
       return await lightweightProcessor.testUserStrategy(simpleStrategy);
     } catch (error) {
