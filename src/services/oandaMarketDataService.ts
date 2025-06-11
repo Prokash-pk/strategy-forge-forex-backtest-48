@@ -1,4 +1,3 @@
-
 export interface OANDACandle {
   time: string;
   bid: {
@@ -21,6 +20,42 @@ export interface OANDAMarketData {
   granularity: string;
   candles: OANDACandle[];
 }
+
+// Request queue to manage concurrent requests
+class RequestQueue {
+  private queue: (() => Promise<any>)[] = [];
+  private activeRequests = 0;
+  private maxConcurrent = 2; // Reduce concurrent requests
+
+  async add<T>(requestFn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          this.activeRequests++;
+          const result = await requestFn();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        } finally {
+          this.activeRequests--;
+          this.processQueue();
+        }
+      });
+      this.processQueue();
+    });
+  }
+
+  private processQueue() {
+    if (this.activeRequests < this.maxConcurrent && this.queue.length > 0) {
+      const nextRequest = this.queue.shift();
+      if (nextRequest) {
+        nextRequest();
+      }
+    }
+  }
+}
+
+const requestQueue = new RequestQueue();
 
 export class OANDAMarketDataService {
   static async fetchLiveMarketData(
@@ -61,128 +96,141 @@ export class OANDAMarketDataService {
 
     console.log(`🔄 Fetching live market data for ${oandaInstrument} from OANDA ${environment}`);
 
-    // Create abort controller for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    // Use request queue to manage concurrent requests
+    return requestQueue.add(async () => {
+      // Create abort controller with longer timeout for resource-constrained environments
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 second timeout
 
-    try {
-      const headers = {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Accept-Datetime-Format': 'UNIX'
-      };
+      try {
+        const headers = {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Accept-Datetime-Format': 'UNIX'
+        };
 
-      console.log('📤 Making request to OANDA API:', {
-        url: `${baseUrl}/v3/instruments/${oandaInstrument}/candles`,
-        headers: {
-          'Authorization': `Bearer ${apiKey.substring(0, 8)}...`,
-          'Content-Type': headers['Content-Type'],
-          'Accept-Datetime-Format': headers['Accept-Datetime-Format']
-        }
-      });
-
-      const response = await fetch(
-        `${baseUrl}/v3/instruments/${oandaInstrument}/candles?count=${count}&granularity=${granularity}&price=MBA`,
-        {
-          method: 'GET',
-          headers,
-          signal: controller.signal
-        }
-      );
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.errorMessage || errorData.message || errorMessage;
-          
-          // Provide specific guidance for common errors
-          if (response.status === 401) {
-            console.error('🔑 401 Authentication Error Details:', {
-              accountId: accountId,
-              environment: environment,
-              apiKeyLength: apiKey.length,
-              apiKeyStart: apiKey.substring(0, 8),
-              fullErrorData: errorData
-            });
-            errorMessage = 'Invalid OANDA API key. Please check your credentials in the Configuration tab.';
-          } else if (response.status === 403) {
-            errorMessage = 'OANDA API access forbidden. Verify your API key permissions.';
-          } else if (response.status === 404) {
-            errorMessage = `Instrument ${oandaInstrument} not found. Check the symbol format.`;
-          } else if (response.status === 400) {
-            errorMessage = `Bad request to OANDA API. Invalid instrument format: ${oandaInstrument} (converted from ${instrument})`;
+        console.log('📤 Making queued request to OANDA API:', {
+          url: `${baseUrl}/v3/instruments/${oandaInstrument}/candles`,
+          headers: {
+            'Authorization': `Bearer ${apiKey.substring(0, 8)}...`,
+            'Content-Type': headers['Content-Type'],
+            'Accept-Datetime-Format': headers['Accept-Datetime-Format']
           }
-        } catch (parseError) {
-          console.warn('Could not parse OANDA error response:', parseError);
+        });
+
+        const response = await fetch(
+          `${baseUrl}/v3/instruments/${oandaInstrument}/candles?count=${count}&granularity=${granularity}&price=MBA`,
+          {
+            method: 'GET',
+            headers,
+            signal: controller.signal
+          }
+        );
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.errorMessage || errorData.message || errorMessage;
+            
+            // Provide specific guidance for common errors
+            if (response.status === 401) {
+              console.error('🔑 401 Authentication Error Details:', {
+                accountId: accountId,
+                environment: environment,
+                apiKeyLength: apiKey.length,
+                apiKeyStart: apiKey.substring(0, 8),
+                fullErrorData: errorData
+              });
+              errorMessage = 'Invalid OANDA API key. Please check your credentials in the Configuration tab.';
+            } else if (response.status === 403) {
+              errorMessage = 'OANDA API access forbidden. Verify your API key permissions.';
+            } else if (response.status === 404) {
+              errorMessage = `Instrument ${oandaInstrument} not found. Check the symbol format.`;
+            } else if (response.status === 400) {
+              errorMessage = `Bad request to OANDA API. Invalid instrument format: ${oandaInstrument} (converted from ${instrument})`;
+            }
+          } catch (parseError) {
+            console.warn('Could not parse OANDA error response:', parseError);
+          }
+          
+          console.error(`❌ OANDA API Error for ${oandaInstrument}:`, errorMessage);
+          throw new Error(errorMessage);
+        }
+
+        const data: OANDAMarketData = await response.json();
+        
+        if (!data.candles || data.candles.length === 0) {
+          console.warn(`⚠️ No candles received for ${oandaInstrument}`);
+          throw new Error(`No market data available for ${oandaInstrument}`);
+        }
+
+        console.log(`✅ Fetched ${data.candles.length} candles for ${oandaInstrument}`);
+
+        // Convert OANDA format to our internal format
+        const marketData = {
+          open: [] as number[],
+          high: [] as number[],
+          low: [] as number[],
+          close: [] as number[],
+          volume: [] as number[],
+          Open: [] as number[],
+          High: [] as number[],
+          Low: [] as number[],
+          Close: [] as number[],
+          Volume: [] as number[]
+        };
+
+        data.candles.forEach((candle) => {
+          // Use mid price (average of bid and ask)
+          const open = (parseFloat(candle.bid.o) + parseFloat(candle.ask.o)) / 2;
+          const high = (parseFloat(candle.bid.h) + parseFloat(candle.ask.h)) / 2;
+          const low = (parseFloat(candle.bid.l) + parseFloat(candle.ask.l)) / 2;
+          const close = (parseFloat(candle.bid.c) + parseFloat(candle.ask.c)) / 2;
+          const volume = candle.volume;
+
+          // Both lowercase and uppercase for compatibility
+          marketData.open.push(open);
+          marketData.high.push(high);
+          marketData.low.push(low);
+          marketData.close.push(close);
+          marketData.volume.push(volume);
+
+          marketData.Open.push(open);
+          marketData.High.push(high);
+          marketData.Low.push(low);
+          marketData.Close.push(close);
+          marketData.Volume.push(volume);
+        });
+
+        return marketData;
+
+      } catch (error) {
+        clearTimeout(timeoutId);
+        
+        if (error instanceof Error && error.name === 'AbortError') {
+          const timeoutError = 'OANDA API request timeout (20s). Check your internet connection.';
+          console.error('❌', timeoutError);
+          throw new Error(timeoutError);
         }
         
-        console.error(`❌ OANDA API Error for ${oandaInstrument}:`, errorMessage);
-        throw new Error(errorMessage);
+        // Handle resource exhaustion specifically
+        if (error instanceof Error && (
+          error.message.includes('ERR_INSUFFICIENT_RESOURCES') ||
+          error.message.includes('Failed to fetch')
+        )) {
+          const resourceError = 'Network resources exhausted. Reducing request frequency...';
+          console.error('❌', resourceError);
+          throw new Error(resourceError);
+        }
+        
+        console.error('❌ Failed to fetch OANDA market data:', error);
+        throw error;
       }
-
-      const data: OANDAMarketData = await response.json();
-      
-      if (!data.candles || data.candles.length === 0) {
-        console.warn(`⚠️ No candles received for ${oandaInstrument}`);
-        throw new Error(`No market data available for ${oandaInstrument}`);
-      }
-
-      console.log(`✅ Fetched ${data.candles.length} candles for ${oandaInstrument}`);
-
-      // Convert OANDA format to our internal format
-      const marketData = {
-        open: [] as number[],
-        high: [] as number[],
-        low: [] as number[],
-        close: [] as number[],
-        volume: [] as number[],
-        Open: [] as number[],
-        High: [] as number[],
-        Low: [] as number[],
-        Close: [] as number[],
-        Volume: [] as number[]
-      };
-
-      data.candles.forEach((candle) => {
-        // Use mid price (average of bid and ask)
-        const open = (parseFloat(candle.bid.o) + parseFloat(candle.ask.o)) / 2;
-        const high = (parseFloat(candle.bid.h) + parseFloat(candle.ask.h)) / 2;
-        const low = (parseFloat(candle.bid.l) + parseFloat(candle.ask.l)) / 2;
-        const close = (parseFloat(candle.bid.c) + parseFloat(candle.ask.c)) / 2;
-        const volume = candle.volume;
-
-        // Both lowercase and uppercase for compatibility
-        marketData.open.push(open);
-        marketData.high.push(high);
-        marketData.low.push(low);
-        marketData.close.push(close);
-        marketData.volume.push(volume);
-
-        marketData.Open.push(open);
-        marketData.High.push(high);
-        marketData.Low.push(low);
-        marketData.Close.push(close);
-        marketData.Volume.push(volume);
-      });
-
-      return marketData;
-
-    } catch (error) {
-      clearTimeout(timeoutId);
-      
-      if (error instanceof Error && error.name === 'AbortError') {
-        const timeoutError = 'OANDA API request timeout (10s). Check your internet connection.';
-        console.error('❌', timeoutError);
-        throw new Error(timeoutError);
-      }
-      
-      console.error('❌ Failed to fetch OANDA market data:', error);
-      throw error;
-    }
+    });
   }
 
   static convertSymbolToOANDA(symbol: string): string {
@@ -232,7 +280,7 @@ export class OANDAMarketDataService {
     return oandaSymbol;
   }
 
-  // Add retry mechanism for failed requests
+  // Add retry mechanism with better resource management
   static async fetchWithRetry(
     accountId: string,
     apiKey: string,
@@ -240,7 +288,7 @@ export class OANDAMarketDataService {
     instrument: string,
     granularity: string = 'M1',
     count: number = 100,
-    maxRetries: number = 3
+    maxRetries: number = 2 // Reduce retries to conserve resources
   ): Promise<any> {
     let lastError: Error;
     
@@ -258,9 +306,20 @@ export class OANDAMarketDataService {
           throw error;
         }
         
-        // Wait before retry (exponential backoff)
+        // Handle resource errors with longer delays
+        if (error instanceof Error && (
+          error.message.includes('ERR_INSUFFICIENT_RESOURCES') ||
+          error.message.includes('Network resources exhausted')
+        )) {
+          console.warn('🔋 Resource exhaustion detected - longer delay before retry');
+        }
+        
+        // Wait before retry with longer delays for resource issues
         if (attempt < maxRetries) {
-          const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+          const baseDelay = Math.pow(2, attempt) * 1000; // 2s, 4s
+          const resourceDelay = lastError.message.includes('ERR_INSUFFICIENT_RESOURCES') ? 5000 : 0;
+          const delay = baseDelay + resourceDelay;
+          
           console.log(`⏳ Waiting ${delay}ms before retry...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
