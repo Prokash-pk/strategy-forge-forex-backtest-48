@@ -16,55 +16,64 @@ export const testOANDAConnection = async (config: any) => {
     ? 'https://api-fxpractice.oanda.com'
     : 'https://api-fxtrade.oanda.com';
 
-  console.log('🌐 Making request to Supabase edge function for OANDA test...');
+  console.log('🌐 Making direct request to OANDA API...');
+  console.log('🔗 OANDA URL:', `${baseUrl}/v3/accounts/${config.accountId}`);
+  console.log('🔑 Authorization header:', `Bearer ${config.apiKey.substring(0, 10)}...`);
 
   try {
-    // Get the current origin to construct the correct edge function URL
-    const currentOrigin = window.location.origin;
-    const functionUrl = `${currentOrigin}/functions/v1/oanda-connection-test`;
-    
-    console.log('🔗 Edge function URL:', functionUrl);
-
-    const response = await fetch(functionUrl, {
-      method: 'POST',
+    const response = await fetch(`${baseUrl}/v3/accounts/${config.accountId}`, {
+      method: 'GET',
       headers: {
+        'Authorization': `Bearer ${config.apiKey}`,
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ config })
+        'Accept': 'application/json',
+        'Accept-Datetime-Format': 'UNIX'
+      }
     });
 
-    console.log('📡 Server response status:', response.status);
-    console.log('📡 Server response headers:', Object.fromEntries(response.headers.entries()));
+    console.log('📡 OANDA response status:', response.status);
+    console.log('📡 OANDA response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Server response error:', errorText);
+      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       
-      // If we get HTML (404 page), the edge function doesn't exist
-      if (errorText.includes('<!DOCTYPE') || errorText.includes('<html>')) {
-        throw new Error('Edge function not found. The OANDA connection test function may not be deployed.');
+      try {
+        const errorData = await response.json();
+        console.error('❌ OANDA API error data:', errorData);
+        errorMessage = errorData.errorMessage || errorData.message || errorMessage;
+        
+        if (response.status === 401) {
+          errorMessage = 'Invalid OANDA API key. Please check your credentials.';
+        } else if (response.status === 403) {
+          errorMessage = 'OANDA API access forbidden. Verify your API key permissions.';
+        } else if (response.status === 404) {
+          errorMessage = 'Account not found. Please verify your Account ID is correct.';
+        }
+      } catch (parseError) {
+        console.warn('Could not parse OANDA error response:', parseError);
       }
       
-      throw new Error(`Server error: ${response.status} - ${errorText}`);
+      console.error(`❌ OANDA API Error:`, errorMessage);
+      throw new Error(errorMessage);
     }
 
     const result = await response.json();
-    console.log('✅ Server response data:', result);
+    console.log('✅ OANDA API response data:', result);
 
-    if (!result.success) {
-      console.error('❌ OANDA API returned error:', result.error);
-      throw new Error(result.error || 'OANDA connection failed');
+    if (!result.account) {
+      console.error('❌ No account data in response');
+      throw new Error('No account data received from OANDA');
     }
 
     console.log('🎉 OANDA connection successful!');
     console.log('📊 Account info:', {
-      alias: result.result?.account?.alias,
-      currency: result.result?.account?.currency,
-      balance: result.result?.account?.balance,
-      id: result.result?.account?.id
+      alias: result.account?.alias,
+      currency: result.account?.currency,
+      balance: result.account?.balance,
+      id: result.account?.id
     });
 
-    return result.result;
+    return result;
 
   } catch (error) {
     console.error('❌ Connection test failed with error:', error);
