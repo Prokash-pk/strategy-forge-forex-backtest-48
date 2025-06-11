@@ -6,6 +6,81 @@ import { RiskManager } from './riskManager';
 import type { TradeSignal, TradeOrder, BacktestSignals } from './types';
 
 export class SignalToTradeBridge {
+  private static instances: Map<string, SignalToTradeBridge> = new Map();
+  private strategyId: string;
+  private userId: string;
+  private config: any;
+
+  constructor(strategyId: string, userId: string, config: any) {
+    this.strategyId = strategyId;
+    this.userId = userId;
+    this.config = config;
+  }
+
+  static async createFromSavedConfig(strategyId: string, userId: string): Promise<SignalToTradeBridge | null> {
+    try {
+      // This would typically load saved OANDA configuration
+      // For now, return a basic instance
+      const config = {
+        accountBalance: 10000,
+        riskPerTrade: 2,
+        maxPositionSize: 100000,
+        stopLoss: 40,
+        takeProfit: 80
+      };
+
+      const bridge = new SignalToTradeBridge(strategyId, userId, config);
+      this.instances.set(`${strategyId}-${userId}`, bridge);
+      return bridge;
+    } catch (error) {
+      console.error('Failed to create trade bridge from saved config:', error);
+      return null;
+    }
+  }
+
+  async processSignal(signal: any): Promise<{ success: boolean; message: string; tradeId?: string }> {
+    try {
+      // Convert the signal format
+      const tradeSignal: TradeSignal = {
+        action: signal.signal as 'BUY' | 'SELL' | 'CLOSE',
+        symbol: signal.symbol,
+        direction: signal.signal === 'CLOSE' ? null : signal.signal as 'BUY' | 'SELL',
+        confidence: signal.confidence / 100, // Convert from percentage
+        timestamp: new Date().toISOString()
+      };
+
+      // Process the trade signal
+      const order = this.processTradeSignal(
+        tradeSignal,
+        this.strategyId,
+        this.userId,
+        this.config.accountBalance || 10000,
+        this.config
+      );
+
+      if (!order) {
+        return {
+          success: false,
+          message: 'Failed to create trade order from signal'
+        };
+      }
+
+      // In a real implementation, this would execute the trade via OANDA API
+      console.log('Trade order created:', order);
+
+      return {
+        success: true,
+        message: `${order.action} order created for ${order.symbol} with ${order.units} units`,
+        tradeId: `trade_${Date.now()}`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: `Error processing signal: ${error instanceof Error ? error.message : 'Unknown error'}`
+      };
+    }
+  }
+
   static processTradeSignal(
     signal: TradeSignal,
     strategyId: string,
@@ -35,6 +110,16 @@ export class SignalToTradeBridge {
       console.error('Failed to process trade signal:', error);
       return null;
     }
+  }
+
+  processTradeSignal(
+    signal: TradeSignal,
+    strategyId: string,
+    userId: string,
+    accountBalance: number,
+    riskConfig: any
+  ): TradeOrder | null {
+    return SignalToTradeBridge.processTradeSignal(signal, strategyId, userId, accountBalance, riskConfig);
   }
 
   static processBacktestSignals(

@@ -1,10 +1,11 @@
+
 import { 
   SIGNAL_VALIDATOR_PYTHON_CODE,
   DIRECTION_DETECTOR_PYTHON_CODE,
   SIGNAL_ENFORCER_PYTHON_CODE,
   SIGNAL_UTILS_PYTHON_CODE,
   SIGNAL_PROCESSOR_PYTHON_CODE
-} from './signalProcessing';
+} from './signalProcessing/index';
 
 export const SIGNAL_PROCESSING_PYTHON_CODE = `
 # Import necessary typing modules at the top
