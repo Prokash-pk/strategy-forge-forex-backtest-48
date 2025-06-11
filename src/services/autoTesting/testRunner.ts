@@ -94,11 +94,11 @@ export class StrategyTestRunner {
     const exitCount = exit.filter(Boolean).length;
 
     // Get unique directions and ensure they are strings
-    const uniqueDirections: string[] = [...new Set(
-      direction
-        .filter((d: any) => d && d !== 'None')
-        .map((d: any) => String(d))
-    )];
+    const stringDirections = direction
+      .filter((d: any) => d && d !== 'None')
+      .map((d: any) => String(d)) as string[];
+    
+    const uniqueDirections: string[] = Array.from(new Set(stringDirections));
 
     // Calculate confidence
     const confidence = rawResult.confidence 
