@@ -270,7 +270,7 @@ data = {
 }
 `);
 
-      // Execute the strategy
+      // Execute the strategy with proper error handling
       const result = await this.pyodide.runPython(`
 try:
     strategy_result = execute_strategy(data)
@@ -287,20 +287,40 @@ except Exception as e:
     }
 `);
 
+      // Handle undefined result (execution failure)
+      if (result === undefined || result === null) {
+        console.error('❌ Python execution returned undefined/null result');
+        const dataLength = marketData?.close?.length || 100;
+        return {
+          entry: Array(dataLength).fill(false),
+          exit: Array(dataLength).fill(false),
+          direction: Array(dataLength).fill(null),
+          error: 'Python execution failed - no result returned'
+        };
+      }
+
       // Convert result to JavaScript
       const jsResult = result.toJs ? result.toJs({ dict_converter: Object.fromEntries }) : result;
       
       console.log('🎯 Strategy execution completed:', {
-        hasEntry: jsResult.entry?.length > 0,
-        entrySignals: jsResult.entry?.filter(Boolean).length || 0,
-        error: jsResult.error
+        hasEntry: jsResult?.entry?.length > 0,
+        entrySignals: jsResult?.entry?.filter?.(Boolean)?.length || 0,
+        error: jsResult?.error
       });
 
       return jsResult;
 
     } catch (error) {
       console.error('❌ Python execution failed:', error);
-      throw error;
+      
+      // Return a safe fallback result
+      const dataLength = marketData?.close?.length || 100;
+      return {
+        entry: Array(dataLength).fill(false),
+        exit: Array(dataLength).fill(false),
+        direction: Array(dataLength).fill(null),
+        error: error instanceof Error ? error.message : 'Unknown execution error'
+      };
     }
   }
 
