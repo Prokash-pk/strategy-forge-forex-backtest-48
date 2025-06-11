@@ -174,10 +174,96 @@ export class EnhancedSignalProcessor {
 
     return await TradeExecutionDebugger.analyzeLastStrategy(strategyCode, marketData);
   }
+
+  // Add method to get sample market data for testing
+  async getSampleMarketData(): Promise<any> {
+    // Generate sample OHLCV data for testing
+    const sampleData = {
+      open: Array.from({length: 100}, (_, i) => 1.1000 + Math.random() * 0.01),
+      high: Array.from({length: 100}, (_, i) => 1.1010 + Math.random() * 0.01),
+      low: Array.from({length: 100}, (_, i) => 1.0990 + Math.random() * 0.01),
+      close: Array.from({length: 100}, (_, i) => 1.1000 + Math.random() * 0.01),
+      volume: Array.from({length: 100}, (_, i) => 1000 + Math.random() * 500)
+    };
+
+    console.log('📊 Generated sample market data for testing:', {
+      dataPoints: sampleData.close.length,
+      priceRange: `${Math.min(...sampleData.close).toFixed(4)} - ${Math.max(...sampleData.close).toFixed(4)}`
+    });
+
+    return sampleData;
+  }
+
+  // Add method to test with current strategy from strategy builder
+  async testCurrentStrategy(): Promise<any> {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error('❌ No user authenticated');
+      return null;
+    }
+
+    // Get the most recent strategy from localStorage or use a default
+    const savedStrategy = localStorage.getItem('currentStrategy');
+    let strategyCode = '';
+    
+    if (savedStrategy) {
+      const strategy = JSON.parse(savedStrategy);
+      strategyCode = strategy.code || strategy.strategy_code || '';
+    }
+
+    if (!strategyCode) {
+      strategyCode = `
+# Simple EMA Crossover Strategy
+import numpy as np
+
+def strategy_logic():
+    close = data['close']
+    
+    # Calculate EMAs
+    ema_fast = pd.Series(close).ewm(span=12).mean().values
+    ema_slow = pd.Series(close).ewm(span=26).mean().values
+    
+    # Generate signals
+    entry = np.zeros(len(close), dtype=bool)
+    exit = np.zeros(len(close), dtype=bool)
+    direction = [None] * len(close)
+    
+    for i in range(1, len(close)):
+        if ema_fast[i] > ema_slow[i] and ema_fast[i-1] <= ema_slow[i-1]:
+            entry[i] = True
+            direction[i] = 'BUY'
+        elif ema_fast[i] < ema_slow[i] and ema_fast[i-1] >= ema_slow[i-1]:
+            entry[i] = True
+            direction[i] = 'SELL'
+    
+    return {
+        'entry': entry.tolist(),
+        'exit': exit.tolist(), 
+        'direction': direction
+    }
+
+result = strategy_logic()
+`;
+    }
+
+    const marketData = await this.getSampleMarketData();
+    return await this.testSignalGeneration(strategyCode, marketData);
+  }
 }
 
-// Bind to window for debugging
+// Bind to window for debugging - with better naming and helper functions
 if (typeof window !== 'undefined') {
-  (window as any).enhancedSignalProcessor = EnhancedSignalProcessor.getInstance();
-  console.log('🎯 Enhanced signal processor available: enhancedSignalProcessor');
+  const processor = EnhancedSignalProcessor.getInstance();
+  (window as any).signalProcessor = processor;
+  (window as any).testStrategy = () => processor.testCurrentStrategy();
+  (window as any).testWithSampleData = (strategyCode: string) => {
+    return processor.getSampleMarketData().then(data => 
+      processor.testSignalGeneration(strategyCode, data)
+    );
+  };
+  
+  console.log('🎯 Signal testing tools available:');
+  console.log('   signalProcessor - Full signal processor instance');
+  console.log('   testStrategy() - Test current strategy with sample data');
+  console.log('   testWithSampleData(code) - Test custom strategy code');
 }
