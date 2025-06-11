@@ -203,27 +203,63 @@ export class OptimizedExecutionManager {
         fullStdLib: false
       });
 
-      // Load only essential packages
-      console.log('📦 Loading essential packages...');
-      await this.pyodide.loadPackage(['numpy']);
+      // CRITICAL FIX: Load packages with proper error handling and retry
+      console.log('📦 Loading essential packages with retry logic...');
+      let packagesLoaded = false;
+      let retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!packagesLoaded && retryCount < maxRetries) {
+        try {
+          console.log(`📦 Package loading attempt ${retryCount + 1}/${maxRetries}...`);
+          await this.pyodide.loadPackage(['numpy']);
+          
+          // Verify numpy is actually available
+          await this.pyodide.runPython(`
+import numpy as np
+print("✅ Numpy successfully imported and verified")
+test_array = np.array([1, 2, 3])
+print(f"✅ Numpy test array: {test_array}")
+`);
+          
+          packagesLoaded = true;
+          console.log('✅ Essential packages loaded and verified');
+          
+        } catch (packageError) {
+          retryCount++;
+          console.warn(`⚠️ Package loading attempt ${retryCount} failed:`, packageError);
+          
+          if (retryCount >= maxRetries) {
+            console.error('❌ Failed to load packages after all retries');
+            throw new Error(`Failed to load Python packages after ${maxRetries} attempts: ${packageError.message}`);
+          }
+          
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
       
       // Skip pandas for now to avoid memory issues
       console.log('⚠️ Skipping pandas to conserve memory - using lightweight alternatives');
       
       // Set up lightweight environment
+      console.log('🔧 Setting up lightweight Python environment...');
       await this.pyodide.runPython(LIGHTWEIGHT_PYTHON_SETUP);
       
       this.isInitialized = true;
-      console.log('✅ Optimized Python environment ready');
+      console.log('✅ Optimized Python environment ready with verified packages');
       
     } catch (error) {
       console.error('❌ Failed to initialize optimized Pyodide:', error);
+      this.isInitialized = false;
+      this.pyodide = null;
       throw error;
     }
   }
 
   async executePythonStrategy(strategyCode: string, marketData: any): Promise<any> {
     try {
+      // Ensure initialization is complete
       await this.initializePyodide();
       
       if (!this.pyodide) {
@@ -242,8 +278,16 @@ export class OptimizedExecutionManager {
       // Set the strategy code
       this.pyodide.globals.set('strategy_code', strategyCode);
       
-      // Execute data setup (lightweight version)
+      // Execute data setup (lightweight version) with package verification
       await this.pyodide.runPython(`
+# Verify numpy is available before proceeding
+try:
+    import numpy as np
+    print("✅ Numpy verification passed")
+except ImportError as e:
+    print(f"❌ Numpy import failed: {e}")
+    raise ImportError("Numpy not available - package loading failed")
+
 # Convert data to numpy arrays
 open_data = np.array(open_prices) if open_prices else np.array([])
 high_data = np.array(high_prices) if high_prices else np.array([])
