@@ -1,4 +1,3 @@
-
 import { OANDAConfig, StrategySettings } from '@/types/oanda';
 import { OptimizedStrategyTestRunner, StrategyTestConfig } from './optimizedTestRunner';
 import { TestLogger } from './testLogger';
@@ -14,8 +13,8 @@ export class OptimizedAutoStrategyTester {
   private currentStrategy: StrategySettings | null = null;
   private isForwardTestingActive: boolean = false;
   private lastLogTime: number = 0;
-  private logFrequencyMs: number = 15 * 60 * 1000; // Increased to 15 minutes
-  private testFrequencyMs: number = 15 * 60 * 1000; // Increased to 15 minutes
+  private logFrequencyMs: number = 15 * 60 * 1000; // 15 minutes
+  private testFrequencyMs: number = 15 * 60 * 1000; // 15 minutes
 
   static getInstance(): OptimizedAutoStrategyTester {
     if (!OptimizedAutoStrategyTester.instance) {

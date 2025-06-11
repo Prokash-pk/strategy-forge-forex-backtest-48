@@ -16,7 +16,7 @@ export const usePythonStatus = () => {
         const executionManager = OptimizedExecutionManager.getInstance();
         await executionManager.initializePyodide();
         
-        // IMPORTANT: Initialize lightweight processor for window binding
+        // Initialize lightweight processor for window binding
         console.log('🔧 Initializing lightweight signal processor...');
         LightweightSignalProcessor.getInstance();
         
