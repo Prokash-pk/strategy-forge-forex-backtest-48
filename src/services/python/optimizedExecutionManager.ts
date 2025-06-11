@@ -268,6 +268,14 @@ print(f"✅ Numpy test array: {test_array}")
 
       console.log('📊 Setting market data...');
       
+      // Enhanced debugging - log market data details
+      const dataPoints = marketData.close?.length || 0;
+      console.log(`📈 Market data: ${dataPoints} data points`);
+      if (dataPoints > 0) {
+        console.log(`📊 Latest close: ${marketData.close[dataPoints - 1]}`);
+        console.log(`📊 Price range: ${Math.min(...marketData.close)} - ${Math.max(...marketData.close)}`);
+      }
+      
       // Set market data in Python environment
       this.pyodide.globals.set('open_prices', marketData.open || []);
       this.pyodide.globals.set('high_prices', marketData.high || []);
@@ -314,13 +322,28 @@ data = {
 }
 `);
 
-      // Execute the strategy and get result with proper error handling
+      // Execute the strategy and get result with enhanced debugging
       await this.pyodide.runPython(`
 try:
     strategy_result = execute_strategy(data)
     print(f"✅ Strategy execution result type: {type(strategy_result)}")
     if hasattr(strategy_result, 'keys'):
         print(f"📊 Result keys: {list(strategy_result.keys())}")
+    
+    # Enhanced debugging for entry signals
+    if 'entry' in strategy_result:
+        entry_signals = strategy_result['entry']
+        entry_count = sum(1 for signal in entry_signals if signal) if entry_signals else 0
+        print(f"🎯 Entry signals found: {entry_count}")
+        
+        if entry_count > 0:
+            # Find last entry signal
+            for i in range(len(entry_signals) - 1, -1, -1):
+                if entry_signals[i]:
+                    print(f"📍 Last entry signal at index {i}")
+                    if 'direction' in strategy_result and i < len(strategy_result['direction']):
+                        print(f"📊 Signal direction: {strategy_result['direction'][i]}")
+                    break
     
     # Store result in global variable for retrieval
     globals()['final_result'] = strategy_result
@@ -378,17 +401,48 @@ except Exception as e:
           error: 'Failed to convert Python result to JavaScript'
         };
       }
+
+      // Enhanced result analysis and debugging
+      const entryCount = jsResult?.entry?.filter?.(Boolean)?.length || 0;
+      const buySignals = jsResult?.direction?.filter?.(d => d === 'BUY')?.length || 0;
+      const sellSignals = jsResult?.direction?.filter?.(d => d === 'SELL')?.length || 0;
       
       console.log('🎯 Strategy execution completed:', {
+        dataPoints: marketData?.close?.length || 0,
         hasEntry: jsResult?.entry?.length > 0,
-        entrySignals: jsResult?.entry?.filter?.(Boolean)?.length || 0,
-        error: jsResult?.error
+        entrySignals: entryCount,
+        buySignals,
+        sellSignals,
+        hasDirection: !!jsResult?.direction,
+        error: jsResult?.error,
+        resultKeys: Object.keys(jsResult || {})
+      });
+
+      // Log to trade debugger with enhanced details
+      const debugger = TradeExecutionDebugger.getInstance();
+      debugger.logStep('PYTHON_EXECUTION_COMPLETE', {
+        dataPoints: marketData?.close?.length || 0,
+        entrySignalsCount: entryCount,
+        buySignalsCount: buySignals,
+        sellSignalsCount: sellSignals,
+        resultKeys: Object.keys(jsResult || {}),
+        hasResult: !!jsResult,
+        lastEntrySignal: jsResult?.entry?.[jsResult.entry.length - 1] || false,
+        lastDirection: jsResult?.direction?.[jsResult.direction.length - 1] || null,
+        error: jsResult?.error || null
       });
 
       return jsResult;
 
     } catch (error) {
       console.error('❌ Python execution failed:', error);
+      
+      // Enhanced error logging
+      const debugger = TradeExecutionDebugger.getInstance();
+      debugger.logStep('PYTHON_EXECUTION_ERROR', {
+        error: error instanceof Error ? error.message : 'Unknown execution error',
+        dataPoints: marketData?.close?.length || 0
+      });
       
       // Return a safe fallback result
       const dataLength = marketData?.close?.length || 100;
