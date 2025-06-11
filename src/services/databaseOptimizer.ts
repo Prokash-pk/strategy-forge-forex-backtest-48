@@ -20,7 +20,7 @@ export class DatabaseOptimizer {
         return 0;
       }
       
-      const archivedCount = data?.length || 0;
+      const archivedCount = data ? data.length : 0;
       console.log(`✅ Archived ${archivedCount} old trading logs`);
       return archivedCount;
       
@@ -106,7 +106,7 @@ export class DatabaseOptimizer {
         return 0;
       }
 
-      const cleanedCount = data?.length || 0;
+      const cleanedCount = data ? data.length : 0;
       console.log(`✅ Cleaned up ${cleanedCount} inactive sessions`);
       return cleanedCount;
 
