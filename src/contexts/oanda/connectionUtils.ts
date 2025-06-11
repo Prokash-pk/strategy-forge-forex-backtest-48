@@ -1,6 +1,7 @@
 
+
 export const testOANDAConnection = async (config: any) => {
-  console.log('🔍 Testing OANDA connection with detailed diagnostics...');
+  console.log('🔍 Testing OANDA connection with direct API call...');
   console.log('📊 Config details:', {
     accountId: config.accountId,
     apiKeyLength: config.apiKey?.length || 0,
@@ -51,6 +52,16 @@ export const testOANDAConnection = async (config: any) => {
         }
       } catch (parseError) {
         console.warn('Could not parse OANDA error response:', parseError);
+        
+        // If we can't parse the response, check if it's HTML (CORS error)
+        try {
+          const textResponse = await response.text();
+          if (textResponse.includes('<!DOCTYPE') || textResponse.includes('<html>')) {
+            errorMessage = 'CORS error: Cannot access OANDA API directly from browser. This is expected behavior.';
+          }
+        } catch (textError) {
+          console.warn('Could not read response as text:', textError);
+        }
       }
       
       console.error(`❌ OANDA API Error:`, errorMessage);
@@ -82,6 +93,13 @@ export const testOANDAConnection = async (config: any) => {
       type: typeof error,
       stack: error instanceof Error ? error.stack : undefined
     });
+    
+    // If it's a CORS error or network error, provide helpful guidance
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error('Network error: Cannot reach OANDA API. This might be due to CORS restrictions or network connectivity issues.');
+    }
+    
     throw error;
   }
 };
+
