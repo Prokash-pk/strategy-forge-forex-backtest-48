@@ -1,3 +1,4 @@
+
 import { PyodideManager } from './pyodideManager';
 import { TradeExecutionDebugger } from '../trading/tradeExecutionDebugger';
 
@@ -107,8 +108,26 @@ def execute_strategy(data):
         print(f"📊 Data type: {type(data)}")
         print(f"📊 Data keys: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
         
-        # Execute the user's strategy code
-        local_vars = {'data': data, 'TechnicalAnalysis': TechnicalAnalysis}
+        # CRITICAL FIX: Convert lists to proper format for strategy
+        # The data comes as lists from JavaScript, need to handle .tolist() calls
+        processed_data = {}
+        for key, value in data.items():
+            if isinstance(value, list):
+                # Already a list, no need for .tolist()
+                processed_data[key] = value
+            else:
+                # Convert to list if needed
+                processed_data[key] = list(value) if hasattr(value, '__iter__') else [value]
+        
+        print(f"✅ Data processed for strategy execution")
+        
+        # Execute the user's strategy code with processed data
+        local_vars = {
+            'data': processed_data, 
+            'TechnicalAnalysis': TechnicalAnalysis,
+            'np': np,
+            'math': math
+        }
         exec(strategy_code, globals(), local_vars)
         
         print(f"✅ Strategy executed, local vars: {list(local_vars.keys())}")
@@ -141,7 +160,7 @@ def execute_strategy(data):
                 # Generate basic signals if none found
                 if not entry:
                     print("⚠️ No signals found, generating empty signals")
-                    data_length = len(data.get('close', [])) if isinstance(data, dict) else 100
+                    data_length = len(processed_data.get('close', [])) if isinstance(processed_data, dict) else 100
                     entry = [False] * data_length
                     exit = [False] * data_length
                     direction = [None] * data_length
@@ -307,6 +326,7 @@ if len(close_data) > 0:
     print(f"📈 Latest close price: {close_data[-1]}")
 
 # Create data dictionary (both lowercase and uppercase for compatibility)
+# CRITICAL: Convert to lists to avoid .tolist() errors in strategy code
 data = {
     'open': open_data.tolist(),
     'high': high_data.tolist(),
