@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { OptimizedExecutionManager } from '@/services/python/optimizedExecutionManager';
+import { LightweightSignalProcessor } from '@/services/trading/lightweightSignalProcessor';
 
 export const usePythonStatus = () => {
   const [pythonStatus, setPythonStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
@@ -14,6 +15,10 @@ export const usePythonStatus = () => {
         
         const executionManager = OptimizedExecutionManager.getInstance();
         await executionManager.initializePyodide();
+        
+        // IMPORTANT: Initialize lightweight processor for window binding
+        console.log('🔧 Initializing lightweight signal processor...');
+        LightweightSignalProcessor.getInstance();
         
         console.log('✅ Optimized Python environment available');
         setPythonStatus('available');

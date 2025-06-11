@@ -6,6 +6,9 @@ import { useBacktestUsage } from '@/hooks/useBacktestUsage';
 import StrategyBuilderStatus from './strategy/StrategyBuilderStatus';
 import StrategyBuilderLayout from './strategy/StrategyBuilderLayout';
 
+// IMPORTANT: Import to ensure window binding happens
+import '@/services/trading/lightweightSignalProcessor';
+
 interface StrategyBuilderProps {
   onStrategyUpdate: (strategy: any) => void;
   onBacktestComplete: (results: any) => void;
