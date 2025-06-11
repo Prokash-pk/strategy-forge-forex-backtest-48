@@ -143,16 +143,23 @@ export class LightweightSignalProcessor {
   }
 }
 
-// Bind lightweight version to window for console access
+// FIXED: Properly bind lightweight version to window for console access
 if (typeof window !== 'undefined') {
+  // Create processor instance
   const lightweightProcessor = LightweightSignalProcessor.getInstance();
   
-  // Main testing function (memory optimized)
-  (window as any).testUserStrategy = (strategyCode: string, symbol?: string, timeframe?: string) => 
-    lightweightProcessor.testUserStrategy(strategyCode, symbol || 'USD_JPY', timeframe || 'M15');
+  // Make processor available globally
+  (window as any).lightweightProcessor = lightweightProcessor;
   
-  // Simple test function
-  (window as any).quickTest = () => {
+  // Main testing function (memory optimized) - FIXED binding
+  (window as any).testUserStrategy = async (strategyCode: string, symbol?: string, timeframe?: string) => {
+    console.log('🚀 Starting lightweight strategy test...');
+    return await lightweightProcessor.testUserStrategy(strategyCode, symbol || 'USD_JPY', timeframe || 'M15');
+  };
+  
+  // Simple test function - FIXED binding
+  (window as any).quickTest = async () => {
+    console.log('🚀 Running quick EMA crossover test...');
     const simpleStrategy = `
 def strategy_logic(data):
     close = data['Close']
@@ -189,13 +196,16 @@ def strategy_logic(data):
 
 result = strategy_logic()
 `;
-    return lightweightProcessor.testUserStrategy(simpleStrategy);
+    return await lightweightProcessor.testUserStrategy(simpleStrategy);
   };
   
+  // Force immediate availability
   console.log('🚀 LIGHTWEIGHT Strategy Testing Tools Available:');
   console.log('================================================');
-  console.log('   testUserStrategy(code) - Test your strategy (MEMORY OPTIMIZED)');
+  console.log('   testUserStrategy(code, symbol?, timeframe?) - Test your strategy (MEMORY OPTIMIZED)');
   console.log('   quickTest() - Test simple EMA crossover strategy');
+  console.log('   lightweightProcessor - Direct access to processor');
   console.log('');
   console.log('💡 This version uses lightweight technical analysis to avoid memory issues!');
+  console.log('🔧 Functions are now properly bound to window object');
 }
