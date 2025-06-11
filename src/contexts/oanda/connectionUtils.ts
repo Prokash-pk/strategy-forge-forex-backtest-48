@@ -1,58 +1,69 @@
 
-import { OANDAConfig } from './types';
-import { supabase } from '@/integrations/supabase/client';
-
-export async function testOANDAConnection(config: OANDAConfig): Promise<any> {
-  if (!config.accountId || !config.apiKey) {
-    throw new Error('Missing Account ID or API Key');
-  }
-
-  console.log('🔍 Testing OANDA connection via server-side function...', {
+export const testOANDAConnection = async (config: any) => {
+  console.log('🔍 Testing OANDA connection with detailed diagnostics...');
+  console.log('📊 Config details:', {
     accountId: config.accountId,
+    apiKeyLength: config.apiKey?.length || 0,
+    apiKeyPrefix: config.apiKey?.substring(0, 10) + '...',
     environment: config.environment
   });
 
-  // Use Supabase Edge Function to test connection (avoids CORS issues)
+  if (!config.accountId || !config.apiKey) {
+    throw new Error('Missing OANDA credentials');
+  }
+
+  const baseUrl = config.environment === 'practice' 
+    ? 'https://api-fxpractice.oanda.com'
+    : 'https://api-fxtrade.oanda.com';
+
+  console.log('🌐 Making request to:', `${baseUrl}/v3/accounts/${config.accountId}`);
+  console.log('🔑 Authorization header will use:', `Bearer ${config.apiKey.substring(0, 10)}...`);
+
   try {
-    const { data, error } = await supabase.functions.invoke('oanda-connection-test', {
-      body: {
-        config: {
-          accountId: config.accountId,
-          apiKey: config.apiKey,
-          environment: config.environment
-        }
-      }
+    const response = await fetch(`/functions/v1/oanda-connection-test`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(window as any).supabase?.supabaseKey || ''}`,
+        'apikey': (window as any).supabase?.supabaseKey || ''
+      },
+      body: JSON.stringify({ config })
     });
 
-    if (error) {
-      console.error('❌ Edge function error:', error);
-      throw new Error(`Connection test failed: ${error.message}`);
+    console.log('📡 Server response status:', response.status);
+    console.log('📡 Server response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Server response error:', errorText);
+      throw new Error(`Server error: ${response.status} - ${errorText}`);
     }
 
-    if (!data.success) {
-      console.error('❌ OANDA connection test failed:', data.error);
-      throw new Error(data.error || 'Connection test failed');
+    const result = await response.json();
+    console.log('✅ Server response data:', result);
+
+    if (!result.success) {
+      console.error('❌ OANDA API returned error:', result.error);
+      throw new Error(result.error || 'OANDA connection failed');
     }
 
-    console.log('✅ OANDA connection successful via edge function:', data.result);
-    return data.result;
+    console.log('🎉 OANDA connection successful!');
+    console.log('📊 Account info:', {
+      alias: result.result?.account?.alias,
+      currency: result.result?.account?.currency,
+      balance: result.result?.account?.balance,
+      id: result.result?.account?.id
+    });
+
+    return result.result;
 
   } catch (error) {
-    console.error('❌ Connection test error:', error);
-    
-    // Provide more helpful error messages
-    if (error instanceof Error) {
-      if (error.message.includes('Invalid API key') || error.message.includes('401')) {
-        throw new Error('Invalid API key. Please check your OANDA API credentials and ensure the token is active.');
-      } else if (error.message.includes('Account not found') || error.message.includes('404')) {
-        throw new Error('Account not found. Please verify your Account ID is correct.');
-      } else if (error.message.includes('Access forbidden') || error.message.includes('403')) {
-        throw new Error('Access forbidden. Please verify your API key has proper permissions.');
-      } else if (error.message.includes('Network') || error.message.includes('timeout')) {
-        throw new Error('Network error. Please check your internet connection and try again.');
-      }
-    }
-    
+    console.error('❌ Connection test failed with error:', error);
+    console.error('🔍 Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      type: typeof error,
+      stack: error instanceof Error ? error.stack : undefined
+    });
     throw error;
   }
-}
+};
