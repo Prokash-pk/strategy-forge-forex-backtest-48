@@ -29,7 +29,7 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
     }
   }, []); // Only run once on mount
 
-  // Less aggressive heartbeat - only when connected and not during errors
+  // Modified heartbeat - more resilient to API key issues
   useEffect(() => {
     if (!connectionState.isConnected || connectionState.connectionStatus === 'error') return;
 
@@ -51,22 +51,46 @@ export const OANDAConnectionProvider: React.FC<{ children: ReactNode }> = ({ chi
             await testOANDAConnection(config);
             clearTimeout(timeoutId);
             console.log('💓 OANDA connection heartbeat OK');
+            
+            // Reset any error state if heartbeat succeeds
+            if (connectionState.connectionStatus === 'error') {
+              setConnectionState({
+                connectionStatus: 'success',
+                connectionError: null
+              });
+            }
           } catch (error) {
             clearTimeout(timeoutId);
-            console.warn('💔 OANDA connection heartbeat failed');
+            console.warn('💔 OANDA connection heartbeat failed:', error);
             
-            // Don't auto-reconnect on heartbeat failure - let user manually reconnect
-            setConnectionState({
-              isConnected: false,
-              connectionStatus: 'error',
-              connectionError: 'Connection lost. Please manually reconnect.'
-            });
+            // Check if it's an API key error specifically
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            const isAuthError = errorMessage.includes('401') || 
+                               errorMessage.includes('Invalid API key') || 
+                               errorMessage.includes('Unauthorized');
+            
+            if (isAuthError) {
+              // For API key errors, set error status but DON'T disconnect
+              console.log('🔑 API key error detected - keeping connection state, user needs to update credentials');
+              setConnectionState({
+                connectionStatus: 'error',
+                connectionError: 'API key invalid or expired. Please update your credentials and test connection.'
+              });
+              // DO NOT set isConnected: false for API key errors
+            } else {
+              // For other errors, handle normally
+              setConnectionState({
+                isConnected: false,
+                connectionStatus: 'error',
+                connectionError: 'Connection lost. Please manually reconnect.'
+              });
+            }
           }
         }
       } catch (error) {
         console.warn('Heartbeat check failed:', error);
       }
-    }, CONNECTION_HEARTBEAT_INTERVAL * 2); // Less frequent heartbeat
+    }, CONNECTION_HEARTBEAT_INTERVAL * 3); // Even less frequent heartbeat (3x instead of 2x)
 
     return () => clearInterval(interval);
   }, [connectionState.isConnected, connectionState.connectionStatus]);

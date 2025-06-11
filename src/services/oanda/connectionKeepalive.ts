@@ -3,7 +3,7 @@ export class OANDAConnectionKeepalive {
   private keepaliveInterval: NodeJS.Timeout | null = null;
   private isActive: boolean = false;
   private failureCount: number = 0;
-  private maxFailures: number = 5; // Increased tolerance
+  private maxFailures: number = 3; // Reduced from 5 for faster recovery
   private currentConfig: {
     accountId: string;
     apiKey: string;
@@ -138,18 +138,16 @@ export class OANDAConnectionKeepalive {
     this.failureCount++;
     console.warn(`⚠️ OANDA keepalive ping failed (${this.failureCount}/${this.maxFailures}): ${errorMessage}`);
     
-    // If unauthorized, try to restart once before giving up
+    // If unauthorized, DON'T restart automatically - just log it
     if (status === 401) {
-      if (this.failureCount === 1) {
-        console.log('🔄 Authentication issue detected - attempting single restart...');
-        this.retryTimeout = setTimeout(() => {
-          this.restartKeepalive();
-        }, 5000); // Wait 5 seconds before restart
-      } else {
-        console.error('❌ OANDA session permanently expired - stopping keepalive');
-        this.stopKeepalive();
-      }
-    } else if (this.failureCount >= this.maxFailures) {
+      console.error('🔑 API key authentication failed - user needs to update credentials');
+      console.log('🔄 Keepalive will continue running but won\'t auto-restart on auth errors');
+      // Don't increment failure count for auth errors to prevent shutdown
+      this.failureCount = Math.max(0, this.failureCount - 1);
+      return;
+    }
+    
+    if (this.failureCount >= this.maxFailures) {
       console.error(`❌ OANDA keepalive failed ${this.maxFailures} times - attempting restart in 30 seconds`);
       // Instead of stopping completely, try one restart after a longer delay
       this.retryTimeout = setTimeout(() => {
