@@ -5,6 +5,7 @@ import { TradeExecutionDebugger } from '../trading/tradeExecutionDebugger';
 export class EnhancedExecutionManager {
   private static instance: EnhancedExecutionManager;
   private pyodide: any = null;
+  private isInitialized = false;
 
   static getInstance(): EnhancedExecutionManager {
     if (!EnhancedExecutionManager.instance) {
@@ -14,82 +15,34 @@ export class EnhancedExecutionManager {
   }
 
   async initializePyodide(): Promise<void> {
-    if (!this.pyodide) {
-      await TradeExecutionDebugger.logExecutionStep('PYODIDE_INIT_START', {
-        timestamp: new Date().toISOString()
-      });
-      
-      this.pyodide = await PyodideManager.getInstance().getPyodide();
-      
-      await TradeExecutionDebugger.logExecutionStep('PYODIDE_INIT_COMPLETE', {
-        initialized: !!this.pyodide,
-        timestamp: new Date().toISOString()
-      });
+    if (this.pyodide && this.isInitialized) {
+      console.log('🐍 Pyodide already initialized');
+      return;
     }
-  }
 
-  async executePythonStrategy(strategyCode: string, marketData: any): Promise<any> {
-    try {
-      await TradeExecutionDebugger.logExecutionStep('PYTHON_EXECUTION_START', {
-        strategyCodeLength: strategyCode?.length || 0,
-        marketDataKeys: Object.keys(marketData || {}),
-        dataPoints: marketData?.close?.length || 0,
-        sampleCloseData: marketData?.close?.slice(-5) || []
-      });
-
-      await this.initializePyodide();
-      
-      if (!this.pyodide) {
-        throw new Error('Pyodide not initialized');
-      }
-
-      // Set market data in Python environment with debugging
-      this.pyodide.globals.set('open_prices', marketData.open);
-      this.pyodide.globals.set('high_prices', marketData.high);
-      this.pyodide.globals.set('low_prices', marketData.low);
-      this.pyodide.globals.set('close_prices', marketData.close);
-      this.pyodide.globals.set('volume_data', marketData.volume);
-
-      await TradeExecutionDebugger.logExecutionStep('PYTHON_DATA_SET', {
-        openLength: marketData.open?.length || 0,
-        highLength: marketData.high?.length || 0,
-        lowLength: marketData.low?.length || 0,
-        closeLength: marketData.close?.length || 0,
-        volumeLength: marketData.volume?.length || 0
-      });
-
-      // Enhanced Python setup with debugging
-      const pythonSetup = `
+    await TradeExecutionDebugger.logExecutionStep('PYODIDE_INIT_START', {
+      timestamp: new Date().toISOString()
+    });
+    
+    this.pyodide = await PyodideManager.getInstance().getPyodide();
+    
+    // Set up the Python environment with strategy execution functions
+    console.log('🐍 Setting up Python strategy execution environment...');
+    
+    const pythonSetup = `
 import numpy as np
 import pandas as pd
 import math
 from typing import Dict, List, Any, Optional, Union
 
-print("🐍 Python environment initialized")
-
-# Convert data to numpy arrays
-open_data = np.array(open_prices)
-high_data = np.array(high_prices)
-low_data = np.array(low_prices)
-close_data = np.array(close_prices)
-volume_data = np.array(volume_data)
-
-print(f"📊 Data loaded: {len(close_data)} data points")
-print(f"📈 Latest close price: {close_data[-1] if len(close_data) > 0 else 'No data'}")
-
-# Create data dictionary
-data = {
-    'open': open_data,
-    'high': high_data,
-    'low': low_data,
-    'close': close_data,
-    'volume': volume_data
-}
+print("🐍 Python environment initialized successfully")
 
 def execute_strategy(data):
-    """Main strategy execution function with enhanced debugging"""
+    """Main strategy execution function with enhanced error handling"""
     try:
         print("🚀 Executing strategy...")
+        print(f"📊 Data type: {type(data)}")
+        print(f"📊 Data keys: {list(data.keys()) if isinstance(data, dict) else 'Not a dict'}")
         
         # Execute the user's strategy code
         local_vars = {'data': data}
@@ -113,16 +66,8 @@ def execute_strategy(data):
             print(f"   Exit signals: {len(exit) if hasattr(exit, '__len__') else 'Not a list'}")
             print(f"   Directions: {len(direction) if hasattr(direction, '__len__') else 'Not a list'}")
             
-            if entry and len(entry) > 0:
-                entry_count = sum(1 for x in entry if x) if hasattr(entry, '__iter__') else 0
-                print(f"   Total entry signals: {entry_count}")
-                
-                if direction and len(direction) > 0:
-                    unique_directions = set(str(d) for d in direction if d and str(d) != 'None')
-                    print(f"   Unique directions: {unique_directions}")
-            
+            # Try to find any boolean arrays that might be signals
             if not entry and not exit and not direction:
-                # Try to find any boolean arrays that might be signals
                 for key, value in local_vars.items():
                     if isinstance(value, (list, np.ndarray)) and len(value) > 0:
                         if key.lower() in ['buy_signals', 'sell_signals', 'signals', 'entries']:
@@ -133,9 +78,10 @@ def execute_strategy(data):
                 # Generate basic signals if none found
                 if not entry:
                     print("⚠️ No signals found, generating empty signals")
-                    entry = [False] * len(data['close'])
-                    exit = [False] * len(data['close'])
-                    direction = [None] * len(data['close'])
+                    data_length = len(data.get('close', [])) if isinstance(data, dict) else 100
+                    entry = [False] * data_length
+                    exit = [False] * data_length
+                    direction = [None] * data_length
             
             return {
                 'entry': entry,
@@ -147,18 +93,100 @@ def execute_strategy(data):
         import traceback
         traceback.print_exc()
         return {
-            'entry': [False] * len(data['close']),
-            'exit': [False] * len(data['close']),
-            'direction': [None] * len(data['close']),
+            'entry': [False] * len(data.get('close', [])) if isinstance(data, dict) else [False] * 100,
+            'exit': [False] * len(data.get('close', [])) if isinstance(data, dict) else [False] * 100,
+            'direction': [None] * len(data.get('close', [])) if isinstance(data, dict) else [None] * 100,
             'error': str(e)
         }
+
+print("🎯 Strategy execution function defined successfully")
+`;
+    
+    await this.pyodide.runPython(pythonSetup);
+    
+    // Test that the function was created
+    const functionExists = await this.pyodide.runPython(`
+'execute_strategy' in globals() and callable(execute_strategy)
+`);
+    
+    if (!functionExists) {
+      throw new Error('Failed to create execute_strategy function');
+    }
+    
+    this.isInitialized = true;
+    
+    await TradeExecutionDebugger.logExecutionStep('PYODIDE_INIT_COMPLETE', {
+      initialized: !!this.pyodide,
+      functionExists,
+      timestamp: new Date().toISOString()
+    });
+    
+    console.log('✅ Python environment fully initialized');
+  }
+
+  async executePythonStrategy(strategyCode: string, marketData: any): Promise<any> {
+    try {
+      await TradeExecutionDebugger.logExecutionStep('PYTHON_EXECUTION_START', {
+        strategyCodeLength: strategyCode?.length || 0,
+        marketDataKeys: Object.keys(marketData || {}),
+        dataPoints: marketData?.close?.length || 0,
+        sampleCloseData: marketData?.close?.slice(-5) || []
+      });
+
+      await this.initializePyodide();
+      
+      if (!this.pyodide) {
+        throw new Error('Pyodide not initialized');
+      }
+
+      // Set market data in Python environment with debugging
+      this.pyodide.globals.set('open_prices', marketData.open || []);
+      this.pyodide.globals.set('high_prices', marketData.high || []);
+      this.pyodide.globals.set('low_prices', marketData.low || []);
+      this.pyodide.globals.set('close_prices', marketData.close || []);
+      this.pyodide.globals.set('volume_data', marketData.volume || []);
+
+      await TradeExecutionDebugger.logExecutionStep('PYTHON_DATA_SET', {
+        openLength: marketData.open?.length || 0,
+        highLength: marketData.high?.length || 0,
+        lowLength: marketData.low?.length || 0,
+        closeLength: marketData.close?.length || 0,
+        volumeLength: marketData.volume?.length || 0
+      });
+
+      // Set up data dictionary in Python
+      const dataSetup = `
+# Convert data to numpy arrays
+open_data = np.array(open_prices) if open_prices else np.array([])
+high_data = np.array(high_prices) if high_prices else np.array([])
+low_data = np.array(low_prices) if low_prices else np.array([])
+close_data = np.array(close_prices) if close_prices else np.array([])
+volume_data = np.array(volume_data) if volume_data else np.array([])
+
+print(f"📊 Data loaded: {len(close_data)} data points")
+if len(close_data) > 0:
+    print(f"📈 Latest close price: {close_data[-1]}")
+
+# Create data dictionary
+data = {
+    'open': open_data,
+    'high': high_data,
+    'low': low_data,
+    'close': close_data,
+    'volume': volume_data,
+    'Open': open_data,  # Also provide capitalized versions
+    'High': high_data,
+    'Low': low_data,
+    'Close': close_data,
+    'Volume': volume_data
+}
 `;
 
       // Set the strategy code as a global variable
       this.pyodide.globals.set('strategy_code', strategyCode);
       
-      // Execute Python setup
-      await this.pyodide.runPython(pythonSetup);
+      // Execute data setup
+      await this.pyodide.runPython(dataSetup);
 
       // Execute the strategy with enhanced error handling
       const result = await this.pyodide.runPython(`
@@ -180,9 +208,9 @@ except Exception as e:
     import traceback
     traceback.print_exc()
     {
-        'entry': [False] * len(data['close']),
-        'exit': [False] * len(data['close']),
-        'direction': [None] * len(data['close']),
+        'entry': [False] * len(data['close']) if len(data['close']) > 0 else [False] * 100,
+        'exit': [False] * len(data['close']) if len(data['close']) > 0 else [False] * 100,
+        'direction': [None] * len(data['close']) if len(data['close']) > 0 else [None] * 100,
         'error': str(e)
     }
 `);
@@ -210,6 +238,12 @@ except Exception as e:
       
       throw new Error(`Python execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  reset(): void {
+    this.pyodide = null;
+    this.isInitialized = false;
+    console.log('🔄 Enhanced execution manager reset');
   }
 }
 
