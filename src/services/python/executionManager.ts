@@ -23,14 +23,15 @@ export class ExecutionManager {
       pyodide.globals.set('js_strategy_code', strategyCode);
       console.log('✅ Data set in Python environment');
       
-      // Check if execute_strategy function is available
+      // Check if execute_strategy function is available and re-initialize if needed
       const checkResult = pyodide.runPython(`
 try:
     if 'execute_strategy' in globals():
         print("✅ execute_strategy function found")
         result = True
     else:
-        print("❌ execute_strategy function not found")
+        print("❌ execute_strategy function not found in globals")
+        print(f"Available globals: {list(globals().keys())}")
         result = False
     result
 except Exception as e:
@@ -39,6 +40,9 @@ except Exception as e:
       `);
       
       if (!checkResult) {
+        console.warn('🔄 execute_strategy function not found, reinitializing Python environment...');
+        // Force reinitialize the Python environment
+        PyodideLoader.reset();
         throw new Error('Python environment not properly initialized: execute_strategy function not found');
       }
       
