@@ -16,16 +16,19 @@ export const testOANDAConnection = async (config: any) => {
     ? 'https://api-fxpractice.oanda.com'
     : 'https://api-fxtrade.oanda.com';
 
-  console.log('🌐 Making request to:', `${baseUrl}/v3/accounts/${config.accountId}`);
-  console.log('🔑 Authorization header will use:', `Bearer ${config.apiKey.substring(0, 10)}...`);
+  console.log('🌐 Making request to Supabase edge function for OANDA test...');
 
   try {
-    const response = await fetch(`/functions/v1/oanda-connection-test`, {
+    // Get the current origin to construct the correct edge function URL
+    const currentOrigin = window.location.origin;
+    const functionUrl = `${currentOrigin}/functions/v1/oanda-connection-test`;
+    
+    console.log('🔗 Edge function URL:', functionUrl);
+
+    const response = await fetch(functionUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${(window as any).supabase?.supabaseKey || ''}`,
-        'apikey': (window as any).supabase?.supabaseKey || ''
       },
       body: JSON.stringify({ config })
     });
@@ -36,6 +39,12 @@ export const testOANDAConnection = async (config: any) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ Server response error:', errorText);
+      
+      // If we get HTML (404 page), the edge function doesn't exist
+      if (errorText.includes('<!DOCTYPE') || errorText.includes('<html>')) {
+        throw new Error('Edge function not found. The OANDA connection test function may not be deployed.');
+      }
+      
       throw new Error(`Server error: ${response.status} - ${errorText}`);
     }
 
