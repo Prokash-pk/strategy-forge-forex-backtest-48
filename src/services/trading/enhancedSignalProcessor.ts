@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { SignalToTradeBridge } from './signalToTradeBridge';
 import { TradeExecutionDebugger } from './tradeExecutionDebugger';
@@ -175,7 +174,77 @@ export class EnhancedSignalProcessor {
     return await TradeExecutionDebugger.analyzeLastStrategy(strategyCode, marketData);
   }
 
-  // Add method to get sample market data for testing
+  // NEW: Get real OANDA market data for the past 24 hours
+  async getRealMarketData(symbol: string = 'EUR_USD', timeframe: string = 'M15'): Promise<any> {
+    try {
+      console.log(`📊 Fetching real market data for ${symbol} (${timeframe}) - past 24 hours`);
+      
+      // Get OANDA config from localStorage
+      const savedConfig = localStorage.getItem('oanda_config');
+      if (!savedConfig) {
+        console.warn('⚠️ No OANDA config found - using sample data instead');
+        return this.getSampleMarketData();
+      }
+
+      const config = JSON.parse(savedConfig);
+      if (!config.accountId || !config.apiKey) {
+        console.warn('⚠️ Incomplete OANDA config - using sample data instead');
+        return this.getSampleMarketData();
+      }
+
+      // Import the OANDA service
+      const { OANDAMarketDataService } = await import('../oandaMarketDataService');
+      
+      // Calculate candle count for 24 hours based on timeframe
+      const candleCount = this.calculateCandlesFor24Hours(timeframe);
+      
+      const marketData = await OANDAMarketDataService.fetchLiveMarketData(
+        config.accountId,
+        config.apiKey,
+        config.environment || 'practice',
+        symbol,
+        timeframe,
+        candleCount
+      );
+
+      console.log(`✅ Fetched ${marketData.close.length} real data points for ${symbol}`);
+      console.log(`📈 Price range: ${Math.min(...marketData.close).toFixed(5)} - ${Math.max(...marketData.close).toFixed(5)}`);
+      console.log(`⏰ Timeframe: ${timeframe} (${candleCount} candles ≈ 24 hours)`);
+
+      return marketData;
+
+    } catch (error) {
+      console.error('❌ Failed to fetch real market data:', error);
+      console.log('🔄 Falling back to sample data...');
+      return this.getSampleMarketData();
+    }
+  }
+
+  // Helper method to calculate how many candles represent ~24 hours
+  private calculateCandlesFor24Hours(timeframe: string): number {
+    const minutesIn24Hours = 24 * 60; // 1440 minutes
+    
+    const timeframeMinutes: { [key: string]: number } = {
+      'M1': 1,
+      'M2': 2,
+      'M5': 5,
+      'M15': 15,
+      'M30': 30,
+      'H1': 60,
+      'H2': 120,
+      'H4': 240,
+      'H8': 480,
+      'D': 1440 // Daily
+    };
+
+    const minutes = timeframeMinutes[timeframe] || 15; // Default to 15 minutes
+    const candleCount = Math.floor(minutesIn24Hours / minutes);
+    
+    // Cap at reasonable limits
+    return Math.min(candleCount, 500);
+  }
+
+  // Keep existing sample data method as fallback
   async getSampleMarketData(): Promise<any> {
     // Generate sample OHLCV data for testing
     const sampleData = {
@@ -194,13 +263,15 @@ export class EnhancedSignalProcessor {
     return sampleData;
   }
 
-  // Add method to test with current strategy from strategy builder
-  async testCurrentStrategy(): Promise<any> {
+  // Updated method to test with real market data from past 24 hours
+  async testCurrentStrategy(symbol: string = 'EUR_USD', timeframe: string = 'M15'): Promise<any> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       console.error('❌ No user authenticated');
       return null;
     }
+
+    console.log(`🎯 Testing strategy on real ${symbol} data (${timeframe} timeframe)`);
 
     // Get the most recent strategy from localStorage or use a default
     const savedStrategy = localStorage.getItem('currentStrategy');
@@ -246,24 +317,40 @@ result = strategy_logic()
 `;
     }
 
-    const marketData = await this.getSampleMarketData();
+    // Use real market data instead of sample data
+    const marketData = await this.getRealMarketData(symbol, timeframe);
     return await this.testSignalGeneration(strategyCode, marketData);
   }
 }
 
-// Bind to window for debugging - with better naming and helper functions
+// Enhanced debugging tools for browser console
 if (typeof window !== 'undefined') {
   const processor = EnhancedSignalProcessor.getInstance();
   (window as any).signalProcessor = processor;
-  (window as any).testStrategy = () => processor.testCurrentStrategy();
+  
+  // Test with real market data (default: EUR/USD, 15-minute timeframe)
+  (window as any).testStrategy = (symbol?: string, timeframe?: string) => 
+    processor.testCurrentStrategy(symbol || 'EUR_USD', timeframe || 'M15');
+  
+  // Test with sample data
   (window as any).testWithSampleData = (strategyCode: string) => {
     return processor.getSampleMarketData().then(data => 
       processor.testSignalGeneration(strategyCode, data)
     );
   };
+
+  // Test with real data for specific pair/timeframe
+  (window as any).testWithRealData = (strategyCode: string, symbol: string = 'EUR_USD', timeframe: string = 'M15') => {
+    return processor.getRealMarketData(symbol, timeframe).then(data => 
+      processor.testSignalGeneration(strategyCode, data)
+    );
+  };
   
-  console.log('🎯 Signal testing tools available:');
-  console.log('   signalProcessor - Full signal processor instance');
-  console.log('   testStrategy() - Test current strategy with sample data');
-  console.log('   testWithSampleData(code) - Test custom strategy code');
+  console.log('🎯 Enhanced signal testing tools available:');
+  console.log('   testStrategy(symbol?, timeframe?) - Test current strategy with real market data');
+  console.log('   testWithSampleData(code) - Test custom strategy with sample data');
+  console.log('   testWithRealData(code, symbol?, timeframe?) - Test custom strategy with real data');
+  console.log('   Examples:');
+  console.log('     testStrategy() - Test with EUR/USD 15-min data');
+  console.log('     testStrategy("GBP_USD", "H1") - Test with GBP/USD hourly data');
 }
