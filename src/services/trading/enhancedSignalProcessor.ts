@@ -321,6 +321,89 @@ result = strategy_logic()
     const marketData = await this.getRealMarketData(symbol, timeframe);
     return await this.testSignalGeneration(strategyCode, marketData);
   }
+
+  // NEW: Simple test function specifically for USDJPY 15min with clear output
+  async testUSDJPY15min(): Promise<any> {
+    console.log('🎯 Testing simple EMA crossover strategy on USDJPY 15-minute data (last 24 hours)...');
+    
+    try {
+      // Simple EMA crossover strategy
+      const simpleStrategy = `
+# Simple EMA Crossover Strategy for USDJPY
+import numpy as np
+import pandas as pd
+
+def strategy_logic():
+    close = data['close']
+    
+    # Calculate EMAs (12 and 26 periods)
+    ema_fast = pd.Series(close).ewm(span=12).mean().values
+    ema_slow = pd.Series(close).ewm(span=26).mean().values
+    
+    # Generate signals
+    entry = np.zeros(len(close), dtype=bool)
+    exit = np.zeros(len(close), dtype=bool)
+    direction = [None] * len(close)
+    
+    for i in range(1, len(close)):
+        # BUY when fast EMA crosses above slow EMA
+        if ema_fast[i] > ema_slow[i] and ema_fast[i-1] <= ema_slow[i-1]:
+            entry[i] = True
+            direction[i] = 'BUY'
+        # SELL when fast EMA crosses below slow EMA
+        elif ema_fast[i] < ema_slow[i] and ema_fast[i-1] >= ema_slow[i-1]:
+            entry[i] = True
+            direction[i] = 'SELL'
+    
+    return {
+        'entry': entry.tolist(),
+        'exit': exit.tolist(), 
+        'direction': direction
+    }
+
+result = strategy_logic()
+`;
+
+      // Get real USDJPY data for 15-minute timeframe
+      const marketData = await this.getRealMarketData('USD_JPY', 'M15');
+      
+      // Test the strategy
+      const result = await this.testSignalGeneration(simpleStrategy, marketData);
+      
+      // Count and display results
+      const entryCount = result?.entry?.filter?.(Boolean)?.length || 0;
+      const buySignals = result?.direction?.filter?.(d => d === 'BUY')?.length || 0;
+      const sellSignals = result?.direction?.filter?.(d => d === 'SELL')?.length || 0;
+      
+      console.log('📊 USDJPY 15-MINUTE TEST RESULTS:');
+      console.log('================================');
+      console.log(`📈 Data points analyzed: ${marketData?.close?.length || 0}`);
+      console.log(`🚨 Total entry signals: ${entryCount}`);
+      console.log(`📈 BUY signals: ${buySignals}`);
+      console.log(`📉 SELL signals: ${sellSignals}`);
+      console.log(`⏰ Time period: Last 24 hours (15-minute candles)`);
+      console.log(`💱 Currency pair: USDJPY`);
+      
+      if (marketData?.close?.length > 0) {
+        console.log(`💰 Price range: ${Math.min(...marketData.close).toFixed(3)} - ${Math.max(...marketData.close).toFixed(3)}`);
+        console.log(`📊 Latest price: ${marketData.close[marketData.close.length - 1].toFixed(3)}`);
+      }
+      
+      return {
+        symbol: 'USDJPY',
+        timeframe: '15min',
+        dataPoints: marketData?.close?.length || 0,
+        totalEntries: entryCount,
+        buySignals,
+        sellSignals,
+        result
+      };
+      
+    } catch (error) {
+      console.error('❌ Test failed:', error);
+      return null;
+    }
+  }
 }
 
 // Enhanced debugging tools for browser console
@@ -345,12 +428,16 @@ if (typeof window !== 'undefined') {
       processor.testSignalGeneration(strategyCode, data)
     );
   };
+
+  // NEW: Simple USDJPY 15min test
+  (window as any).testUSDJPY = () => processor.testUSDJPY15min();
   
   console.log('🎯 Enhanced signal testing tools available:');
+  console.log('   testUSDJPY() - Test simple EMA strategy on USDJPY 15-min (RECOMMENDED)');
   console.log('   testStrategy(symbol?, timeframe?) - Test current strategy with real market data');
   console.log('   testWithSampleData(code) - Test custom strategy with sample data');
   console.log('   testWithRealData(code, symbol?, timeframe?) - Test custom strategy with real data');
   console.log('   Examples:');
-  console.log('     testStrategy() - Test with EUR/USD 15-min data');
+  console.log('     testUSDJPY() - Test USDJPY 15-min with simple EMA crossover');
   console.log('     testStrategy("GBP_USD", "H1") - Test with GBP/USD hourly data');
 }
