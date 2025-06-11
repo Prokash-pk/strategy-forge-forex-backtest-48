@@ -1,4 +1,3 @@
-
 import { PyodideManager } from './pyodideManager';
 import { TradeExecutionDebugger } from '../trading/tradeExecutionDebugger';
 
@@ -163,7 +162,7 @@ def execute_strategy(data):
             'error': str(e)
         }
 
-print("🎯 Lightweight strategy execution function defined successfully")
+print("🎯 Lightweight strategy execution function defined successfully");
 `;
 
 export class OptimizedExecutionManager {
@@ -418,9 +417,8 @@ except Exception as e:
         resultKeys: Object.keys(jsResult || {})
       });
 
-      // Log to trade debugger with enhanced details
-      const tradeDebugger = TradeExecutionDebugger.getInstance();
-      tradeDebugger.logStep('PYTHON_EXECUTION_COMPLETE', {
+      // Log to trade debugger with enhanced details using static method
+      TradeExecutionDebugger.logExecutionStep('PYTHON_EXECUTION_COMPLETE', {
         dataPoints: marketData?.close?.length || 0,
         entrySignalsCount: entryCount,
         buySignalsCount: buySignals,
@@ -437,9 +435,8 @@ except Exception as e:
     } catch (error) {
       console.error('❌ Python execution failed:', error);
       
-      // Enhanced error logging
-      const tradeDebugger = TradeExecutionDebugger.getInstance();
-      tradeDebugger.logStep('PYTHON_EXECUTION_ERROR', {
+      // Enhanced error logging using static method
+      TradeExecutionDebugger.logExecutionStep('PYTHON_EXECUTION_ERROR', {
         error: error instanceof Error ? error.message : 'Unknown execution error',
         dataPoints: marketData?.close?.length || 0
       });
