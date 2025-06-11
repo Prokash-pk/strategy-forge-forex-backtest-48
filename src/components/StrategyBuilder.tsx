@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useBacktest } from '@/hooks/useBacktest';
 import { useStrategyBuilder } from '@/hooks/useStrategyBuilder';
@@ -8,6 +7,7 @@ import StrategyBuilderLayout from './strategy/StrategyBuilderLayout';
 
 // IMPORTANT: Import to ensure window binding happens
 import '@/services/trading/lightweightSignalProcessor';
+import '@/services/testing/strategy24HourTester';
 
 interface StrategyBuilderProps {
   onStrategyUpdate: (strategy: any) => void;

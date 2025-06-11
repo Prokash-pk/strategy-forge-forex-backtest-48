@@ -256,14 +256,26 @@ result
 // Bind to window for easy testing
 if (typeof window !== 'undefined') {
   const tester = Strategy24HourTester.getInstance();
+  
+  // Bind the function directly to window
   (window as any).test24HourEntries = tester.test24HourEntries.bind(tester);
+  
+  // Also create a global test function for easier access
+  (window as any).testStrategy24Hours = async (strategyCode: string, symbol = 'USD_JPY', timeframe = 'M15') => {
+    console.log('🎯 Starting 24-hour strategy test...');
+    return await tester.test24HourEntries(strategyCode, symbol, timeframe);
+  };
   
   console.log('🎯 24-Hour Strategy Tester Available!');
   console.log('====================================');
-  console.log('Usage: test24HourEntries(strategyCode, symbol?, timeframe?)');
+  console.log('Usage Options:');
+  console.log('1. test24HourEntries(`your_strategy_code`)');
+  console.log('2. testStrategy24Hours(`your_strategy_code`)');
   console.log('');
   console.log('Examples:');
   console.log('  test24HourEntries(`your_strategy_code`)');
   console.log('  test24HourEntries(`your_code`, "EUR_USD", "M30")');
-  console.log('  test24HourEntries(`your_code`, "GBP_USD", "H1")');
+  console.log('  testStrategy24Hours(`your_code`, "GBP_USD", "H1")');
+  console.log('');
+  console.log('💡 Tip: Use testStrategy24Hours for a cleaner interface!');
 }
