@@ -1,4 +1,3 @@
-
 import type { StrategyResult, MarketData } from './python/types';
 import { PyodideLoader } from './python/pyodideLoader';
 import type { PyodideInstance } from './python/types';
@@ -110,6 +109,10 @@ export class PythonExecutor {
       console.error('❌ Python availability check failed:', error);
       return false;
     }
+  }
+
+  static getLastError(): Error | null {
+    return PyodideLoader.getLastError();
   }
 
   static resetPythonEnvironment(): void {
