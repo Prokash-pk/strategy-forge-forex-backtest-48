@@ -3,14 +3,13 @@ export class OANDAConnectionKeepalive {
   private keepaliveInterval: NodeJS.Timeout | null = null;
   private isActive: boolean = false;
   private failureCount: number = 0;
-  private maxFailures: number = 3;
+  private maxFailures: number = 3; // Reduced from 5 for faster recovery
   private currentConfig: {
     accountId: string;
     apiKey: string;
     environment: 'practice' | 'live';
   } | null = null;
   private retryTimeout: NodeJS.Timeout | null = null;
-  private resourceExhaustionCount: number = 0;
 
   static getInstance(): OANDAConnectionKeepalive {
     if (!OANDAConnectionKeepalive.instance) {
@@ -40,8 +39,7 @@ export class OANDAConnectionKeepalive {
 
     this.isActive = true;
     this.failureCount = 0;
-    this.resourceExhaustionCount = 0;
-    console.log('🚀 Starting resource-aware OANDA connection keepalive...');
+    console.log('🚀 Starting persistent OANDA connection keepalive...');
 
     // Clear any existing retry timeout
     if (this.retryTimeout) {
@@ -52,15 +50,14 @@ export class OANDAConnectionKeepalive {
     // Send initial ping
     await this.sendKeepalivePing(config);
 
-    // Set up adaptive keepalive interval based on resource state
-    const baseInterval = this.resourceExhaustionCount > 0 ? 90000 : 60000; // 90s if resources constrained, otherwise 60s
+    // Set up persistent keepalive (every 45 seconds for stability)
     this.keepaliveInterval = setInterval(async () => {
       if (this.isActive && this.currentConfig) {
         await this.sendKeepalivePing(this.currentConfig);
       }
-    }, baseInterval);
+    }, 45000); // 45 seconds - more conservative for stability
 
-    console.log(`✅ Resource-aware OANDA keepalive started with ${baseInterval/1000}s interval`);
+    console.log('✅ Persistent OANDA keepalive started - connection will stay active across navigation');
   }
 
   stopKeepalive() {
@@ -74,11 +71,11 @@ export class OANDAConnectionKeepalive {
     }
     this.isActive = false;
     this.failureCount = 0;
-    this.resourceExhaustionCount = 0;
     this.currentConfig = null;
     console.log('🛑 OANDA keepalive stopped');
   }
 
+  // New method to restart keepalive automatically
   private async restartKeepalive() {
     if (!this.currentConfig) {
       console.log('❌ Cannot restart keepalive - no config stored');
@@ -88,9 +85,8 @@ export class OANDAConnectionKeepalive {
     console.log('🔄 Attempting to restart OANDA keepalive...');
     this.stopKeepalive();
     
-    // Wait longer if we've had resource issues
-    const delay = this.resourceExhaustionCount > 0 ? 5000 : 2000;
-    await new Promise(resolve => setTimeout(resolve, delay));
+    // Wait a moment before restarting
+    await new Promise(resolve => setTimeout(resolve, 2000));
     
     if (this.currentConfig) {
       await this.startKeepalive(this.currentConfig);
@@ -107,62 +103,31 @@ export class OANDAConnectionKeepalive {
         ? 'https://api-fxpractice.oanda.com'
         : 'https://api-fxtrade.oanda.com';
 
-      // Create abort controller with longer timeout for resource-constrained scenarios
-      const timeoutMs = this.resourceExhaustionCount > 0 ? 30000 : 15000;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-      try {
-        const response = await fetch(
-          `${baseUrl}/v3/accounts/${config.accountId}`,
-          {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${config.apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            signal: controller.signal
-          }
-        );
-
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          this.failureCount = 0;
-          this.resourceExhaustionCount = Math.max(0, this.resourceExhaustionCount - 1); // Gradually reduce
-          console.log('💚 OANDA keepalive ping successful - connection maintained');
-          
-          // Clear any pending retry
-          if (this.retryTimeout) {
-            clearTimeout(this.retryTimeout);
-            this.retryTimeout = null;
-          }
-        } else {
-          this.handlePingFailure(response.status, `HTTP ${response.status}: ${response.statusText}`);
+      // Use a lightweight endpoint for keepalive
+      const response = await fetch(
+        `${baseUrl}/v3/accounts/${config.accountId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${config.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          // Increased timeout for more reliable connections
+          signal: AbortSignal.timeout(15000) // 15 second timeout
         }
-      } catch (fetchError) {
-        clearTimeout(timeoutId);
+      );
+
+      if (response.ok) {
+        this.failureCount = 0; // Reset failure count on success
+        console.log('💚 OANDA keepalive ping successful - connection maintained');
         
-        if (fetchError instanceof Error) {
-          // Handle specific resource exhaustion
-          if (fetchError.message.includes('ERR_INSUFFICIENT_RESOURCES')) {
-            this.resourceExhaustionCount++;
-            console.warn(`🔋 Resource exhaustion detected (${this.resourceExhaustionCount} times) - adapting strategy`);
-            
-            // Adjust keepalive frequency if resources are constrained
-            if (this.resourceExhaustionCount >= 3 && this.keepaliveInterval) {
-              console.log('🔄 Switching to low-resource keepalive mode (2-minute intervals)');
-              clearInterval(this.keepaliveInterval);
-              this.keepaliveInterval = setInterval(async () => {
-                if (this.isActive && this.currentConfig) {
-                  await this.sendKeepalivePing(this.currentConfig);
-                }
-              }, 120000); // 2-minute intervals when resource constrained
-            }
-          }
-          
-          this.handlePingFailure(0, fetchError.message);
+        // Clear any pending retry
+        if (this.retryTimeout) {
+          clearTimeout(this.retryTimeout);
+          this.retryTimeout = null;
         }
+      } else {
+        this.handlePingFailure(response.status, `HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
       this.handlePingFailure(0, error instanceof Error ? error.message : 'Unknown error');
@@ -170,32 +135,25 @@ export class OANDAConnectionKeepalive {
   }
 
   private handlePingFailure(status: number, errorMessage: string) {
-    // Don't count resource exhaustion as regular failures
-    if (!errorMessage.includes('ERR_INSUFFICIENT_RESOURCES')) {
-      this.failureCount++;
-    }
-    
+    this.failureCount++;
     console.warn(`⚠️ OANDA keepalive ping failed (${this.failureCount}/${this.maxFailures}): ${errorMessage}`);
     
     // If unauthorized, DON'T restart automatically - just log it
     if (status === 401) {
       console.error('🔑 API key authentication failed - user needs to update credentials');
       console.log('🔄 Keepalive will continue running but won\'t auto-restart on auth errors');
-      return;
-    }
-    
-    // Handle resource exhaustion separately
-    if (errorMessage.includes('ERR_INSUFFICIENT_RESOURCES')) {
-      console.log('🔋 Resource exhaustion handled - keepalive will adapt frequency');
+      // Don't increment failure count for auth errors to prevent shutdown
+      this.failureCount = Math.max(0, this.failureCount - 1);
       return;
     }
     
     if (this.failureCount >= this.maxFailures) {
       console.error(`❌ OANDA keepalive failed ${this.maxFailures} times - attempting restart in 30 seconds`);
+      // Instead of stopping completely, try one restart after a longer delay
       this.retryTimeout = setTimeout(() => {
         console.log('🔄 Attempting final keepalive restart...');
         this.restartKeepalive();
-      }, 30000);
+      }, 30000); // Wait 30 seconds before final restart attempt
     }
   }
 
@@ -207,17 +165,18 @@ export class OANDAConnectionKeepalive {
     return this.failureCount;
   }
 
+  // New method to get current status
   getStatus() {
     return {
       isActive: this.isActive,
       failureCount: this.failureCount,
-      resourceExhaustionCount: this.resourceExhaustionCount,
       hasConfig: !!this.currentConfig,
       intervalActive: !!this.keepaliveInterval,
       retryScheduled: !!this.retryTimeout
     };
   }
 
+  // New method to force restart if needed
   forceRestart() {
     if (this.currentConfig) {
       console.log('🔄 Force restarting OANDA keepalive...');

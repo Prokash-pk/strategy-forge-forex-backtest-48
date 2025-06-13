@@ -26,21 +26,7 @@ export async function testOANDAConnection(config: OANDAConfig): Promise<any> {
 
     if (error) {
       console.error('❌ Edge function error:', error);
-      
-      // Handle specific edge function errors
-      if (error.message?.includes('FunctionsHttpError')) {
-        throw new Error('OANDA connection service temporarily unavailable. Please try again in a moment.');
-      } else if (error.message?.includes('timeout')) {
-        throw new Error('Connection test timed out. Please check your internet connection and try again.');
-      } else if (error.message?.includes('network')) {
-        throw new Error('Network error during connection test. Please check your internet connection.');
-      }
-      
       throw new Error(`Connection test failed: ${error.message}`);
-    }
-
-    if (!data) {
-      throw new Error('No response from connection test service');
     }
 
     if (!data.success) {
@@ -62,10 +48,8 @@ export async function testOANDAConnection(config: OANDAConfig): Promise<any> {
         throw new Error('Account not found. Please verify your Account ID is correct.');
       } else if (error.message.includes('Access forbidden') || error.message.includes('403')) {
         throw new Error('Access forbidden. Please verify your API key has proper permissions.');
-      } else if (error.message.includes('Network') || error.message.includes('timeout') || error.message.includes('Failed to fetch')) {
+      } else if (error.message.includes('Network') || error.message.includes('timeout')) {
         throw new Error('Network error. Please check your internet connection and try again.');
-      } else if (error.message.includes('service temporarily unavailable')) {
-        throw error; // Re-throw as-is
       }
     }
     
