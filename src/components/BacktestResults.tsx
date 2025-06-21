@@ -13,7 +13,7 @@ import StrategyInfo from './backtest/StrategyInfo';
 import StrategyCoach from './backtest/StrategyCoach';
 
 interface BacktestResultsProps {
-  results: any;
+  results: any;E
 }
 
 const BacktestResults: React.FC<BacktestResultsProps> = ({ results }) => {

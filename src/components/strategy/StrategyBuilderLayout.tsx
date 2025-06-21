@@ -8,6 +8,7 @@ interface StrategyBuilderLayoutProps {
   strategy: any;
   onStrategyChange: (strategy: any) => void;
   onRunBacktest: () => void;
+  onStartLiveTrade?: () => void; // <-- CHANGE 1: Yahan add kiya
   isRunning: boolean;
   currentStep: string;
   onStrategySelect: (strategy: any) => void;
@@ -21,6 +22,7 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
   strategy,
   onStrategyChange,
   onRunBacktest,
+  onStartLiveTrade, // <-- CHANGE 2: Yahan receive kiya
   isRunning,
   currentStep,
   onStrategySelect,
@@ -42,6 +44,7 @@ const StrategyBuilderLayout: React.FC<StrategyBuilderLayoutProps> = ({
           strategy={strategy}
           onStrategyChange={onStrategyChange}
           onRunBacktest={onRunBacktest}
+          onStartLiveTrade={onStartLiveTrade} // <-- CHANGE 3: Yahan paas kiya
           isRunning={isRunning}
           onStrategySelect={onStrategySelect}
           backtestResults={backtestResults}

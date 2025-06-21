@@ -11,6 +11,7 @@ interface TabContentProps {
   strategy: any;
   onStrategyChange: (strategy: any) => void;
   onRunBacktest: () => void;
+  onStartLiveTrade?: () => void; // <-- CHANGE 1: Yahan add kiya
   isRunning: boolean;
   onStrategySelect: (strategy: any) => void;
   backtestResults: any;
@@ -24,6 +25,7 @@ const TabContent: React.FC<TabContentProps> = ({
   strategy,
   onStrategyChange,
   onRunBacktest,
+  onStartLiveTrade, // <-- CHANGE 2: Yahan receive kiya
   isRunning,
   onStrategySelect,
   backtestResults,
@@ -44,6 +46,7 @@ const TabContent: React.FC<TabContentProps> = ({
             strategy={strategy}
             onStrategyChange={onStrategyChange}
             onRunBacktest={onRunBacktest}
+            onStartLiveTrade={onStartLiveTrade} // <-- CHANGE 3: Yahan paas kiya
             isRunning={isRunning}
           />
         </div>

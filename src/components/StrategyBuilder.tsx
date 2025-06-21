@@ -40,6 +40,13 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({
     runBacktest(strategy, handleBacktestComplete);
   };
 
+  // <-- CHANGE 1: Naya function yahan banaya
+  const handleStartLiveTrade = () => {
+    console.log("Start Live Trading button clicked!");
+    alert("Live Trading feature is coming soon!");
+    // Yahan par hum baad me live trade ka logic likhenge
+  };
+
   const handleTestReverseStrategy = () => {
     if (!checkCanRunBacktest()) {
       return;
@@ -72,6 +79,7 @@ const StrategyBuilder: React.FC<StrategyBuilderProps> = ({
         strategy={strategy}
         onStrategyChange={handleStrategyChange}
         onRunBacktest={handleRunBacktest}
+        onStartLiveTrade={handleStartLiveTrade} // <-- CHANGE 2: Naye function ko yahan paas kiya
         isRunning={isRunning}
         currentStep={currentStep}
         onStrategySelect={handleStrategySelect}

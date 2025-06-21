@@ -8,7 +8,7 @@ import {
   Lightbulb, 
   TrendingUp,
   Users,
-  ChartBar
+  BarChart
 } from 'lucide-react';
 
 const StrategyTabsList: React.FC = () => {
@@ -30,7 +30,7 @@ const StrategyTabsList: React.FC = () => {
         <span className="sm:hidden">Saved</span>
       </TabsTrigger>
       <TabsTrigger value="visual" className="data-[state=active]:bg-slate-600 flex items-center gap-2 py-3 px-2 text-xs lg:text-sm">
-        <ChartBar className="h-4 w-4" />
+        <BarChart className="h-4 w-4" />
         <span className="hidden sm:inline">Visual Builder</span>
         <span className="sm:hidden">Visual</span>
       </TabsTrigger>

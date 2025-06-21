@@ -1,0 +1,4 @@
+oandapyV20
+python-dotenv
+supabase
+pandas

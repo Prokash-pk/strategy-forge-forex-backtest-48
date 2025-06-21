@@ -30,6 +30,7 @@ interface StrategyConfigurationTabProps {
   };
   onStrategyChange: (updates: any) => void;
   onRunBacktest?: () => void;
+  onStartLiveTrade?: () => void; // <-- CHANGE 1: Yahan add kiya
   isRunning?: boolean;
 }
 
@@ -37,6 +38,7 @@ const StrategyConfigurationTab: React.FC<StrategyConfigurationTabProps> = ({
   strategy, 
   onStrategyChange,
   onRunBacktest,
+  onStartLiveTrade, // <-- CHANGE 2: Yahan receive kiya
   isRunning = false 
 }) => {
   const { toast } = useToast();
@@ -164,6 +166,7 @@ const StrategyConfigurationTab: React.FC<StrategyConfigurationTabProps> = ({
 
       <StrategyActionButtons
         onRunBacktest={onRunBacktest}
+        onStartLiveTrade={onStartLiveTrade} // <-- CHANGE 3: Yahan paas kiya
         onSaveSettings={handleSaveSettings}
         isRunning={isRunning}
         isSaving={isSaving}

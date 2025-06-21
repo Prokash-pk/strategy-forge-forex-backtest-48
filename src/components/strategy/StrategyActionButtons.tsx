@@ -1,10 +1,11 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Save, Play } from 'lucide-react';
+import { Save, Play, Zap } from 'lucide-react'; // Humne 'Zap' icon add kiya hai
 
 interface StrategyActionButtonsProps {
   onRunBacktest?: () => void;
+  onStartLiveTrade?: () => void; // Naya function add kiya
   onSaveSettings: () => void;
   isRunning?: boolean;
   isSaving: boolean;
@@ -15,6 +16,7 @@ interface StrategyActionButtonsProps {
 
 const StrategyActionButtons: React.FC<StrategyActionButtonsProps> = ({
   onRunBacktest,
+  onStartLiveTrade, // Naye function ko yahan receive kiya
   onSaveSettings,
   isRunning = false,
   isSaving,
@@ -24,6 +26,7 @@ const StrategyActionButtons: React.FC<StrategyActionButtonsProps> = ({
 }) => {
   return (
     <div className="space-y-3">
+      {/* Run Backtest Button (Pehle jaisa hi hai) */}
       {onRunBacktest && (
         <Button
           onClick={onRunBacktest}
@@ -44,6 +47,19 @@ const StrategyActionButtons: React.FC<StrategyActionButtonsProps> = ({
         </Button>
       )}
 
+      {/* NAYA BUTTON: Start Live Trading */}
+      {onStartLiveTrade && (
+        <Button
+          onClick={onStartLiveTrade}
+          disabled={isRunning || !hasCode || disabled}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white" // Color badal diya
+        >
+          <Zap className="h-4 w-4 mr-2" /> {/* Icon badal diya */}
+          Start Live Trading
+        </Button>
+      )}
+
+      {/* Save Settings Button (Pehle jaisa hi hai) */}
       <Button
         onClick={onSaveSettings}
         disabled={isSaving || disabled}
